@@ -48,6 +48,7 @@ class Codon2RepeatsPhy:
         self.treetopo, self.root, self.edge_to_blen, self.tree_phy = self.get_tree_info()
         self.models={'Jukes-Cantor':0,'K80':1, 'F81':2, 'HKY':3,'GTR':4, 'General Time-reversible':5,'Codon':6}
         self.duplication_node = 'N0' #This is for test version, need to change later
+        self.SpecAfterDupli_node = 'N1' #This is for test version, need to change later 
         self.data = self.get_data()
         self.err = 1e-10
         
@@ -233,11 +234,19 @@ class Codon2RepeatsPhy:
         Q_un = np.zeros((n,n),dtype=float)
         if NumDupli == 1:
             if casenum<6:
+                for i, (s0a, s1a) in enumerate(nt_pairs):
+                    for j, (s0b, s1b) in enumerate(nt_pairs):
+                        if i==j:
+                            continue
+                        if s0a == s1a and s0b == s1b:
+                            Q_un[i,j] = Qnorm['ACGT'.index(s0a),'ACGT'.index(s0b)]
+                Q_un = Q_un - np.diag(Q_un.sum(axis=1))
+                distn = [0.0]*n#np.zeros((1,n),dtype=float)
+                for i, (a,b) in enumerate(nt_pairs):
+                    if a==b:
+                        distn[i] = dist['ACGT'.index(a)]
                 
-
-                
-            
-                return Qnorm,dist
+                return Q_un,np.array(distn)
         elif casenum<6:
             # Then it's nucleotide model
             for i, (s0a, s1a) in enumerate(nt_pairs):
@@ -272,7 +281,7 @@ class Codon2RepeatsPhy:
             Q = Q_un/expected_rate
             
 #not normalized
-            return Q,distn
+            return Q_un,distn
         else:
             print('Please Check get_Q_and_distn function and make sure the case is considered')
             return Qnorm, distn
@@ -281,14 +290,14 @@ class Codon2RepeatsPhy:
         edge_to_P = {}
         for edge in self.treetopo.edges():
             blen = edge_to_blen_infer[edge]
-            all_dupli_nodes = nx.descendants(self.treetopo,self.duplication_node)
+            all_dupli_nodes = nx.descendants(self.treetopo,self.SpecAfterDupli_node)
             if edge[1] in all_dupli_nodes:
                 Q,dist = self.get_Q_and_distn(SubModel,para,Tao,2)
             else:
-                Q,dist = self.get_Q_and_distn(SubModel,para,Tao,1)
+                Q,distn = self.get_Q_and_distn(SubModel,para,Tao,1)
             P = scipy.sparse.linalg.expm(float(blen) * Q)
             edge_to_P[edge] = P
-        root_distn = dist
+        root_distn = distn
         return edge_to_P, root_distn
 
     def objective(self,SubModel, T, root,nt_pairs,constraints,edge_to_blen_infer,para,Tao):
