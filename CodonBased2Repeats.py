@@ -32,11 +32,11 @@ from Bio.Phylo import PhyloXML
 from Bio.Align.Applications import MuscleCommandline
 from Bio import AlignIO
 from copy import deepcopy
-
+import subprocess
 
 
 class Codon2RepeatsPhy:
-    def __init__(self,numLeaf,blen,tree_newick,dataloc):
+    def __init__(self,numLeaf,blen,tree_newick,dataloc,align=False):
         self.nleaf = numLeaf
         self.nbranch = 2*numLeaf -2
         self.blen = blen
@@ -45,7 +45,7 @@ class Codon2RepeatsPhy:
         self.newicktree = tree_newick
         self.seqloc = dataloc
         self.nsites = 0
-        self.treetopo, self.root, self.edge_to_blen, self.tree_phy = self.get_tree_info()
+        self.treetopo, self.root, self.edge_to_blen, self.tree_phy = self.get_tree_info(align)
         self.models={'Jukes-Cantor':0,'K80':1, 'F81':2, 'HKY':3,'GTR':4, 'General Time-reversible':5,'Codon':6}
         self.duplication_node = 'N0' #This is for test version, need to change later
         self.SpecAfterDupli_node = 'N1' #This is for test version, need to change later 
@@ -53,8 +53,13 @@ class Codon2RepeatsPhy:
         self.err = 1e-10
         
     def DataPre(self):
-        cmdline = MuscleCommandline(input=self.seqloc, out="data_out.aln", clw=True)
-        cmdline()
+        try:
+            cmdline = MuscleCommandline(input=self.seqloc, out="data_out.aln", clw=True)
+            cmdline()
+        except:
+            cmdline = ['./muscle','-in',self.seqloc, '-out', "data_out.aln", '-clw']
+            subprocess.check_output(cmdline)
+            
         align = AlignIO.read("data_out.aln","clustal")
         #Now, remove gaps
         i=0
@@ -106,6 +111,8 @@ class Codon2RepeatsPhy:
             edge = (va, vb)
             T.add_edge(*edge)
             edge_to_blen[edge] = blen
+        for i, k in enumerate(edge_to_blen):
+            edge_to_blen[k] = self.blen[i]
 
 #        edge_to_blen = {(u.name,v.name):d['weight'] for (u,v,d) in tree_nx.edges(data=True)}
         return T, tree_phy.root.name, edge_to_blen, tree_phy
@@ -135,6 +142,9 @@ class Codon2RepeatsPhy:
         for clade in self.tree_phy.get_terminals():
             for i in range(len(clade.sequences)):
                 d[clade.name,name[i]] = clade.sequences[i]
+            if len(clade.sequences) == 1:
+                d[clade.name,name[1]] = clade.sequences[0]
+        
         return d
             
     def get_state_space(self,NumRepeats):
@@ -227,6 +237,10 @@ class Codon2RepeatsPhy:
         casenum = self.getcasenum(SubModel)
         Qnorm,dist = self.Q_norm(SubModel,para)
         expected_rate = np.dot(dist, -np.diag(Qnorm))
+        if expected_rate == 0.0:
+            print 'para = ',para, Tao
+            print 'Qnorm = ', Qnorm
+            print 'dist = ', dist
         Qnorm = Qnorm / expected_rate
         nt_pairs, pair_to_state = self.get_state_space(2)
         nstates = len(nt_pairs)
@@ -340,7 +354,7 @@ class Codon2RepeatsPhy:
 
         """
         # maybe do not hard code this...
-        paralogs = ('EDN', 'ECP')
+        paralogs = ['EDN', 'ECP']
         # assume we only have sequence data at the leaves...
         leaves = set(taxon for taxon, paralog in data)
         leaf_to_paralogs = {}
@@ -359,7 +373,12 @@ class Codon2RepeatsPhy:
             for node in non_leaves:
                 node_to_data_fset[node] = np.ones(nstates, dtype=bool)
             for node in leaves:
-                nt0 = data[node, paralogs[0]][site]
+                try:
+                    nt0 = data[(node, paralogs[0])][site]
+                except:
+                    print node, data.keys()
+                    print site
+                    print data[(node,paralogs[0])]
                 nt1 = data[node, paralogs[1]][site]
                 pair = (nt0, nt1)
                 if nt0 == nt1:
@@ -383,6 +402,7 @@ class Codon2RepeatsPhy:
         constraints, npaired_yes, npaired_no = constraint_info
         
         #guess = [ 1.02444478 , 1.07097963 , 1.01565945 , 1.01566828 , 1.07064164 , 1.03295529,0.17774279,  0.33218723,  0.      ,    1.97231918 , 0.56235118]
+        #guess = [0.99957477 , 0.99920689 , 0.98945055 , 0.99889025 , 0.99971077 , 0.98949115,  0.99936774 , 0.99971077 , 0.3977683  , 0.29832623 , 0.59665246 , 1.98884152,  1.99981608]
 
         if est_blen:
             casenum = self.getcasenum(SubModel)
@@ -393,10 +413,10 @@ class Codon2RepeatsPhy:
                 bnds = [one_bnd]*(len(self.edge_to_blen)+2)
             elif casenum == 2:
                 bnds = [one_bnd]*len(self.edge_to_blen)
-                bnds.extend([(0.0, 1.0),(0.0, 1.0),(0.0, 1.0),(0, None)])
+                bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None)])
             elif casenum == 3:
                 bnds = [one_bnd]*len(self.edge_to_blen)
-                bnds.extend([(0.0, 1.0),(0.0, 1.0),(0.0, 1.0),(0, None),(0, None)])
+                bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(0, None)])
 
             ff = partial(self.objective_for_blen, SubModel, nt_pairs, constraints)
             
@@ -414,7 +434,8 @@ class Codon2RepeatsPhy:
                 bnds = [(self.err, 1.0-self.err),(self.err, 1.0-self.err),(self.err, 1.0-self.err),(self.err, None),(0, None)]                
             ff = lambda x:f(x[0:-1],x[-1])
 ##        f = partial(self.objective, SubModel, self.treetopo, self.root, self.edge_to_blen, nt_pairs, constraints,[1.0])
-                
+
+        print 'Outgroups are :', set(self.treetopo).difference(nx.descendants(self.treetopo,self.SpecAfterDupli_node))
         print 'paralog site matches :', npaired_yes
         print 'paralog site mismatches:', npaired_no
         nsmall = 4
@@ -435,14 +456,18 @@ class Codon2RepeatsPhy:
             est_edge_to_blen[k] = np.exp(x[i])
 
         start_of_para = len(est_edge_to_blen)
-        est_para = x[start_of_para:-1]
+        est_para = np.exp(x[start_of_para:-1])
         est_Tao = x[-1]
+
+        #print 'x:', x
+        #print 'para :', est_para
 
         rst = self.objective(SubModel, self.treetopo, self.root, nt_pairs, constraints, est_edge_to_blen,est_para, est_Tao)
 
-        print 'para:', x, rst
+
 
         #objective(self,SubModel, T, root,nt_pairs,constraints,edge_to_blen_infer,para,Tao)
+        #print 'x:', x, rst
 
         return rst
 
@@ -504,20 +529,22 @@ class Codon2RepeatsPhy:
 
 if __name__ == '__main__':
     numLeaf = 4
-    blen = np.ones([2*numLeaf-2])*2
+    #blen = np.ones([2*numLeaf-2])*2
+    blen = np.array([1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 3.0, 4.0])
     tree_newick = './data/input_tree_test.newick'
     dataloc = './data/input_data.fasta'
     simdata = 'simdata.fasta'
-    test = Codon2RepeatsPhy(numLeaf,blen,tree_newick,dataloc)
+    test = Codon2RepeatsPhy(numLeaf,blen,tree_newick,dataloc,align=True)
     
     sim_SubModel=3
     sim_para=[0.2,0.3,0.1,1.2]
     sim_Tao=1.0
     sim_nsites = 480
-    guess = [0.4,0.3,0.6,2.0]
-    guess.append(sim_Tao)
-#    a = test.simulator(test.edge_to_blen,sim_SubModel,sim_para,sim_Tao,sim_nsites,False)
-#    test.simtofasta(a,simdata,['EDN','ECP'])
+    #sim_nsites = 3000
+    guess = np.log([0.4,0.3,0.6,np.e**2])
+    guess = np.append(guess,sim_Tao)
+    a = test.simulator(test.edge_to_blen,sim_SubModel,sim_para,sim_Tao,sim_nsites,False)
+    test.simtofasta(a,simdata,['EDN','ECP'])
     test2 = Codon2RepeatsPhy(numLeaf,blen,tree_newick,simdata)
 ##    test.drawtree()
 
@@ -534,9 +561,14 @@ if __name__ == '__main__':
 
 ##    test.estimate(args,0)
 #    test2.estimate(args,sim_SubModel,guess)
-    guess_w_blen = [1.0]*len(test.edge_to_blen)
+    guess_w_blen = [0.0]*len(test.edge_to_blen)
     guess_w_blen.extend(guess)
-    test2.estimate(args, sim_SubModel, guess_w_blen, True)
+
+    print 'Estimate actual data'
+    test.estimate(args, sim_SubModel, guess_w_blen, True)
+
+    print 'Now estimate simulated data'
+    #test2.estimate(args, sim_SubModel, guess_w_blen, True)
 
 
         
