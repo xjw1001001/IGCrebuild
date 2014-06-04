@@ -33,6 +33,7 @@ from Bio.Align.Applications import MuscleCommandline
 from Bio import AlignIO
 from copy import deepcopy
 import subprocess
+import operator
 
 
 class Codon2RepeatsPhy:
@@ -46,7 +47,7 @@ class Codon2RepeatsPhy:
         self.seqloc = dataloc
         self.nsites = 0
         self.treetopo, self.root, self.edge_to_blen, self.tree_phy = self.get_tree_info(align)
-        self.models={'Jukes-Cantor':0,'K80':1, 'F81':2, 'HKY':3,'GTR':4, 'General Time-reversible':5,'Codon':6}
+        self.models={'Jukes-Cantor':0,'K80':1, 'F81':2, 'HKY':3,'GTR':4,'Codon':6}
         self.duplication_node = 'N0' #This is for test version, need to change later
         self.SpecAfterDupli_node = 'N1' #This is for test version, need to change later 
         self.data = self.get_data()
@@ -158,7 +159,7 @@ class Codon2RepeatsPhy:
     def get_codon_state_space(self,NumRepeats):
         codon_pairs = []
         pair_to_state = {}
-        bases = 'tcag'
+        bases = 'tcag'.upper()
         codons = [a+b+c for a in bases for b in bases for c in bases]
         amino_acids = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
         codon_table = dict(zip(codons, amino_acids))
@@ -227,8 +228,46 @@ class Codon2RepeatsPhy:
             Qnorm = Qnorm - np.diag(Qnorm.sum(axis=1))
             dist = np.array(_pi)
 
+        elif casenum == 6:
+            #Codon model
+            #para[] = %AG, %A, %C, k, w
+            pi_a = para[0]*para[1]
+            pi_c = (1-para[0])*para[2]
+            pi_g = para[0]*(1-para[1])
+            pi_t = (1-para[0])*(1-para[2])
+            _pi = [pi_a,pi_c,pi_g,pi_t]
+            Qnorm = np.zeros((61,61),dtype = float)
+            codon_pairs, pairs_to_state = self.get_codon_state_space(2)
+            bases = 'tcag'.upper()
+            codons = [a+b+c for a in bases for b in bases for c in bases]
+            amino_acids = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
+            codon_table = dict(zip(codons, amino_acids))
+            codon_nonstop = [a for a in codon_table.keys() if not codon_table[a]=='*']
 
-
+            for i,ca in enumerate(codon_nonstop):
+                for j,cb in enumerate(codon_nonstop):
+                    if i==j:
+                        continue
+                    dif = [ii for ii in range(3) if ca[ii]!=cb[ii]]
+                    ndiff  = len(dif)
+                    if ndiff > 1:
+                        continue
+                    elif ndiff == 0:
+                        print 'Please check your codon tables and make sure no redundancy'
+                    else:
+                        na = ca[dif[0]]
+                        nb = cb[dif[0]]
+                        Qnorm[i,j] = _pi['ACGT'.index(nb)]
+                        if set([na,nb])==set(['A','G']) or set([na,nb])==set(['C','T']):
+                            Qnorm[i,j] = Qnorm[i,j]*para[3]
+                        if codon_table[ca] == codon_table[cb]:
+                            Qnorm[i,j] = Qnorm[i,j]*para[4]
+            Qnorm = Qnorm - np.diag(Qnorm.sum(axis=1))
+            dist = np.zeros((len(codon_nonstop)))
+            for i in range(len(codon_nonstop)):
+                dist[i] = reduce(operator.mul, [_pi['ACGT'.index(nt)] for nt in codon_nonstop[i] ], 1)
+            dist = dist/dist.sum()
+            
         return Qnorm,dist
         
 
@@ -237,10 +276,10 @@ class Codon2RepeatsPhy:
         casenum = self.getcasenum(SubModel)
         Qnorm,dist = self.Q_norm(SubModel,para)
         expected_rate = np.dot(dist, -np.diag(Qnorm))
-        if expected_rate == 0.0:
-            print 'para = ',para, Tao
-            print 'Qnorm = ', Qnorm
-            print 'dist = ', dist
+##        if expected_rate == 0.0:
+##            print 'para = ',para, Tao
+##            print 'Qnorm = ', Qnorm
+##            print 'dist = ', dist
         Qnorm = Qnorm / expected_rate
         nt_pairs, pair_to_state = self.get_state_space(2)
         nstates = len(nt_pairs)
@@ -305,6 +344,7 @@ class Codon2RepeatsPhy:
         for edge in self.treetopo.edges():
             blen = edge_to_blen_infer[edge]
             all_dupli_nodes = nx.descendants(self.treetopo,self.SpecAfterDupli_node)
+            all_dupli_nodes.add(self.SpecAfterDupli_node)
             if edge[1] in all_dupli_nodes:
                 Q,dist = self.get_Q_and_distn(SubModel,para,Tao,2)
             else:
@@ -528,7 +568,7 @@ class Codon2RepeatsPhy:
   
 
 if __name__ == '__main__':
-    numLeaf = 4
+    numLeaf = 5
     #blen = np.ones([2*numLeaf-2])*2
     blen = np.array([1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 3.0, 4.0])
     tree_newick = './data/input_tree_test.newick'
@@ -543,8 +583,8 @@ if __name__ == '__main__':
     #sim_nsites = 3000
     guess = np.log([0.4,0.3,0.6,np.e**2])
     guess = np.append(guess,sim_Tao)
-    a = test.simulator(test.edge_to_blen,sim_SubModel,sim_para,sim_Tao,sim_nsites,False)
-    test.simtofasta(a,simdata,['EDN','ECP'])
+    #a = test.simulator(test.edge_to_blen,sim_SubModel,sim_para,sim_Tao,sim_nsites,False)
+    #test.simtofasta(a,simdata,['EDN','ECP'])
     test2 = Codon2RepeatsPhy(numLeaf,blen,tree_newick,simdata)
 ##    test.drawtree()
 
@@ -564,11 +604,13 @@ if __name__ == '__main__':
     guess_w_blen = [0.0]*len(test.edge_to_blen)
     guess_w_blen.extend(guess)
 
-    print 'Estimate actual data'
-    test.estimate(args, sim_SubModel, guess_w_blen, True)
+    #print 'Estimate actual data'
+    #test.estimate(args, sim_SubModel, guess_w_blen, True)
 
     print 'Now estimate simulated data'
-    #test2.estimate(args, sim_SubModel, guess_w_blen, True)
+    test2.estimate(args, sim_SubModel, guess_w_blen, True)
+    guess_w_blen[0:8]=[-1.0,0.0,1.0,-2.0,-3., -1., 0.0,-2.0]
+    test2.estimate(args, sim_SubModel, guess_w_blen, True)
 
 
         
