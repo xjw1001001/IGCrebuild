@@ -482,7 +482,8 @@ class Codon2RepeatsPhy:
 ##        f = partial(self.objective, SubModel, self.treetopo, self.root, self.edge_to_blen, nt_pairs, constraints,[1.0])
 
         try:
-            print 'Outgroups are :', set(self.treetopo).difference(nx.descendants(self.treetopo,self.SpecAfterDupli_node))
+            Outgroup = set(self.treetopo).difference(nx.descendants(self.treetopo,self.SpecAfterDupli_node))
+            print 'Outgroups are :', Outgroup
         except:
             print 'Warning : No Duplication event specified'
         print 'paralog site matches :', npaired_yes
@@ -504,6 +505,7 @@ class Codon2RepeatsPhy:
         est_edge_to_blen = deepcopy(self.edge_to_blen)
         for i, k in enumerate(edge_to_blen_keys):
             est_edge_to_blen[k] = np.exp(x[i])
+            self.edge_to_blen[k] = np.exp(x[i])
 
         start_of_para = len(est_edge_to_blen)
         est_para = np.exp(x[start_of_para:-1])
@@ -578,10 +580,10 @@ class Codon2RepeatsPhy:
   
 
 if __name__ == '__main__':
-    numLeaf = 2
+    numLeaf = 3
     #blen = np.ones([2*numLeaf-2])*2
     #blen = np.array([1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 3.0, 4.0])
-    blen = np.array([1.0,2.0])
+    blen = np.array([0.5,2.0,1.5,1.5,1.2,1.8])
     tree_newick = './data/input_tree_test.newick'
     dataloc = './data/input_data.fasta'
     simdata = 'simdata.fasta'
@@ -589,9 +591,9 @@ if __name__ == '__main__':
     
     sim_SubModel=3
     sim_para=[0.2,0.3,0.1,1.2]
-    sim_Tao=2.0
-    sim_nsites = 480
-    #sim_nsites = 3000
+    sim_Tao=0.0
+    #sim_nsites = 480
+    sim_nsites = 3000
     guess = np.log([0.4,0.3,0.6,np.e**2])
     guess = np.append(guess,sim_Tao/2.0)
     a = test.simulator(test.edge_to_blen,sim_SubModel,sim_para,sim_Tao,sim_nsites,False)
@@ -625,11 +627,11 @@ if __name__ == '__main__':
     guess_w_blen[0:2]=[-1.0,0.0]
     r2 = test2.estimate(args, sim_SubModel, guess_w_blen, True)
 
-    print 'blens are : ', np.exp(r1['x'][0:8])
-    print 'paras are : ', np.exp(r1['x'][8:-1]),r1['x'][-1]
+    print 'blens are : ', np.exp(r1['x'][0:len(blen)])
+    print 'paras are : ', np.exp(r1['x'][len(blen):-1]),r1['x'][-1]
     
-    print 'blens are : ', np.exp(r2['x'][0:8])
-    print 'paras are : ', np.exp(r2['x'][8:-1]),r1['x'][-1]
+    print 'blens are : ', np.exp(r2['x'][0:len(blen)])
+    print 'paras are : ', np.exp(r2['x'][len(blen):-1]),r2['x'][-1]
 
 
         
