@@ -49,7 +49,7 @@ class Codon2RepeatsPhy:
         self.treetopo, self.root, self.edge_to_blen, self.tree_phy = self.get_tree_info(align)
         self.models={'Jukes-Cantor':0,'K80':1, 'F81':2, 'HKY':3,'GTR':4,'Codon':6}
         self.duplication_node = 'N0' #This is for test version, need to change later
-        self.SpecAfterDupli_node = 'N1' #This is for test version, need to change later 
+        self.SpecAfterDupli_node = ''#'Gorilla'#'N1' #This is for test version, need to change later 
         self.data = self.get_data()
         self.err = 1e-10
         
@@ -343,7 +343,11 @@ class Codon2RepeatsPhy:
         edge_to_P = {}
         for edge in self.treetopo.edges():
             blen = edge_to_blen_infer[edge]
-            all_dupli_nodes = nx.descendants(self.treetopo,self.SpecAfterDupli_node)
+            try:
+                all_dupli_nodes = nx.descendants(self.treetopo,self.SpecAfterDupli_node)
+            except:
+                all_dupli_nodes = set([''])
+                #print 'Warning : No Duplication event specified'
             all_dupli_nodes.add(self.SpecAfterDupli_node)
             if edge[1] in all_dupli_nodes:
                 Q,dist = self.get_Q_and_distn(SubModel,para,Tao,2)
@@ -458,7 +462,9 @@ class Codon2RepeatsPhy:
                 bnds = [one_bnd]*len(self.edge_to_blen)
                 bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(0, None)])
 
-            ff = partial(self.objective_for_blen, SubModel, nt_pairs, constraints)
+            e = deepcopy(self.edge_to_blen.keys())
+
+            ff = partial(self.objective_for_blen, SubModel, nt_pairs, constraints,e)
             
                      
         else:
@@ -475,24 +481,28 @@ class Codon2RepeatsPhy:
             ff = lambda x:f(x[0:-1],x[-1])
 ##        f = partial(self.objective, SubModel, self.treetopo, self.root, self.edge_to_blen, nt_pairs, constraints,[1.0])
 
-        print 'Outgroups are :', set(self.treetopo).difference(nx.descendants(self.treetopo,self.SpecAfterDupli_node))
+        try:
+            print 'Outgroups are :', set(self.treetopo).difference(nx.descendants(self.treetopo,self.SpecAfterDupli_node))
+        except:
+            print 'Warning : No Duplication event specified'
         print 'paralog site matches :', npaired_yes
         print 'paralog site mismatches:', npaired_no
-        nsmall = 4
-        pa = npaired_yes+0.0
-        pb = npaired_no+0.0
-        phi_hat = (pa+pb)/pb*3.0-4.0
-        print 'preliminary estimate of phi:', guess,phi_hat
+##        nsmall = 4
+##        pa = npaired_yes+0.0
+##        pb = npaired_no+0.0
+##        phi_hat = (pa+pb)/pb*3.0-4.0
+##        print 'preliminary estimate of phi:', guess,phi_hat
         print 'negative log likelihood of preliminary estimate:', ff(guess)        
         
 
         result = scipy.optimize.minimize(ff, x0=guess, method='L-BFGS-B', bounds=bnds)
         print result
-        
-    def objective_for_blen(self,SubModel,nt_pairs,constraints,x):
+        return result
+    
+    def objective_for_blen(self,SubModel,nt_pairs,constraints,edge_to_blen_keys,x):
         casenum = self.getcasenum(SubModel)
         est_edge_to_blen = deepcopy(self.edge_to_blen)
-        for i, k in enumerate(est_edge_to_blen):
+        for i, k in enumerate(edge_to_blen_keys):
             est_edge_to_blen[k] = np.exp(x[i])
 
         start_of_para = len(est_edge_to_blen)
@@ -568,9 +578,10 @@ class Codon2RepeatsPhy:
   
 
 if __name__ == '__main__':
-    numLeaf = 5
+    numLeaf = 2
     #blen = np.ones([2*numLeaf-2])*2
-    blen = np.array([1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 3.0, 4.0])
+    #blen = np.array([1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 3.0, 4.0])
+    blen = np.array([1.0,2.0])
     tree_newick = './data/input_tree_test.newick'
     dataloc = './data/input_data.fasta'
     simdata = 'simdata.fasta'
@@ -578,13 +589,13 @@ if __name__ == '__main__':
     
     sim_SubModel=3
     sim_para=[0.2,0.3,0.1,1.2]
-    sim_Tao=1.0
+    sim_Tao=2.0
     sim_nsites = 480
     #sim_nsites = 3000
     guess = np.log([0.4,0.3,0.6,np.e**2])
-    guess = np.append(guess,sim_Tao)
-    #a = test.simulator(test.edge_to_blen,sim_SubModel,sim_para,sim_Tao,sim_nsites,False)
-    #test.simtofasta(a,simdata,['EDN','ECP'])
+    guess = np.append(guess,sim_Tao/2.0)
+    a = test.simulator(test.edge_to_blen,sim_SubModel,sim_para,sim_Tao,sim_nsites,False)
+    test.simtofasta(a,simdata,['EDN','ECP'])
     test2 = Codon2RepeatsPhy(numLeaf,blen,tree_newick,simdata)
 ##    test.drawtree()
 
@@ -608,9 +619,17 @@ if __name__ == '__main__':
     #test.estimate(args, sim_SubModel, guess_w_blen, True)
 
     print 'Now estimate simulated data'
-    test2.estimate(args, sim_SubModel, guess_w_blen, True)
-    guess_w_blen[0:8]=[-1.0,0.0,1.0,-2.0,-3., -1., 0.0,-2.0]
-    test2.estimate(args, sim_SubModel, guess_w_blen, True)
+    r1 = test2.estimate(args, sim_SubModel, guess_w_blen, True)
+
+    #guess_w_blen[0:8]=[-1.0,0.0,1.0,-2.0,-3., -1., 0.0,-2.0]
+    guess_w_blen[0:2]=[-1.0,0.0]
+    r2 = test2.estimate(args, sim_SubModel, guess_w_blen, True)
+
+    print 'blens are : ', np.exp(r1['x'][0:8])
+    print 'paras are : ', np.exp(r1['x'][8:-1]),r1['x'][-1]
+    
+    print 'blens are : ', np.exp(r2['x'][0:8])
+    print 'paras are : ', np.exp(r2['x'][8:-1]),r1['x'][-1]
 
 
         
