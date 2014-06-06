@@ -77,7 +77,7 @@ class Codon2RepeatsPhy:
         self.nsites = align.get_alignment_length()
         return align
 
-    def get_tree_info(self,align = False):
+    def get_tree_info(self,align = False, codonmodel = False):
         tree = Phylo.read(self.newicktree,"newick")
         #set node number for nonterminal nodes and specify root node
         numNode=0
@@ -276,19 +276,20 @@ class Codon2RepeatsPhy:
         casenum = self.getcasenum(SubModel)
         Qnorm,dist = self.Q_norm(SubModel,para)
         expected_rate = np.dot(dist, -np.diag(Qnorm))
-##        if expected_rate == 0.0:
-##            print 'para = ',para, Tao
-##            print 'Qnorm = ', Qnorm
-##            print 'dist = ', dist
         Qnorm = Qnorm / expected_rate
         
         
         if casenum < 6:
             nt_pairs, pair_to_state = self.get_state_space(2)
-            state_pairs = nt_paris
+            state_pairs = nt_pairs
         else:
-            codon_pairs,pair_to_state = get_codon_state_space(2)
+            codon_pairs,pair_to_state = self.get_codon_state_space(2)
             state_pairs = codon_pairs
+            bases = 'tcag'.upper()
+            codons = [a+b+c for a in bases for b in bases for c in bases]
+            amino_acids = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
+            codon_table = dict(zip(codons, amino_acids))
+            codon_nonstop = [a for a in codon_table.keys() if not codon_table[a]=='*']
         nstates = len(state_pairs)
         n = len(state_pairs)
         Q_un = np.zeros((n,n),dtype=float)
@@ -308,11 +309,7 @@ class Codon2RepeatsPhy:
                 
                 return Q_un,np.array(distn)
             elif casenum == 6:
-                bases = 'tcag'.upper()
-                codons = [a+b+c for a in bases for b in bases for c in bases]
-                amino_acids = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
-                codon_table = dict(zip(codons, amino_acids))
-                codon_nonstop = [a for a in codon_table.keys() if not codon_table[a]=='*']
+
                 for i, (s0a, s1a) in enumerate(state_pairs):
                     for j, (s0b, s1b) in enumerate(state_pairs):
                         if i==j:
@@ -352,15 +349,51 @@ class Codon2RepeatsPhy:
                         rate = 0.0
                     Q_un[i, j] = rate+Qnorm['ACGT'.index(sa),'ACGT'.index(sb)]
             Q_un = Q_un - np.diag(Q_un.sum(axis=1))
-            w,v = scipy.sparse.linalg.eigs(Q_un.T, k=1, which = 'SM')
-            weights = v[:,0].real
-            distn = weights / weights.sum()
-
-            expected_rate = np.dot(distn, -np.diag(Q_un))
-            Q = Q_un/expected_rate
+            distn = [0.0]*n
+            for i, (a,b) in enumerate(state_pairs):
+                if a==b:
+                    distn[i] = dist[codon_nonstop.index(a)]
+##            w,v = scipy.sparse.linalg.eigs(Q_un.T, k=1, which = 'SM')
+##            weights = v[:,0].real
+##            distn = weights / weights.sum()
+##
+##            expected_rate = np.dot(distn, -np.diag(Q_un))
+##            Q = Q_un/expected_rate
             
 #not normalized
             return Q_un,distn
+
+        elif casenum == 6:
+            for i, (s0a, s1a) in enumerate(state_pairs):
+                for j, (s0b, s1b) in enumerate(state_pairs):
+                    # Diagonal entries will be set later.
+                    if i == j:
+                        continue
+                    # Only one change is allowed at a time.
+                    if s0a != s0b and s1a != s1b:
+                        continue
+                    # Determine which paralog changes.
+                    if s0a != s0b:
+                        sa = s0a
+                        sb = s0b
+                        context = s1a
+                    if s1a != s1b:
+                        sa = s1a
+                        sb = s1b
+                        context = s0a
+                    # Set the rate according to the kind of change.
+                    if context == sb:
+                        rate = Tao
+                    else:
+                        rate = 0.0
+                    Q_un[i, j] = rate+Qnorm[codon_nonstop.index(sa),codon_nonstop.index(sb)]
+            Q_un = Q_un - np.diag(Q_un.sum(axis=1))
+            distn = [0.0]*n
+            for i, (a,b) in enumerate(state_pairs):
+                if a==b:
+                    distn[i] = dist[codon_nonstop.index(a)]
+            return Q_un,np.array(distn)
+                    
         else:
             print('Please Check get_Q_and_distn function and make sure the case is considered')
             return Qnorm, distn
@@ -563,14 +596,14 @@ class Codon2RepeatsPhy:
         return rst
 
 
-    def simulator(self,edge_to_blen_infer,SubModel,para,Tao,nsites,codon = False):
+    def simulator(self,edge_to_blen_infer,SubModel,para,Tao,nsites,codonmodel = False):
         edge_to_P, root_distn = self.get_P(edge_to_blen_infer,SubModel,para,Tao)
         node_to_data_lmap = {}
-        if not codon:
+        if not codonmodel:
             nt_pairs, pair_to_state = self.get_state_space(2)
             state_pairs = nt_pairs
         else:
-            codon_pairs,pair_to_state = get_codon_state_space(2)
+            codon_pairs,pair_to_state = self.get_codon_state_space(2)
             state_pairs = codon_pairs
 
         nodes = set(self.treetopo)
@@ -643,14 +676,15 @@ if __name__ == '__main__':
     simdata = 'simdata.fasta'
     test = Codon2RepeatsPhy(numLeaf,blen,tree_newick,dataloc,align=True)
     
-    sim_SubModel=3
-    sim_para=[0.2,0.3,0.1,1.2]
+    sim_SubModel=6
+    sim_para=[0.2,0.3,0.1,1.5,1.2]
     sim_Tao=0.0
     sim_nsites = 480
     #sim_nsites = 3000
     guess = np.log([0.7,0.5,0.4,np.e**2])
     guess = np.append(guess,sim_Tao/2.0)
-    a = test.simulator(test.edge_to_blen,sim_SubModel,sim_para,sim_Tao,sim_nsites,False)
+    print 'Now simulate data'
+    a = test.simulator(test.edge_to_blen,sim_SubModel,sim_para,sim_Tao,sim_nsites,codonmodel=True)
     test.simtofasta(a,simdata,['EDN','ECP'])
     #cleanPAML('./mc.paml','./simdata.paml',True)
     test2 = Codon2RepeatsPhy(numLeaf,blen,tree_newick,simdata)
@@ -679,15 +713,15 @@ if __name__ == '__main__':
     print 'Now estimate simulated data'
     r1 = test2.estimate(args, sim_SubModel, guess_w_blen, True, True)
 
-    #guess_w_blen[0:8]=[-1.0,0.0,1.0,-2.0,-3., -1., 0.0,-2.0]
-    guess_w_blen[0:2]=[-1.0,-0.3]
-    r2 = test2.estimate(args, sim_SubModel, guess_w_blen, True, True)
-
-    print 'blens are : ', np.exp(r1['x'][0:len(blen)])
-    print 'paras are : ', np.exp(r1['x'][len(blen):-1]),r1['x'][-1]
-    
-    print 'blens are : ', np.exp(r2['x'][0:len(blen)])
-    print 'paras are : ', np.exp(r2['x'][len(blen):-1]),r2['x'][-1]
+##    #guess_w_blen[0:8]=[-1.0,0.0,1.0,-2.0,-3., -1., 0.0,-2.0]
+##    guess_w_blen[0:2]=[-1.0,-0.3]
+##    r2 = test2.estimate(args, sim_SubModel, guess_w_blen, True, True)
+##
+##    print 'blens are : ', np.exp(r1['x'][0:len(blen)])
+##    print 'paras are : ', np.exp(r1['x'][len(blen):-1]),r1['x'][-1]
+##    
+##    print 'blens are : ', np.exp(r2['x'][0:len(blen)])
+##    print 'paras are : ', np.exp(r2['x'][len(blen):-1]),r2['x'][-1]
 
     #cleanPAML('./mc.paml','./clnmc.paml',True)
     
