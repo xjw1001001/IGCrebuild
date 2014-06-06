@@ -281,25 +281,51 @@ class Codon2RepeatsPhy:
 ##            print 'Qnorm = ', Qnorm
 ##            print 'dist = ', dist
         Qnorm = Qnorm / expected_rate
-        nt_pairs, pair_to_state = self.get_state_space(2)
-        nstates = len(nt_pairs)
-        n = len(nt_pairs)
+        
+        
+        if casenum < 6:
+            nt_pairs, pair_to_state = self.get_state_space(2)
+            state_pairs = nt_paris
+        else:
+            codon_pairs,pair_to_state = get_codon_state_space(2)
+            state_pairs = codon_pairs
+        nstates = len(state_pairs)
+        n = len(state_pairs)
         Q_un = np.zeros((n,n),dtype=float)
         if NumDupli == 1:
             if casenum<6:
-                for i, (s0a, s1a) in enumerate(nt_pairs):
-                    for j, (s0b, s1b) in enumerate(nt_pairs):
+                for i, (s0a, s1a) in enumerate(state_pairs):
+                    for j, (s0b, s1b) in enumerate(state_pairs):
                         if i==j:
                             continue
                         if s0a == s1a and s0b == s1b:
                             Q_un[i,j] = Qnorm['ACGT'.index(s0a),'ACGT'.index(s0b)]
                 Q_un = Q_un - np.diag(Q_un.sum(axis=1))
                 distn = [0.0]*n#np.zeros((1,n),dtype=float)
-                for i, (a,b) in enumerate(nt_pairs):
+                for i, (a,b) in enumerate(state_pairs):
                     if a==b:
                         distn[i] = dist['ACGT'.index(a)]
                 
                 return Q_un,np.array(distn)
+            elif casenum == 6:
+                bases = 'tcag'.upper()
+                codons = [a+b+c for a in bases for b in bases for c in bases]
+                amino_acids = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
+                codon_table = dict(zip(codons, amino_acids))
+                codon_nonstop = [a for a in codon_table.keys() if not codon_table[a]=='*']
+                for i, (s0a, s1a) in enumerate(state_pairs):
+                    for j, (s0b, s1b) in enumerate(state_pairs):
+                        if i==j:
+                            continue
+                        if s0a == s1a and s0b == s1b:
+                            Q_un[i,j] = Qnorm[codon_nonstop.index(s0a),codon_nonstop.index(s0b)]
+                Q_un = Q_un - np.diag(Q_un.sum(axis=1))
+                distn = [0.0]*n
+                for i, (a,b) in enumerate(state_pairs):
+                    if a==b:
+                        distn[i] = dist[codon_nonstop.index(a)]
+                return Q_un,np.array(distn)
+                
         elif casenum<6:
             # Then it's nucleotide model
             for i, (s0a, s1a) in enumerate(nt_pairs):
@@ -437,7 +463,7 @@ class Codon2RepeatsPhy:
         return per_site_constraints, npaired_yes, npaired_no        
 
 
-    def estimate(self,args,SubModel,guess,est_blen = False):
+    def estimate(self,args,SubModel,guess,est_blen = False, unrooted = False):
 ##        self.treetopo, self.root, self.edge_to_blen, self.tree_phy = self.get_tree_info()
 ##        T, root, edge_to_blen, tree_phy = test.get_tree_info()
         nt_pairs, pair_to_state = self.get_state_space(2)
@@ -463,8 +489,11 @@ class Codon2RepeatsPhy:
                 bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(0, None)])
 
             e = deepcopy(self.edge_to_blen.keys())
+            if unrooted:
+                e.remove(('N0','N1'))
+                bnds.pop(0)
 
-            ff = partial(self.objective_for_blen, SubModel, nt_pairs, constraints,e)
+            ff = partial(self.objective_for_blen, SubModel, nt_pairs, constraints,e,unrooted)
             
                      
         else:
@@ -500,16 +529,26 @@ class Codon2RepeatsPhy:
         print result
         return result
     
-    def objective_for_blen(self,SubModel,nt_pairs,constraints,edge_to_blen_keys,x):
+    def objective_for_blen(self,SubModel,nt_pairs,constraints,edge_to_blen_keys,unrooted,x):
         casenum = self.getcasenum(SubModel)
         est_edge_to_blen = deepcopy(self.edge_to_blen)
+        
         for i, k in enumerate(edge_to_blen_keys):
             est_edge_to_blen[k] = np.exp(x[i])
             self.edge_to_blen[k] = np.exp(x[i])
 
-        start_of_para = len(est_edge_to_blen)
+        if unrooted:
+            self.edge_to_blen[('N0','N1')] = 1e-6
+            est_edge_to_blen[('N0','N1')] = 1e-6
+            start_of_para = len(est_edge_to_blen)-1
+        else:
+            start_of_para = len(est_edge_to_blen)
+
+        
         est_para = np.exp(x[start_of_para:-1])
         est_Tao = x[-1]
+
+        #print self.edge_to_blen
 
         #print 'x:', x
         #print 'para :', est_para
@@ -575,15 +614,30 @@ class Codon2RepeatsPhy:
         bins = np.add.accumulate(probabilities)
         return state_pairs[np.digitize(random_sample(1), bins)]
 
-        
-        
+def cleanPAML(in_file,out_file, fasta_out = False):
+    cleanedline = []
+    with open(in_file, 'r') as f:
+        for line in f:
+            if line.strip():
+                cleanedline.append(line.strip('\n'))
+    with open(out_file, 'w') as f:
+        f.writelines('\n'.join(cleanedline))
+
+    if fasta_out:
+        sim_paml = open(out_file,'rU')
+        paralog_name = ['EDN','ECP']
+        with open(out_file.replace('paml','fasta'),'w') as f:
+            for record in SeqIO.parse(sim_paml,'phylip'):
+                for i in range(2):
+                    f.write('>'+record.id+paralog_name[i]+'\n')
+                    f.write(record.seq.tostring()+'\n')
   
 
 if __name__ == '__main__':
-    numLeaf = 3
+    numLeaf = 4
     #blen = np.ones([2*numLeaf-2])*2
     #blen = np.array([1.0, 1.0, 1.0, 2.0, 1.0, 1.0, 3.0, 4.0])
-    blen = np.array([0.5,2.0,1.5,1.5,1.2,1.8])
+    blen = np.array([0.09, 0.1427433571102972,0.23973336228125663, 0.1304889427706489, 1e-06, 0.078655341006576895])
     tree_newick = './data/input_tree_test.newick'
     dataloc = './data/input_data.fasta'
     simdata = 'simdata.fasta'
@@ -592,12 +646,13 @@ if __name__ == '__main__':
     sim_SubModel=3
     sim_para=[0.2,0.3,0.1,1.2]
     sim_Tao=0.0
-    #sim_nsites = 480
-    sim_nsites = 3000
-    guess = np.log([0.4,0.3,0.6,np.e**2])
+    sim_nsites = 480
+    #sim_nsites = 3000
+    guess = np.log([0.7,0.5,0.4,np.e**2])
     guess = np.append(guess,sim_Tao/2.0)
     a = test.simulator(test.edge_to_blen,sim_SubModel,sim_para,sim_Tao,sim_nsites,False)
     test.simtofasta(a,simdata,['EDN','ECP'])
+    #cleanPAML('./mc.paml','./simdata.paml',True)
     test2 = Codon2RepeatsPhy(numLeaf,blen,tree_newick,simdata)
 ##    test.drawtree()
 
@@ -614,18 +669,19 @@ if __name__ == '__main__':
 
 ##    test.estimate(args,0)
 #    test2.estimate(args,sim_SubModel,guess)
-    guess_w_blen = [0.0]*len(test.edge_to_blen)
+    guess_w_blen = [0.0]*(len(test.edge_to_blen)-1)
+    #guess_w_blen[0:6] = [0.0,-1.0,-2.0,-3.0,-4.0,-5.0]
     guess_w_blen.extend(guess)
 
     #print 'Estimate actual data'
     #test.estimate(args, sim_SubModel, guess_w_blen, True)
 
     print 'Now estimate simulated data'
-    r1 = test2.estimate(args, sim_SubModel, guess_w_blen, True)
+    r1 = test2.estimate(args, sim_SubModel, guess_w_blen, True, True)
 
     #guess_w_blen[0:8]=[-1.0,0.0,1.0,-2.0,-3., -1., 0.0,-2.0]
-    guess_w_blen[0:2]=[-1.0,0.0]
-    r2 = test2.estimate(args, sim_SubModel, guess_w_blen, True)
+    guess_w_blen[0:2]=[-1.0,-0.3]
+    r2 = test2.estimate(args, sim_SubModel, guess_w_blen, True, True)
 
     print 'blens are : ', np.exp(r1['x'][0:len(blen)])
     print 'paras are : ', np.exp(r1['x'][len(blen):-1]),r1['x'][-1]
@@ -633,5 +689,6 @@ if __name__ == '__main__':
     print 'blens are : ', np.exp(r2['x'][0:len(blen)])
     print 'paras are : ', np.exp(r2['x'][len(blen):-1]),r2['x'][-1]
 
-
+    #cleanPAML('./mc.paml','./clnmc.paml',True)
+    
         
