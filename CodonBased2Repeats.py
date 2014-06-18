@@ -732,12 +732,25 @@ class Codon2RepeatsPhy:
             ratio = (total_blen-before_duplication_total_blen)/total_blen
             return total_blen, ratio
 
-    def update_blen_phylo(self):
+    def update_blen_phylo(self,outgroup_nodes = []):
+        try:
+            nodes_involve_Outgroup = set(self.treetopo).difference(nx.descendants(self.treetopo,self.SpecAfterDupli_node))
+            nodes_involve_Outgroup = nodes_involve_Outgroup.difference([self.duplication_node,self.SpecAfterDupli_node])
+        except:
+            nodes_involve_Outgroup = set([])
+        edge_to_blen_normalized = deepcopy(self.edge_to_blen)
+        if nodes_involve_Outgroup:
+            q,d = self.get_Q_and_distn(self.modelnum,self.para, self.Tao, 2)
+            expected_rate = self.get_expected_rate(q)
+            branch_involve_outgoup = [v for v in self.edge_to_blen.keys() if v[1] in nodes_involve_Outgroup]
+            branch_involve_duplication = set(self.edge_to_blen.keys()).difference(branch_involve_outgoup)
+            for branch in branch_involve_duplication:
+                edge_to_blen_normalized[branch] = edge_to_blen_normalized[branch]*expected_rate/2
         for clade in self.tree_phy.get_terminals():
             node_path = self.tree_phy.get_path(clade)
-            node_path[0].branch_length = self.edge_to_blen[('N0',node_path[0].name)]
+            node_path[0].branch_length = edge_to_blen_normalized[('N0',node_path[0].name)]
             for i in range(len(node_path)-1):
-                node_path[i+1].branch_length = self.edge_to_blen[(node_path[i].name,node_path[i+1].name)]
+                node_path[i+1].branch_length = edge_to_blen_normalized[(node_path[i].name,node_path[i+1].name)]
 
     
                     
@@ -774,6 +787,7 @@ if __name__ == '__main__':
     tree_newick_compare_paml = './data/input_tree_compare_paml.newick'
     dataloc_compare_paml = './data/input_data_compare_paml.fasta'
     test = Codon2RepeatsPhy(numLeaf,blen,tree_newick,dataloc,align=True)
+    test3 = Codon2RepeatsPhy(numLeaf,blen,tree_newick,dataloc,align=True)
     numLeaf = 9
     blen = np.ones([2*numLeaf-2])*2
     test2 = Codon2RepeatsPhy(numLeaf,blen,tree_newick_compare_paml,dataloc_compare_paml,align=False)
@@ -783,7 +797,7 @@ if __name__ == '__main__':
     blen_codon = np.ones([2*numLeaf_codon-2])*2
     dataloc_codon = './data/codon_alignment_nucleotide_format.fasta'
     tree_newick = './data/input_tree.newick'
-    test3  = Codon2RepeatsPhy(numLeaf_codon,blen_codon,tree_newick,dataloc_codon,cdmodel= True,removegaps = True)
+    test4  = Codon2RepeatsPhy(numLeaf_codon,blen_codon,tree_newick,dataloc_codon,cdmodel= True,removegaps = True)
     
     
     sim_SubModel=3
@@ -822,22 +836,25 @@ if __name__ == '__main__':
     print 'Now estimate simulated data'
     r1 = test.estimate(args, sim_SubModel, guess_w_blen, est_blen = True)
     print 'Total branch lengths and proportion of post-duplication are', test.get_total_blen()
+    Phylo.write(test.tree_phy,'./HKY_Geneconv.newick','newick')
     guess_w_blen = [-2.0]*(len(test2.edge_to_blen)-1)
     guess_w_blen[0:6] = [0.0,-1.0,-2.0,-3.0,-4.0,-5.0]
     guess_w_blen.extend(guess)    
     r2 = test2.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = True)
+    Phylo.write(test2.tree_phy,'./HKY.newick','newick')
     print 'Total branch lengths and proportion of post-duplication are', test2.get_total_blen(['Tamarin'])
     guess_w_blen = [-2.0]*(len(test.edge_to_blen))
     guess_w_blen[0:6] = [0.0,-1.0,-2.0,-3.0,-4.0,-5.0]
     guess_w_blen.extend(guess)
     guess_w_blen.pop(-1)
-    r3 = test.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = False,force_tau = True)
-    print 'Total branch lengths and proportion of post-duplication are', test.get_total_blen()
+    r3 = test3.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = False,force_tau = True)
+    Phylo.write(test3.tree_phy,'./HKY_Geneconv_tau0.newick','newick')
+    print 'Total branch lengths and proportion of post-duplication are', test3.get_total_blen()
     guess = np.log([0.7,0.5,0.4,np.e**2, np.e**2])
     guess = np.append(guess,sim_Tao/2.0)
     guess_w_blen = [-2.0]*(len(test3.edge_to_blen))
     guess_w_blen.extend(guess)
-    #r4 = test3.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = False,force_tau = False)
+    #r4 = test4.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = False,force_tau = False)
     
 
 ##    #guess_w_blen[0:8]=[-1.0,0.0,1.0,-2.0,-3., -1., 0.0,-2.0]
