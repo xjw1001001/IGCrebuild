@@ -108,6 +108,7 @@ class Codon2RepeatsPhy:
             for k in lookup.keys():
                 for index in sorted(gap_positions, reverse = True):
                      lookup[k] = lookup[k][:index]+lookup[k][index+1:]
+            self.nsites = len(lookup[lookup.keys()[0]])
         else:
             fastaseqs = SeqIO.parse(open(self.seqloc,"rU"),'fasta')
             lookup = dict((rec.id,rec.seq.tostring()) for rec in fastaseqs)
@@ -528,12 +529,19 @@ class Codon2RepeatsPhy:
 ##        self.treetopo, self.root, self.edge_to_blen, self.tree_phy = self.get_tree_info()
 ##        T, root, edge_to_blen, tree_phy = test.get_tree_info()
         casenum = self.getcasenum(SubModel)
-        nt_pairs, pair_to_state = self.get_state_space(2)
+        if casenum < 6:
+            nt_pairs, pair_to_state = self.get_state_space(2)
+            state_pairs = nt_pairs
+        else:
+            codon_pairs,pair_to_state = self.get_codon_state_space(2)
+            state_pairs = codon_pairs
         nodes = set(self.treetopo)
         if casenum<6:
             nsts = self.nsites
         else:
             nsts = self.nsites/3
+
+        print len(pair_to_state),casenum
         constraint_info = self.get_data_constraints(nodes, pair_to_state, nsts, self.data)
         constraints, npaired_yes, npaired_no = constraint_info
 
@@ -561,11 +569,11 @@ class Codon2RepeatsPhy:
             if force_tau:
                 bnds.pop(-1)
 
-            ff = partial(self.objective_for_blen, SubModel, nt_pairs, constraints,e,unrooted,force_tau)
+            ff = partial(self.objective_for_blen, SubModel, state_pairs, constraints,e,unrooted,force_tau)
             
                      
         else:
-            f = partial(self.objective, SubModel, self.treetopo, self.root, nt_pairs, constraints, self.edge_to_blen)
+            f = partial(self.objective, SubModel, self.treetopo, self.root, state_pairs, constraints, self.edge_to_blen)
             if casenum == 0:
                 bnds = ((0, None),(0, None))                
             elif casenum == 1:
@@ -834,27 +842,27 @@ if __name__ == '__main__':
     #test.estimate(args, sim_SubModel, guess_w_blen, True)
 
     print 'Now estimate simulated data'
-    r1 = test.estimate(args, sim_SubModel, guess_w_blen, est_blen = True)
-    print 'Total branch lengths and proportion of post-duplication are', test.get_total_blen()
+    #r1 = test.estimate(args, sim_SubModel, guess_w_blen, est_blen = True)
+    #print 'Total branch lengths and proportion of post-duplication are', test.get_total_blen()
     Phylo.write(test.tree_phy,'./HKY_Geneconv.newick','newick')
     guess_w_blen = [-2.0]*(len(test2.edge_to_blen)-1)
     guess_w_blen[0:6] = [0.0,-1.0,-2.0,-3.0,-4.0,-5.0]
     guess_w_blen.extend(guess)    
-    r2 = test2.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = True)
-    Phylo.write(test2.tree_phy,'./HKY.newick','newick')
-    print 'Total branch lengths and proportion of post-duplication are', test2.get_total_blen(['Tamarin'])
+    #r2 = test2.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = True)
+    #Phylo.write(test2.tree_phy,'./HKY.newick','newick')
+    #print 'Total branch lengths and proportion of post-duplication are', test2.get_total_blen(['Tamarin'])
     guess_w_blen = [-2.0]*(len(test.edge_to_blen))
     guess_w_blen[0:6] = [0.0,-1.0,-2.0,-3.0,-4.0,-5.0]
     guess_w_blen.extend(guess)
     guess_w_blen.pop(-1)
-    r3 = test3.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = False,force_tau = True)
-    Phylo.write(test3.tree_phy,'./HKY_Geneconv_tau0.newick','newick')
-    print 'Total branch lengths and proportion of post-duplication are', test3.get_total_blen()
+    #r3 = test3.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = False,force_tau = True)
+    #Phylo.write(test3.tree_phy,'./HKY_Geneconv_tau0.newick','newick')
+    #print 'Total branch lengths and proportion of post-duplication are', test3.get_total_blen()
     guess = np.log([0.7,0.5,0.4,np.e**2, np.e**2])
     guess = np.append(guess,sim_Tao/2.0)
     guess_w_blen = [-2.0]*(len(test3.edge_to_blen))
     guess_w_blen.extend(guess)
-    #r4 = test4.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = False,force_tau = False)
+    r4 = test4.estimate(args, 6, guess_w_blen, est_blen = True,unrooted = False,force_tau = False)
     
 
 ##    #guess_w_blen[0:8]=[-1.0,0.0,1.0,-2.0,-3., -1., 0.0,-2.0]
