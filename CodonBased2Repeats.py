@@ -39,7 +39,7 @@ import operator
 
 
 class Codon2RepeatsPhy:
-    def __init__(self,numLeaf,blen,tree_newick,dataloc,cdmodel = False,align=False):
+    def __init__(self,numLeaf,blen,tree_newick,dataloc,cdmodel = False,align=False, removegaps = False):
         self.nleaf = numLeaf
         self.nbranch = 2*numLeaf -2
         self.blen = blen
@@ -48,12 +48,15 @@ class Codon2RepeatsPhy:
         self.newicktree = tree_newick
         self.seqloc = dataloc
         self.nsites = 0
-        self.treetopo, self.root, self.edge_to_blen, self.tree_phy = self.get_tree_info(align)
+        self.treetopo, self.root, self.edge_to_blen, self.tree_phy = self.get_tree_info(align, removegaps)
         self.models={'Jukes-Cantor':0,'K80':1, 'F81':2, 'HKY':3,'GTR':4,'Codon':6}
         self.duplication_node = 'N0' #This is for test version, need to change later
         self.SpecAfterDupli_node = 'N1'#'Gorilla'#'N1' #This is for test version, need to change later 
         self.data = self.get_data(cdmodel)
         self.err = 1e-10
+        self.para = []
+        self.modelnum = 0
+        self.Tao = 0.0
         
     def DataPre(self):
         try:
@@ -79,7 +82,10 @@ class Codon2RepeatsPhy:
         self.nsites = align.get_alignment_length()
         return align
 
-    def get_tree_info(self,align = False, codonmodel = False):
+#    def remove_gaps(self):
+        
+
+    def get_tree_info(self,align = False, removegaps = False):
         tree = Phylo.read(self.newicktree,"newick")
         #set node number for nonterminal nodes and specify root node
         numNode=0
@@ -92,6 +98,16 @@ class Codon2RepeatsPhy:
         #fastaseqs = SeqIO.parse(open(self.seqloc,"rU"),'fasta')
         if align:
             lookup = dict((rec.id,rec.seq.tostring()) for rec in self.DataPre())
+        elif removegaps:
+            fastaseqs = SeqIO.parse(open(self.seqloc,"rU"),'fasta')
+            lookup = dict((rec.id,rec.seq.tostring()) for rec in fastaseqs)
+            gap_positions = []
+            for k in lookup.keys():
+                gap_positions.extend([i for i,x in enumerate(lookup[k]) if x=='-'])
+            gap_positions = set(gap_positions)
+            for k in lookup.keys():
+                for index in sorted(gap_positions, reverse = True):
+                     lookup[k] = lookup[k][:index]+lookup[k][index+1:]
         else:
             fastaseqs = SeqIO.parse(open(self.seqloc,"rU"),'fasta')
             lookup = dict((rec.id,rec.seq.tostring()) for rec in fastaseqs)
@@ -147,10 +163,10 @@ class Codon2RepeatsPhy:
                 if not codonmodel:
                     d[clade.name,name[i]] = clade.sequences[i]
                 else:
-                    cdlist = [clade.sequences[i][3*j:(3*j+1)].upper() for j in range(len(clade.sequences[i])/3)]
+                    cdlist = [clade.sequences[i][3*j:(3*j+3)].upper() for j in range(len(clade.sequences[i])/3)]
                     d[clade.name,name[i]] = cdlist
             if len(clade.sequences) == 1: 
-                d[clade.name,name[1]] = clade.sequences[0]
+                d[clade.name,name[1]] = d[clade.name,name[0]]
         
         return d
             
@@ -361,12 +377,7 @@ class Codon2RepeatsPhy:
             for i, (a,b) in enumerate(state_pairs):
                 if a==b:
                     distn[i] = dist['ACGT'.index(a)]
-##            w,v = scipy.sparse.linalg.eigs(Q_un.T, k=1, which = 'SM')
-##            weights = v[:,0].real
-##            distn = weights / weights.sum()
-##
-##            expected_rate = np.dot(distn, -np.diag(Q_un))
-##            Q = Q_un/expected_rate
+
             
 #not normalized
             return Q_un,distn
@@ -425,6 +436,14 @@ class Codon2RepeatsPhy:
             edge_to_P[edge] = P
         root_distn = distn
         return edge_to_P, root_distn
+
+    def get_expected_rate(self, Q_un):
+        w,v = scipy.sparse.linalg.eigs(Q_un.T, k=1, which = 'SM')
+        weights = v[:,0].real
+        distn = weights / weights.sum()
+        expected_rate = np.dot(distn, -np.diag(Q_un))
+        return expected_rate
+            
 
     def objective(self,SubModel, T, root,nt_pairs,constraints,edge_to_blen_infer,para,Tao):
         edge_to_P, root_distn = self.get_P(edge_to_blen_infer,SubModel,para,Tao)
@@ -505,7 +524,7 @@ class Codon2RepeatsPhy:
         return per_site_constraints, npaired_yes, npaired_no        
 
 
-    def estimate(self,args,SubModel,guess,est_blen = False, unrooted = False):
+    def estimate(self,args,SubModel,guess,est_blen = False, unrooted = False, force_tau = False):
 ##        self.treetopo, self.root, self.edge_to_blen, self.tree_phy = self.get_tree_info()
 ##        T, root, edge_to_blen, tree_phy = test.get_tree_info()
         casenum = self.getcasenum(SubModel)
@@ -517,9 +536,6 @@ class Codon2RepeatsPhy:
             nsts = self.nsites/3
         constraint_info = self.get_data_constraints(nodes, pair_to_state, nsts, self.data)
         constraints, npaired_yes, npaired_no = constraint_info
-        
-        #guess = [ 1.02444478 , 1.07097963 , 1.01565945 , 1.01566828 , 1.07064164 , 1.03295529,0.17774279,  0.33218723,  0.      ,    1.97231918 , 0.56235118]
-        #guess = [0.99957477 , 0.99920689 , 0.98945055 , 0.99889025 , 0.99971077 , 0.98949115,  0.99936774 , 0.99971077 , 0.3977683  , 0.29832623 , 0.59665246 , 1.98884152,  1.99981608]
 
         if est_blen:            
             one_bnd = (None,None)
@@ -542,7 +558,10 @@ class Codon2RepeatsPhy:
                 e.remove(('N0','N1'))
                 bnds.pop(0)
 
-            ff = partial(self.objective_for_blen, SubModel, nt_pairs, constraints,e,unrooted)
+            if force_tau:
+                bnds.pop(-1)
+
+            ff = partial(self.objective_for_blen, SubModel, nt_pairs, constraints,e,unrooted,force_tau)
             
                      
         else:
@@ -558,10 +577,10 @@ class Codon2RepeatsPhy:
             elif casenum == 6:
                 bnds = [(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(None, None),(0, None)]
             ff = lambda x:f(x[0:-1],x[-1])
-##        f = partial(self.objective, SubModel, self.treetopo, self.root, self.edge_to_blen, nt_pairs, constraints,[1.0])
 
         try:
-            Outgroup = set(self.treetopo).difference(nx.descendants(self.treetopo,self.SpecAfterDupli_node))
+            leaves = set(v for v, degree in self.treetopo.degree().items() if degree == 1)
+            Outgroup = set(leaves).difference(nx.descendants(self.treetopo,self.SpecAfterDupli_node))
             print 'Outgroups are :', Outgroup
         except:
             print 'Warning : No Duplication event specified'
@@ -576,10 +595,11 @@ class Codon2RepeatsPhy:
         
 
         result = scipy.optimize.minimize(ff, x0=guess, method='L-BFGS-B', bounds=bnds)
+        self.update_blen_phylo()
         print result
         return result
     
-    def objective_for_blen(self,SubModel,nt_pairs,constraints,edge_to_blen_keys,unrooted,x):
+    def objective_for_blen(self,SubModel,nt_pairs,constraints,edge_to_blen_keys,unrooted,force_tau,x):
         casenum = self.getcasenum(SubModel)
         est_edge_to_blen = deepcopy(self.edge_to_blen)
         
@@ -594,9 +614,16 @@ class Codon2RepeatsPhy:
         else:
             start_of_para = len(est_edge_to_blen)
 
-        
-        est_para = np.exp(x[start_of_para:-1])
-        est_Tao = x[-1]
+        if force_tau:
+            est_Tao = 0.0
+            est_para = np.exp(x[start_of_para:])
+        else:
+            est_para = np.exp(x[start_of_para:-1])
+            est_Tao = x[-1]
+
+        self.para = deepcopy(est_para)
+        self.Tao = est_Tao
+        self.modelnum = casenum
 
         #print self.edge_to_blen
 
@@ -678,6 +705,41 @@ class Codon2RepeatsPhy:
                     f.write(spe+paralog + '    ' + self.data[(spe,paralog)] + '\n')
                 elif paralog == paralog_name[0]:
                     f.write(spe+paralog + '    ' + self.data[(spe,paralog)] + '\n')
+
+    def get_total_blen(self,outgroup_nodes = []):
+        #leaves = set(v for v, degree in self.treetopo.degree().items() if degree == 1)
+        try:
+            nodes_involve_Outgroup = set(self.treetopo).difference(nx.descendants(self.treetopo,self.SpecAfterDupli_node))
+            nodes_involve_Outgroup = nodes_involve_Outgroup.difference([self.duplication_node,self.SpecAfterDupli_node])
+        except:
+            nodes_involve_Outgroup = set([])
+        total_blen = 0.0
+        before_duplication_total_blen = 0.0
+        post_duplication_total_blen = 0.0
+        if nodes_involve_Outgroup:
+            q,d = self.get_Q_and_distn(self.modelnum,self.para, self.Tao, 2)
+            expected_rate = self.get_expected_rate(q)
+            branch_involve_outgoup = [v for v in self.edge_to_blen.keys() if v[1] in nodes_involve_Outgroup]
+            before_duplication_total_blen += sum(self.edge_to_blen[v] for v in branch_involve_outgoup)
+            post_duplication_total_blen += expected_rate*sum(self.edge_to_blen[v] for v in set(self.edge_to_blen.keys()).difference(branch_involve_outgoup))
+            total_blen = before_duplication_total_blen + post_duplication_total_blen
+            ratio = post_duplication_total_blen/total_blen
+            return total_blen, ratio
+        else:
+            branch_involve_outgoup = [v for v in self.edge_to_blen.keys() if v[1] in outgroup_nodes]
+            before_duplication_total_blen += sum(self.edge_to_blen[v] for v in branch_involve_outgoup)
+            total_blen += sum(self.edge_to_blen[v] for v in self.edge_to_blen.keys())
+            ratio = (total_blen-before_duplication_total_blen)/total_blen
+            return total_blen, ratio
+
+    def update_blen_phylo(self):
+        for clade in self.tree_phy.get_terminals():
+            node_path = self.tree_phy.get_path(clade)
+            node_path[0].branch_length = self.edge_to_blen[('N0',node_path[0].name)]
+            for i in range(len(node_path)-1):
+                node_path[i+1].branch_length = self.edge_to_blen[(node_path[i].name,node_path[i+1].name)]
+
+    
                     
             
 
@@ -716,6 +778,12 @@ if __name__ == '__main__':
     blen = np.ones([2*numLeaf-2])*2
     test2 = Codon2RepeatsPhy(numLeaf,blen,tree_newick_compare_paml,dataloc_compare_paml,align=False)
     test2.SpecAfterDupli_node = ''
+
+    numLeaf_codon = 5
+    blen_codon = np.ones([2*numLeaf_codon-2])*2
+    dataloc_codon = './data/codon_alignment_nucleotide_format.fasta'
+    tree_newick = './data/input_tree.newick'
+    test3  = Codon2RepeatsPhy(numLeaf_codon,blen_codon,tree_newick,dataloc_codon,cdmodel= True,removegaps = True)
     
     
     sim_SubModel=3
@@ -743,6 +811,7 @@ if __name__ == '__main__':
 
 ##    test.estimate(args,0)
 #    test2.estimate(args,sim_SubModel,guess)
+
     guess_w_blen = [-1.0]*(len(test.edge_to_blen))
     guess_w_blen[0:6] = [0.0,-1.0,-2.0,-3.0,-4.0,-5.0]
     guess_w_blen.extend(guess)
@@ -751,11 +820,25 @@ if __name__ == '__main__':
     #test.estimate(args, sim_SubModel, guess_w_blen, True)
 
     print 'Now estimate simulated data'
-    #r1 = test.estimate(args, sim_SubModel, guess_w_blen, est_blen = True)
+    r1 = test.estimate(args, sim_SubModel, guess_w_blen, est_blen = True)
+    print 'Total branch lengths and proportion of post-duplication are', test.get_total_blen()
     guess_w_blen = [-2.0]*(len(test2.edge_to_blen)-1)
     guess_w_blen[0:6] = [0.0,-1.0,-2.0,-3.0,-4.0,-5.0]
     guess_w_blen.extend(guess)    
     r2 = test2.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = True)
+    print 'Total branch lengths and proportion of post-duplication are', test2.get_total_blen(['Tamarin'])
+    guess_w_blen = [-2.0]*(len(test.edge_to_blen))
+    guess_w_blen[0:6] = [0.0,-1.0,-2.0,-3.0,-4.0,-5.0]
+    guess_w_blen.extend(guess)
+    guess_w_blen.pop(-1)
+    r3 = test.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = False,force_tau = True)
+    print 'Total branch lengths and proportion of post-duplication are', test.get_total_blen()
+    guess = np.log([0.7,0.5,0.4,np.e**2, np.e**2])
+    guess = np.append(guess,sim_Tao/2.0)
+    guess_w_blen = [-2.0]*(len(test3.edge_to_blen))
+    guess_w_blen.extend(guess)
+    #r4 = test3.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = False,force_tau = False)
+    
 
 ##    #guess_w_blen[0:8]=[-1.0,0.0,1.0,-2.0,-3., -1., 0.0,-2.0]
 ##    guess_w_blen[0:2]=[-1.0,-0.3]
