@@ -251,7 +251,7 @@ class Codon2RepeatsPhy:
             Qnorm = Qnorm - np.diag(Qnorm.sum(axis=1))
             dist = np.array(_pi)
 
-        elif casenum == 6:
+        elif casenum == 6 or casenum == 7:
             #Codon model
             #para[] = %AG, %A, %C, k, w
             pi_a = para[0]*para[1]
@@ -333,7 +333,7 @@ class Codon2RepeatsPhy:
                         distn[i] = dist['ACGT'.index(a)]
                 
                 return Q_un,np.array(distn)
-            elif casenum == 6:
+            elif casenum == 6 or casenum == 7:
 
                 for i, (s0a, s1a) in enumerate(state_pairs):
                     for j, (s0b, s1b) in enumerate(state_pairs):
@@ -404,6 +404,44 @@ class Codon2RepeatsPhy:
                     # Set the rate according to the kind of change.
                     if context == sb:
                         rate = Tao
+                    else:
+                        rate = 0.0
+                    Q_un[i, j] = rate+Qnorm[codon_nonstop.index(sa),codon_nonstop.index(sb)]
+            Q_un = Q_un - np.diag(Q_un.sum(axis=1))
+            distn = [0.0]*n
+            for i, (a,b) in enumerate(state_pairs):
+                if a==b:
+                    distn[i] = dist[codon_nonstop.index(a)]
+            return Q_un,np.array(distn)
+
+        elif casenum == 7:
+            bases = 'tcag'.upper()
+            codons = [a+b+c for a in bases for b in bases for c in bases]
+            amino_acids = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
+            codon_table = dict(zip(codons, amino_acids))
+            for i, (s0a, s1a) in enumerate(state_pairs):
+                for j, (s0b, s1b) in enumerate(state_pairs):
+                    # Diagonal entries will be set later.
+                    if i == j:
+                        continue
+                    # Only one change is allowed at a time.
+                    if s0a != s0b and s1a != s1b:
+                        continue
+                    # Determine which paralog changes.
+                    if s0a != s0b:
+                        sa = s0a
+                        sb = s0b
+                        context = s1a
+                    if s1a != s1b:
+                        sa = s1a
+                        sb = s1b
+                        context = s0a
+                    # Set the rate according to the kind of change.
+                    if context == sb:
+                        if codon_table[sa]==codon_table[sb]:
+                            rate = Tao*para[4]
+                        else:
+                            rate = Tao
                     else:
                         rate = 0.0
                     Q_un[i, j] = rate+Qnorm[codon_nonstop.index(sa),codon_nonstop.index(sb)]
@@ -557,7 +595,7 @@ class Codon2RepeatsPhy:
             elif casenum == 3:
                 bnds = [one_bnd]*len(self.edge_to_blen)
                 bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(0, None)])
-            elif casenum == 6:
+            elif casenum == 6 or casenum == 7:
                 bnds = [one_bnd]*len(self.edge_to_blen)
                 bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(None, None),(0, None)])
 
@@ -582,7 +620,7 @@ class Codon2RepeatsPhy:
                 bnds = ((self.err, 1.0-self.err),(self.err, 1.0-self.err),(self.err, 1.0-self.err),(self.err, None))                
             elif casenum == 3:
                 bnds = [(self.err, 1.0-self.err),(self.err, 1.0-self.err),(self.err, 1.0-self.err),(self.err, None),(0, None)]
-            elif casenum == 6:
+            elif casenum == 6 or casenum == 7:
                 bnds = [(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(None, None),(0, None)]
             ff = lambda x:f(x[0:-1],x[-1])
 
@@ -602,7 +640,8 @@ class Codon2RepeatsPhy:
         print 'negative log likelihood of preliminary estimate:', ff(guess)        
         
 
-        result = scipy.optimize.minimize(ff, x0=guess, method='L-BFGS-B', bounds=bnds)
+        #result = scipy.optimize.minimize(ff, x0=guess, method='L-BFGS-B', bounds=bnds)
+        result = scipy.optimize.minimize(ff, x0=guess, method='TNC', bounds=bnds)
         self.update_blen_phylo()
         print result
         return result
@@ -633,10 +672,10 @@ class Codon2RepeatsPhy:
         self.Tao = est_Tao
         self.modelnum = casenum
 
-        #print self.edge_to_blen
+        print self.edge_to_blen
 
         #print 'x:', x
-        #print 'para :', est_para, est_Tao
+        print 'para :', est_para, est_Tao
 
         rst = self.objective(SubModel, self.treetopo, self.root, nt_pairs, constraints, est_edge_to_blen,est_para, est_Tao)
 
@@ -644,6 +683,7 @@ class Codon2RepeatsPhy:
 
         #objective(self,SubModel, T, root,nt_pairs,constraints,edge_to_blen_infer,para,Tao)
         #print 'x:', x, rst
+        print rst
 
         return rst
 
@@ -710,9 +750,15 @@ class Codon2RepeatsPhy:
             f.write(str(len(leaves)+len(leaves.difference(Outgroup)))+'\t'+ str(self.nsites) + '\n')
             for spe,paralog in self.data.keys():
                 if not spe in Outgroup:
-                    f.write(spe+paralog + '    ' + self.data[(spe,paralog)] + '\n')
+                    if type(self.data[(spe,paralog)]) == str:
+                        f.write(spe+paralog + '    ' + self.data[(spe,paralog)] + '\n')
+                    else:
+                        f.write(spe+paralog +'    ' + ''.join(self.data[(spe,paralog)]) + '\n')
                 elif paralog == paralog_name[0]:
-                    f.write(spe+paralog + '    ' + self.data[(spe,paralog)] + '\n')
+                    if type(self.data[(spe,paralog)]) == str:
+                        f.write(spe+paralog + '    ' + self.data[(spe,paralog)] + '\n')
+                    else:
+                        f.write(spe+paralog +'    ' + ''.join(self.data[(spe,paralog)]) + '\n')
 
     def get_total_blen(self,outgroup_nodes = []):
         #leaves = set(v for v, degree in self.treetopo.degree().items() if degree == 1)
@@ -858,11 +904,16 @@ if __name__ == '__main__':
     #r3 = test3.estimate(args, sim_SubModel, guess_w_blen, est_blen = True,unrooted = False,force_tau = True)
     #Phylo.write(test3.tree_phy,'./HKY_Geneconv_tau0.newick','newick')
     #print 'Total branch lengths and proportion of post-duplication are', test3.get_total_blen()
-    guess = np.log([0.7,0.5,0.4,np.e**2, np.e**2])
-    guess = np.append(guess,sim_Tao/2.0)
-    guess_w_blen = [-2.0]*(len(test3.edge_to_blen))
-    guess_w_blen.extend(guess)
-    r4 = test4.estimate(args, 6, guess_w_blen, est_blen = True,unrooted = False,force_tau = False)
+    guess = np.log([0.46789,0.27614/0.46789,0.25856/(0.25856+0.27356),2.08027,0.92449])
+    guess = np.append(guess,[1.5])
+    guess_w_blen = np.log([0.0195+0.0717,0.0556+0.026, 0.0136+0.0189, 0.0764+0.1361, 0.0826+0.2192, 0.0194+0.0191, 0.2188+0.1285, 0.3669])
+    #These are the estimates from PAML
+    guess = np.log([0.49625812,  0.58854282 , 0.48860353,  2.10255791,  1.14657581])
+    guess = np.append(guess,[0.55095646406])
+    guess_w_blen = np.log([0.031798041175813183, 0.034203400799371592, 0.014099750421849206, 0.091920438733816695, 0.2020452320238027, 0.015783419431732466, 0.15438044913006899, 0.33626901196743414])
+    #Use the estimates from the 1st run
+    guess_w_blen = np.append(guess_w_blen, guess)
+    r4 = test4.estimate(args, 7, guess_w_blen, est_blen = True,unrooted = False,force_tau = False)
     
 
 ##    #guess_w_blen[0:8]=[-1.0,0.0,1.0,-2.0,-3., -1., 0.0,-2.0]
