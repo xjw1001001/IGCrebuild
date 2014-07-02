@@ -25,7 +25,7 @@ import npmctree
 from npmctree.sampling import sample_histories
 
 from npmctree.sampling import sample_histories,sample_history
-from npmctree.dynamic_lmap_lhood import get_iid_lhoods, get_lhood
+from npmctree.dynamic_lmap_lhood import get_iid_lhoods, get_lhood, get_edge_to_distn2d
 
 from Bio import Phylo
 from Bio import SeqIO
@@ -458,14 +458,15 @@ class Codon2RepeatsPhy:
         
     def get_P(self,edge_to_blen_infer,SubModel,para,Tao):
         edge_to_P = {}
+        try:
+            all_dupli_nodes = nx.descendants(self.treetopo,self.SpecAfterDupli_node)
+        except:
+            all_dupli_nodes = set([''])
+            #print 'Warning : No Duplication event specified'
+        all_dupli_nodes.add(self.SpecAfterDupli_node)
         for edge in self.treetopo.edges():
             blen = edge_to_blen_infer[edge]
-            try:
-                all_dupli_nodes = nx.descendants(self.treetopo,self.SpecAfterDupli_node)
-            except:
-                all_dupli_nodes = set([''])
-                #print 'Warning : No Duplication event specified'
-            all_dupli_nodes.add(self.SpecAfterDupli_node)
+            
             if edge[1] in all_dupli_nodes:
                 Q,dist = self.get_Q_and_distn(SubModel,para,Tao,2)
             else:
@@ -563,7 +564,7 @@ class Codon2RepeatsPhy:
         return per_site_constraints, npaired_yes, npaired_no        
 
 
-    def estimate(self,args,SubModel,guess,est_blen = False, unrooted = False, force_tau = False):
+    def estimate(self,args,SubModel,guess,est_blen = False, unrooted = False, force_tau = False, print_result = False):
 ##        self.treetopo, self.root, self.edge_to_blen, self.tree_phy = self.get_tree_info()
 ##        T, root, edge_to_blen, tree_phy = test.get_tree_info()
         casenum = self.getcasenum(SubModel)
@@ -579,7 +580,7 @@ class Codon2RepeatsPhy:
         else:
             nsts = self.nsites/3
 
-        print len(pair_to_state),casenum
+        #print len(pair_to_state),casenum
         constraint_info = self.get_data_constraints(nodes, pair_to_state, nsts, self.data)
         constraints, npaired_yes, npaired_no = constraint_info
 
@@ -607,7 +608,7 @@ class Codon2RepeatsPhy:
             if force_tau:
                 bnds.pop(-1)
 
-            ff = partial(self.objective_for_blen, SubModel, state_pairs, constraints,e,unrooted,force_tau)
+            ff = partial(self.objective_for_blen, SubModel, state_pairs, constraints,e,unrooted,force_tau, print_result)
             
                      
         else:
@@ -640,13 +641,13 @@ class Codon2RepeatsPhy:
         print 'negative log likelihood of preliminary estimate:', ff(guess)        
         
 
-        #result = scipy.optimize.minimize(ff, x0=guess, method='L-BFGS-B', bounds=bnds)
-        result = scipy.optimize.minimize(ff, x0=guess, method='TNC', bounds=bnds)
+        result = scipy.optimize.minimize(ff, x0=guess, method='L-BFGS-B', bounds=bnds)
+        #result = scipy.optimize.minimize(ff, x0=guess, method='TNC', bounds=bnds)
         self.update_blen_phylo()
         print result
         return result
     
-    def objective_for_blen(self,SubModel,nt_pairs,constraints,edge_to_blen_keys,unrooted,force_tau,x):
+    def objective_for_blen(self,SubModel,nt_pairs,constraints,edge_to_blen_keys,unrooted,force_tau, print_result,x):
         casenum = self.getcasenum(SubModel)
         est_edge_to_blen = deepcopy(self.edge_to_blen)
         
@@ -672,18 +673,17 @@ class Codon2RepeatsPhy:
         self.Tao = est_Tao
         self.modelnum = casenum
 
-        print self.edge_to_blen
-
-        #print 'x:', x
-        print 'para :', est_para, est_Tao
-
         rst = self.objective(SubModel, self.treetopo, self.root, nt_pairs, constraints, est_edge_to_blen,est_para, est_Tao)
 
-
+        if print_result:
+            print self.edge_to_blen
+            #print 'x:', x
+            print 'para :', est_para, est_Tao
+            print rst
 
         #objective(self,SubModel, T, root,nt_pairs,constraints,edge_to_blen_infer,para,Tao)
         #print 'x:', x, rst
-        print rst
+        
 
         return rst
 
@@ -806,6 +806,151 @@ class Codon2RepeatsPhy:
             for i in range(len(node_path)-1):
                 node_path[i+1].branch_length = edge_to_blen_normalized[(node_path[i].name,node_path[i+1].name)]
 
+    def get_edge_to_M(self,edge_to_Q,edge_to_C,NumRepeats = 2):
+        #Q,d = self.get_Q_and_distn(self.modelnum, self.para, self.Tao, NumRepeats)
+        #assert(Q.size == C.size)
+        edge_to_M= {}
+        for edge in self.edge_to_blen:
+            Q = edge_to_Q[edge]
+            C = edge_to_C[edge]
+            A = np.vstack( (np.hstack((Q,C)),np.hstack((np.zeros(Q.shape),Q))) )
+            M = scipy.sparse.linalg.expm(float(self.edge_to_blen[edge]) * A)[0:Q.shape[0],Q.shape[1]:]
+            edge_to_M[edge] = M
+
+        return edge_to_M
+
+    def get_Tau_matrix(self,Normalizing_factor = 1.0,NumRepeats = 2):
+        casenum = self.getcasenum(self.modelnum)
+        if casenum < 6:
+            nt_pairs, pair_to_state = self.get_state_space(NumRepeats)
+            state_pairs = nt_pairs
+        else:
+            codon_pairs,pair_to_state = self.get_codon_state_space(NumRepeats)
+            state_pairs = codon_pairs
+            bases = 'tcag'.upper()
+            codons = [a+b+c for a in bases for b in bases for c in bases]
+            amino_acids = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
+            codon_table = dict(zip(codons, amino_acids))
+            codon_nonstop = [a for a in codon_table.keys() if not codon_table[a]=='*']
+
+        Tau_matrix = np.zeros((len(state_pairs),len(state_pairs)))
+
+        for i, (s0a, s1a) in enumerate(state_pairs):
+            for j, (s0b, s1b) in enumerate(state_pairs):
+                # Diagonal entries will be set later.
+                if i == j:
+                    continue
+                # Only one change is allowed at a time.
+                if s0a != s0b and s1a != s1b:
+                    continue
+                # Determine which paralog changes.
+                if s0a != s0b:
+                    sa = s0a
+                    sb = s0b
+                    context = s1a
+                if s1a != s1b:
+                    sa = s1a
+                    sb = s1b
+                    context = s0a
+                # Set the rate according to the kind of change.
+                if context == sb:
+                    rate = self.Tao*Normalizing_factor
+                else:
+                    rate = 0.0
+                Tau_matrix[i, j] = rate
+
+        return Tau_matrix
+
+    def get_edge_to_M_Geneconv(self, NumRepeats =2):
+        Q_post_duplication,d = self.get_Q_and_distn(self.modelnum, self.para, self.Tao, NumRepeats)
+        expected_rate = self.get_expected_rate(Q_post_duplication)
+        normalizing_factor = NumRepeats/expected_rate
+        Q_post_duplication_normalized = normalizing_factor*Q_post_duplication
+        
+        Q_pre_duplication,d_pre = self.get_Q_and_distn(self.modelnum, self.para, self.Tao, 1)
+        Tau_matrix = self.get_Tau_matrix(NumRepeats,Normalizing_factor = normalizing_factor)
+        Q_post_modified = deepcopy(Q_post_duplication)
+        Q_pre_modified = deepcopy(Q_pre_duplication)
+        nonzerolist = Q_post_duplication.nonzero()
+        nonzeros = [(nonzerolist[0][i],nonzerolist[1][i]) for i in range(len(nonzerolist[0]))]
+        for i in range(0,Q_post_duplication.shape[0]):
+            for j in range(0,Q_post_duplication.shape[1]):
+                if not (i,j) in nonzeros:
+                    Q_post_modified[i,j] += self.err
+                    
+        nonzerolist = Q_pre_duplication.nonzero()
+        nonzeros = [(nonzerolist[0][i],nonzerolist[1][i]) for i in range(len(nonzerolist[0]))]
+        for i in range(0,Q_pre_duplication.shape[0]):
+            for j in range(0,Q_pre_duplication.shape[1]):
+                if not (i,j) in nonzeros:
+                    Q_pre_modified[i,j] += self.err
+
+        # Q modified is just created to avoid 0/0 case        
+        C_post = np.divide(Tau_matrix, Q_post_modified) #Coeff Matrix for Geneconv events
+        C_post_none_conv = np.divide((Q_post_duplication - Tau_matrix), Q_post_modified) #Coeff Matrix for none Geneconv events
+        C_pre = np.zeros(Tau_matrix.shape)
+        C_pre_none_conv = np.divide(Q_pre_duplication, Q_pre_modified)
+
+        edge_to_Q = {}
+        edge_to_C = {}
+        edge_to_C_none = {}
+        try:
+            all_dupli_nodes = nx.descendants(self.treetopo,self.SpecAfterDupli_node)
+        except:
+            all_dupli_nodes = set([''])
+            #print 'Warning : No Duplication event specified'
+        all_dupli_nodes.add(self.SpecAfterDupli_node)
+        for edge in self.treetopo.edges():
+            if edge[1] in all_dupli_nodes:
+                edge_to_Q[edge] = Q_post_duplication
+                edge_to_C[edge] = C_post
+                edge_to_C_none[edge] = C_post_none_conv
+            else:
+                edge_to_Q[edge] = Q_pre_duplication
+                edge_to_C[edge] = C_pre
+                edge_to_C_none[edge] = C_pre_none_conv
+
+    
+
+        return self.get_edge_to_M(edge_to_Q,edge_to_C,NumRepeats),self.get_edge_to_M(edge_to_Q,edge_to_C_none,NumRepeats)
+
+    def get_edge_to_expectednumchanges(self):
+        edge_to_P, root_distn = self.get_P(self.edge_to_blen,self.modelnum,self.para,self.Tao)
+        casenum = self.getcasenum(self.modelnum)
+        if casenum < 6:
+            nt_pairs, pair_to_state = self.get_state_space(2)
+            state_pairs = nt_pairs
+        else:
+            codon_pairs,pair_to_state = self.get_codon_state_space(2)
+            state_pairs = codon_pairs
+        nodes = set(self.treetopo)
+        if casenum<6:
+            nsts = self.nsites
+        else:
+            nsts = self.nsites/3
+
+        #print len(pair_to_state),casenum
+        constraint_info = self.get_data_constraints(nodes, pair_to_state, nsts, self.data)
+        constraints, npaired_yes, npaired_no = constraint_info
+
+        edge_to_M,edge_to_M_none = self.get_edge_to_M_Geneconv()
+
+        expected_geneconv = {v:0.0 for v in self.edge_to_blen.keys()}
+        expected_none_geneconv = {v:0.0 for v in self.edge_to_blen.keys()}
+
+        for node_to_data_fvec1d in constraints:
+            edge_to_J = get_edge_to_distn2d(self.treetopo, edge_to_P, self.root, root_distn, node_to_data_fvec1d)
+            for v in self.edge_to_blen.keys():
+                expected_geneconv[v] += np.multiply(edge_to_M[v],edge_to_J[v]).sum()/nsts
+                expected_none_geneconv[v] += np.multiply(edge_to_M_none[v],edge_to_J[v]).sum()/nsts
+
+        return expected_geneconv, expected_none_geneconv
+
+##        neg_ll = 0
+##        for node_to_data_fvec1d in constraints:
+##            lhood = get_lhood(T, edge_to_P, root, root_distn, node_to_data_fvec1d)
+##            neg_ll -= np.log(lhood)        
+
     
                     
             
@@ -912,8 +1057,21 @@ if __name__ == '__main__':
     guess = np.append(guess,[0.55095646406])
     guess_w_blen = np.log([0.031798041175813183, 0.034203400799371592, 0.014099750421849206, 0.091920438733816695, 0.2020452320238027, 0.015783419431732466, 0.15438044913006899, 0.33626901196743414])
     #Use the estimates from the 1st run
+    
+    guess = np.log([0.49628073,  0.58854499 , 0.48857723,  2.10157473,  1.16726338])
+    guess = np.append(guess,[0.547125332615])
+    guess_w_blen = np.log([0.031386045599151487, 0.034027414206324061, 0.014031840798100775, 0.091769060449985645, 0.20503690355041698, 0.015704615057422228, 0.15445750717579823, 0.33510638411285476])
+    #Use the estimates from the unfinished run
     guess_w_blen = np.append(guess_w_blen, guess)
-    r4 = test4.estimate(args, 7, guess_w_blen, est_blen = True,unrooted = False,force_tau = False)
+    #r4 = test4.estimate(args, 7, guess_w_blen, est_blen = True,unrooted = False,force_tau = False)
+
+    guess = np.log([0.49628073,  0.58854499 , 0.48857723,  2.10157473,  1.16726338])
+    #guess = np.append(guess,[0.547125332615])
+    guess_w_blen = np.log([0.031386045599151487, 0.034027414206324061, 0.014031840798100775, 0.091769060449985645, 0.20503690355041698, 0.015704615057422228, 0.15445750717579823, 0.33510638411285476])
+    #Use the estimates from the unfinished run
+    guess_w_blen = np.append(guess_w_blen, guess)
+    
+    r5 = test4.estimate(args, 7, guess_w_blen, est_blen = True,unrooted = False,force_tau = True)
     
 
 ##    #guess_w_blen[0:8]=[-1.0,0.0,1.0,-2.0,-3., -1., 0.0,-2.0]
