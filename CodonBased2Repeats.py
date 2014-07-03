@@ -806,7 +806,7 @@ class Codon2RepeatsPhy:
             for i in range(len(node_path)-1):
                 node_path[i+1].branch_length = edge_to_blen_normalized[(node_path[i].name,node_path[i+1].name)]
 
-    def get_edge_to_M(self,edge_to_Q,edge_to_C,NumRepeats = 2):
+    def get_edge_to_M(self,edge_to_Q,edge_to_C,edge_to_blen,NumRepeats = 2):
         #Q,d = self.get_Q_and_distn(self.modelnum, self.para, self.Tao, NumRepeats)
         #assert(Q.size == C.size)
         edge_to_M= {}
@@ -814,7 +814,7 @@ class Codon2RepeatsPhy:
             Q = edge_to_Q[edge]
             C = edge_to_C[edge]
             A = np.vstack( (np.hstack((Q,C)),np.hstack((np.zeros(Q.shape),Q))) )
-            M = scipy.sparse.linalg.expm(float(self.edge_to_blen[edge]) * A)[0:Q.shape[0],Q.shape[1]:]
+            M = scipy.sparse.linalg.expm(float(edge_to_blen[edge]) * A)[0:Q.shape[0],Q.shape[1]:]
             edge_to_M[edge] = M
 
         return edge_to_M
@@ -868,13 +868,13 @@ class Codon2RepeatsPhy:
         Q_post_duplication_normalized = normalizing_factor*Q_post_duplication
         
         Q_pre_duplication,d_pre = self.get_Q_and_distn(self.modelnum, self.para, self.Tao, 1)
-        Tau_matrix = self.get_Tau_matrix(NumRepeats,Normalizing_factor = normalizing_factor)
-        Q_post_modified = deepcopy(Q_post_duplication)
+        Tau_matrix = self.get_Tau_matrix(normalizing_factor,NumRepeats)
+        Q_post_modified = deepcopy(Q_post_duplication_normalized)
         Q_pre_modified = deepcopy(Q_pre_duplication)
-        nonzerolist = Q_post_duplication.nonzero()
+        nonzerolist = Q_post_duplication_normalized.nonzero()
         nonzeros = [(nonzerolist[0][i],nonzerolist[1][i]) for i in range(len(nonzerolist[0]))]
-        for i in range(0,Q_post_duplication.shape[0]):
-            for j in range(0,Q_post_duplication.shape[1]):
+        for i in range(0,Q_post_duplication_normalized.shape[0]):
+            for j in range(0,Q_post_duplication_normalized.shape[1]):
                 if not (i,j) in nonzeros:
                     Q_post_modified[i,j] += self.err
                     
@@ -887,13 +887,17 @@ class Codon2RepeatsPhy:
 
         # Q modified is just created to avoid 0/0 case        
         C_post = np.divide(Tau_matrix, Q_post_modified) #Coeff Matrix for Geneconv events
-        C_post_none_conv = np.divide((Q_post_duplication - Tau_matrix), Q_post_modified) #Coeff Matrix for none Geneconv events
+        C_post_none_conv = np.divide((Q_post_duplication_normalized - Tau_matrix), Q_post_modified) #Coeff Matrix for none Geneconv events
+        np.fill_diagonal(C_post_none_conv,0.0)
         C_pre = np.zeros(Tau_matrix.shape)
         C_pre_none_conv = np.divide(Q_pre_duplication, Q_pre_modified)
+        np.fill_diagonal(C_pre_none_conv,0.0)
+        
 
         edge_to_Q = {}
         edge_to_C = {}
         edge_to_C_none = {}
+        edge_to_blen = {}
         try:
             all_dupli_nodes = nx.descendants(self.treetopo,self.SpecAfterDupli_node)
         except:
@@ -902,17 +906,19 @@ class Codon2RepeatsPhy:
         all_dupli_nodes.add(self.SpecAfterDupli_node)
         for edge in self.treetopo.edges():
             if edge[1] in all_dupli_nodes:
-                edge_to_Q[edge] = Q_post_duplication
+                edge_to_Q[edge] = Q_post_duplication_normalized
                 edge_to_C[edge] = C_post
                 edge_to_C_none[edge] = C_post_none_conv
+                edge_to_blen[edge] = self.edge_to_blen[edge]/normalizing_factor
             else:
                 edge_to_Q[edge] = Q_pre_duplication
                 edge_to_C[edge] = C_pre
                 edge_to_C_none[edge] = C_pre_none_conv
+                edge_to_blen[edge] = self.edge_to_blen[edge]
 
     
 
-        return self.get_edge_to_M(edge_to_Q,edge_to_C,NumRepeats),self.get_edge_to_M(edge_to_Q,edge_to_C_none,NumRepeats)
+        return self.get_edge_to_M(edge_to_Q,edge_to_C,edge_to_blen,NumRepeats),self.get_edge_to_M(edge_to_Q,edge_to_C_none,edge_to_blen,NumRepeats)
 
     def get_edge_to_expectednumchanges(self):
         edge_to_P, root_distn = self.get_P(self.edge_to_blen,self.modelnum,self.para,self.Tao)
