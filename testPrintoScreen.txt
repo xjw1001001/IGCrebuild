@@ -1,0 +1,21 @@
+('Clade', 'Tamarin', "doesn't have ECP gene")
+Outgroups are : set(['Tamarin'])
+paralog site matches : 2090
+paralog site mismatches: 280
+negative log likelihood of preliminary estimate: 2008.98729585
+  status: 0
+ success: True
+    nfev: 432
+     fun: 1731.3155072209104
+       x: array([-2.47157793, -0.61906708, -0.91518047, -0.79015885, -1.1828388 ,
+       -0.71125747, -0.5484927 , -0.69200163,  0.76069292,  1.37518394])
+ message: 'CONVERGENCE: REL_REDUCTION_OF_F_<=_FACTR*EPSMCH'
+     jac: array([ 0.00304681,  0.00177351,  0.0005457 , -0.00793534, -0.00266027,
+       -0.00304681,  0.00386535,  0.00634373, -0.0007276 , -0.00256932])
+     nit: 33
+TODO implement update phylo tree for clock model
+('Clade', 'Tamarin', "doesn't have ECP gene")
+Outgroups are : set(['Tamarin'])
+paralog site matches : 556
+paralog site mismatches: 234
+negative log likelihood of preliminary estimate:

@@ -36,6 +36,7 @@ from Bio import AlignIO
 from copy import deepcopy
 import subprocess
 import operator
+from operator import mul
 
 
 class Codon2RepeatsPhy:
@@ -49,7 +50,7 @@ class Codon2RepeatsPhy:
         self.seqloc = dataloc
         self.nsites = 0
         self.treetopo, self.root, self.edge_to_blen, self.tree_phy = self.get_tree_info(align, removegaps)
-        self.models={'Jukes-Cantor':0,'K80':1, 'F81':2, 'HKY':3,'GTR':4,'Codon':6}
+        self.models={'Jukes-Cantor':0,'K80':1, 'F81':2, 'HKY':3,'GTR':4,'Codon':6, 'Codon_corrected':7}
         self.duplication_node = 'N0' #This is for test version, need to change later
         self.SpecAfterDupli_node = 'N1'#'Gorilla'#'N1' #This is for test version, need to change later 
         self.data = self.get_data(cdmodel)
@@ -57,6 +58,7 @@ class Codon2RepeatsPhy:
         self.para = []
         self.modelnum = 0
         self.Tao = 0.0
+        self.root_branch = ('N0','Tamarin')
         
     def DataPre(self):
         try:
@@ -82,8 +84,22 @@ class Codon2RepeatsPhy:
         self.nsites = align.get_alignment_length()
         return align
 
-#    def remove_gaps(self):
+    def PrintResult(self, output, r1):
+        with open(output,'w+') as f: #'./RootedTest_HKY.txt'
+            f.write('Model Number is '+str(self.modelnum)+'\t\n')
+            f.write('Parameter estimates are ')
+            for item in self.para:
+                f.write("%s" % item)
+            f.write('\n')
+            f.write('Estimated Tau is ' + str(self.Tao))
+            f.write('\t\n')
+            f.write('Estimated branch lengths are')
+            for item in self.edge_to_blen:
+                f.write(str(item)+'\t'+str(self.edge_to_blen[item])+'\n')
+            for i in r1:
+                f.write(i+':  ' +str(r1[i])+'\n')
         
+     
 
     def get_tree_info(self,align = False, removegaps = False):
         tree = Phylo.read(self.newicktree,"newick")
@@ -290,6 +306,7 @@ class Codon2RepeatsPhy:
             for i in range(len(codon_nonstop)):
                 dist[i] = reduce(operator.mul, [_pi['ACGT'.index(nt)] for nt in codon_nonstop[i] ], 1)
             dist = dist/dist.sum()
+
             
         return Qnorm,dist
         
@@ -564,9 +581,18 @@ class Codon2RepeatsPhy:
         return per_site_constraints, npaired_yes, npaired_no        
 
 
-    def estimate(self,args,SubModel,guess,est_blen = False, unrooted = False, force_tau = False, print_result = False):
+    def estimate(self,args,SubModel,guess,output='./result.txt',est_blen = False, unrooted = False, force_tau = False,clock = False, print_result = False):
 ##        self.treetopo, self.root, self.edge_to_blen, self.tree_phy = self.get_tree_info()
 ##        T, root, edge_to_blen, tree_phy = test.get_tree_info()
+        if clock:
+            self.root='root'
+            self.treetopo.remove_edge(*self.root_branch)
+            self.treetopo.add_node('root')
+            self.treetopo.add_edges_from([('root',self.root_branch[0]),('root',self.root_branch[1])])
+            self.edge_to_blen.pop(self.root_branch)
+            self.edge_to_blen[('root',self.root_branch[0])] = self.blen
+            self.edge_to_blen[('root',self.root_branch[1])] = self.blen
+            leaves = set(v for v, degree in self.treetopo.degree().items() if degree == 1) 
         casenum = self.getcasenum(SubModel)
         if casenum < 6:
             nt_pairs, pair_to_state = self.get_state_space(2)
@@ -584,21 +610,44 @@ class Codon2RepeatsPhy:
         constraint_info = self.get_data_constraints(nodes, pair_to_state, nsts, self.data)
         constraints, npaired_yes, npaired_no = constraint_info
 
-        if est_blen:            
+        if est_blen:
             one_bnd = (None,None)
-            if casenum == 0:            
-                bnds = [one_bnd]*(len(self.edge_to_blen)+2)
-            elif casenum == 1:
-                bnds = [one_bnd]*(len(self.edge_to_blen)+2)
-            elif casenum == 2:
-                bnds = [one_bnd]*len(self.edge_to_blen)
-                bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None)])
-            elif casenum == 3:
-                bnds = [one_bnd]*len(self.edge_to_blen)
-                bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(0, None)])
-            elif casenum == 6 or casenum == 7:
-                bnds = [one_bnd]*len(self.edge_to_blen)
-                bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(None, None),(0, None)])
+            if clock:
+                if casenum == 0:            
+                    bnds = [one_bnd]
+                    bnds.extend([(None,0.0)]*(len(leaves)-1+2))
+                elif casenum == 1:
+                    bnds = [one_bnd]
+                    bnds.extend([(None,0.0)]*(len(leaves)-1+2))
+                elif casenum == 2:
+                    bnds = [one_bnd]
+                    bnds.extend([(None,0.0)]*(len(leaves)-1))
+                    bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None)])
+                elif casenum == 3:
+                    bnds = [one_bnd]
+                    bnds.extend([(None,0.0)]*(len(leaves)-1))
+                    bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(0, None)])
+                elif casenum == 6 or casenum == 7:
+                    bnds = [one_bnd]
+                    bnds.extend([(None,0.0)]*(len(leaves)-1))
+                    bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(None, None),(0, None)])
+
+                
+                
+            else:
+                if casenum == 0:            
+                    bnds = [one_bnd]*(len(self.edge_to_blen)+2)
+                elif casenum == 1:
+                    bnds = [one_bnd]*(len(self.edge_to_blen)+2)
+                elif casenum == 2:
+                    bnds = [one_bnd]*len(self.edge_to_blen)
+                    bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None)])
+                elif casenum == 3:
+                    bnds = [one_bnd]*len(self.edge_to_blen)
+                    bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(0, None)])
+                elif casenum == 6 or casenum == 7:
+                    bnds = [one_bnd]*len(self.edge_to_blen)
+                    bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(None, None),(0, None)])
 
             e = deepcopy(self.edge_to_blen.keys())
             if unrooted:
@@ -608,7 +657,7 @@ class Codon2RepeatsPhy:
             if force_tau:
                 bnds.pop(-1)
 
-            ff = partial(self.objective_for_blen, SubModel, state_pairs, constraints,e,unrooted,force_tau, print_result)
+            ff = partial(self.objective_for_blen, SubModel, state_pairs, constraints,e,unrooted,force_tau,clock, print_result)
             
                      
         else:
@@ -643,24 +692,57 @@ class Codon2RepeatsPhy:
 
         result = scipy.optimize.minimize(ff, x0=guess, method='L-BFGS-B', bounds=bnds)
         #result = scipy.optimize.minimize(ff, x0=guess, method='TNC', bounds=bnds)
-        self.update_blen_phylo()
         print result
+        if not clock:
+            self.update_blen_phylo()
+        else:
+            print 'TODO implement update phylo tree for clock model'
+
+        self.PrintResult(output,result)
+        
         return result
     
-    def objective_for_blen(self,SubModel,nt_pairs,constraints,edge_to_blen_keys,unrooted,force_tau, print_result,x):
+    def objective_for_blen(self,SubModel,nt_pairs,constraints,edge_to_blen_keys,unrooted,force_tau,clock, print_result,x):
         casenum = self.getcasenum(SubModel)
         est_edge_to_blen = deepcopy(self.edge_to_blen)
-        
-        for i, k in enumerate(edge_to_blen_keys):
-            est_edge_to_blen[k] = np.exp(x[i])
-            self.edge_to_blen[k] = np.exp(x[i])
+        if not clock:
+            for i, k in enumerate(edge_to_blen_keys):
+                est_edge_to_blen[k] = np.exp(x[i])
+                self.edge_to_blen[k] = np.exp(x[i])
+        else:
+            '''
+            x[] = L, r0, r1, r2,...
+            '''
+            for k in edge_to_blen_keys:
+                xx = np.exp(x)
+                if k[0] == 'root':
+                    if str.isdigit(k[1][1:]):
+                        est_edge_to_blen[k] = xx[0]*(1-xx[1])
+                        self.edge_to_blen[k] = xx[0]*(1-xx[1])
+                    else:
+                        est_edge_to_blen[k] = xx[0]
+                        self.edge_to_blen[k] = xx[0]
+                else:
+                    tmp_k = int(k[0][1:])
+                    if str.isdigit(k[1][1:]):                        
+                        est_edge_to_blen[k] = xx[0]*reduce(mul, xx[1:(tmp_k+1)], 1)*(1-xx[tmp_k+2])
+                        self.edge_to_blen[k] = xx[0]*reduce(mul, xx[1:(tmp_k+1)], 1)*(1-xx[tmp_k+2])
+                    else:
+                        est_edge_to_blen[k] = xx[0]*reduce(mul, xx[1:(tmp_k+1)], 1)
+                        self.edge_to_blen[k] = xx[0]*reduce(mul, xx[1:(tmp_k+1)], 1)
+                        
+                
 
         if unrooted:
             self.edge_to_blen[('N0','N1')] = 1e-6
             est_edge_to_blen[('N0','N1')] = 1e-6
             start_of_para = len(est_edge_to_blen)-1
         else:
-            start_of_para = len(est_edge_to_blen)
+            if clock:
+                leaves = set(v for v, degree in self.treetopo.degree().items() if degree == 1)
+                start_of_para = len(leaves)
+            else:
+                start_of_para = len(est_edge_to_blen)
 
         if force_tau:
             est_Tao = 0.0
@@ -668,6 +750,7 @@ class Codon2RepeatsPhy:
         else:
             est_para = np.exp(x[start_of_para:-1])
             est_Tao = x[-1]
+
 
         self.para = deepcopy(est_para)
         self.Tao = est_Tao
@@ -809,13 +892,19 @@ class Codon2RepeatsPhy:
     def get_edge_to_M(self,edge_to_Q,edge_to_C,edge_to_blen,NumRepeats = 2):
         #Q,d = self.get_Q_and_distn(self.modelnum, self.para, self.Tao, NumRepeats)
         #assert(Q.size == C.size)
+        edge_to_P, root_distn = self.get_P(self.edge_to_blen,self.modelnum,self.para,self.Tao)
         edge_to_M= {}
         for edge in self.edge_to_blen:
             Q = edge_to_Q[edge]
             C = edge_to_C[edge]
             A = np.vstack( (np.hstack((Q,C)),np.hstack((np.zeros(Q.shape),Q))) )
             M = scipy.sparse.linalg.expm(float(edge_to_blen[edge]) * A)[0:Q.shape[0],Q.shape[1]:]
-            edge_to_M[edge] = M
+            P = edge_to_P[edge]
+            P_zero_indices = [(np.where(P==0)[0][i],np.where(P==0)[1][i]) for i in range(len(np.where(P==0)[0]))]
+            M_zero_indices = [(np.where(M==0)[0][i],np.where(M==0)[1][i]) for i in range(len(np.where(M==0)[0]))]
+            for (i,j) in set(P_zero_indices).intersection(set(M_zero_indices)):
+                P[i,j] += self.err
+            edge_to_M[edge] = np.divide(M,P)
 
         return edge_to_M
 
@@ -869,28 +958,28 @@ class Codon2RepeatsPhy:
         
         Q_pre_duplication,d_pre = self.get_Q_and_distn(self.modelnum, self.para, self.Tao, 1)
         Tau_matrix = self.get_Tau_matrix(normalizing_factor,NumRepeats)
-        Q_post_modified = deepcopy(Q_post_duplication_normalized)
-        Q_pre_modified = deepcopy(Q_pre_duplication)
-        nonzerolist = Q_post_duplication_normalized.nonzero()
-        nonzeros = [(nonzerolist[0][i],nonzerolist[1][i]) for i in range(len(nonzerolist[0]))]
-        for i in range(0,Q_post_duplication_normalized.shape[0]):
-            for j in range(0,Q_post_duplication_normalized.shape[1]):
-                if not (i,j) in nonzeros:
-                    Q_post_modified[i,j] += self.err
-                    
-        nonzerolist = Q_pre_duplication.nonzero()
-        nonzeros = [(nonzerolist[0][i],nonzerolist[1][i]) for i in range(len(nonzerolist[0]))]
-        for i in range(0,Q_pre_duplication.shape[0]):
-            for j in range(0,Q_pre_duplication.shape[1]):
-                if not (i,j) in nonzeros:
-                    Q_pre_modified[i,j] += self.err
+##        Q_post_modified = deepcopy(Q_post_duplication_normalized)
+##        Q_pre_modified = deepcopy(Q_pre_duplication)
+##        nonzerolist = Q_post_duplication_normalized.nonzero()
+##        nonzeros = [(nonzerolist[0][i],nonzerolist[1][i]) for i in range(len(nonzerolist[0]))]
+##        for i in range(0,Q_post_duplication_normalized.shape[0]):
+##            for j in range(0,Q_post_duplication_normalized.shape[1]):
+##                if not (i,j) in nonzeros:
+##                    Q_post_modified[i,j] += self.err
+##                    
+##        nonzerolist = Q_pre_duplication.nonzero()
+##        nonzeros = [(nonzerolist[0][i],nonzerolist[1][i]) for i in range(len(nonzerolist[0]))]
+##        for i in range(0,Q_pre_duplication.shape[0]):
+##            for j in range(0,Q_pre_duplication.shape[1]):
+##                if not (i,j) in nonzeros:
+##                    Q_pre_modified[i,j] += self.err
 
         # Q modified is just created to avoid 0/0 case        
-        C_post = np.divide(Tau_matrix, Q_post_modified) #Coeff Matrix for Geneconv events
-        C_post_none_conv = np.divide((Q_post_duplication_normalized - Tau_matrix), Q_post_modified) #Coeff Matrix for none Geneconv events
+        C_post = Tau_matrix #Coeff Matrix for Geneconv events
+        C_post_none_conv = (Q_post_duplication_normalized - Tau_matrix) #Coeff Matrix for none Geneconv events
         np.fill_diagonal(C_post_none_conv,0.0)
         C_pre = np.zeros(Tau_matrix.shape)
-        C_pre_none_conv = np.divide(Q_pre_duplication, Q_pre_modified)
+        C_pre_none_conv = deepcopy(Q_pre_duplication)
         np.fill_diagonal(C_pre_none_conv,0.0)
         
 
