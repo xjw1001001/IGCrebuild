@@ -89,7 +89,7 @@ class Codon2RepeatsPhy:
             f.write('Model Number is '+str(self.modelnum)+'\t\n')
             f.write('Parameter estimates are ')
             for item in self.para:
-                f.write("%s" % item)
+                f.write(str(item)+'\t')
             f.write('\n')
             f.write('Estimated Tau is ' + str(self.Tao))
             f.write('\t\n')

@@ -46,6 +46,7 @@ if __name__ == '__main__':
     leaves = set(v for v, degree in test4.treetopo.degree().items() if degree == 1)
     guess_w_blen = [-1.0]*(len(leaves))
     guess = np.log([0.49628073,  0.58854499 , 0.48857723,  2.10157473,  1.16726338])
+    guess = np.append(guess,1.16)
     guess_w_blen = np.append(guess_w_blen, guess)
-    r5 = test4.estimate(args, 7, guess_w_blen,output = './RootedTest_Codon_corrected.txt', est_blen = True,clock = True,force_tau = True, print_result = True)
+    r5 = test4.estimate(args, 7, guess_w_blen,output = './RootedTest_Codon_corrected.txt', est_blen = True,clock = True,force_tau = False, print_result = True)
     

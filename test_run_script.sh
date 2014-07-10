@@ -1,2 +1,2 @@
 #!/bin/bash
-python RootedTest.py
+python RootedTest.py > ./RootedTestPrintScreen.txt
