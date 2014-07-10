@@ -53,6 +53,6 @@ coverage.xml
 docs/_build/
 
 # Don't include Any Datafile or paper
-!*.fasta
+!*.fas
 !*.aln
 !*.pdf
