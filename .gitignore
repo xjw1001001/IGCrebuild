@@ -52,6 +52,7 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
-# Don't include Any Datafile
+# Don't include Any Datafile or paper
 !*.fasta
 !*.aln
+!*.pdf
