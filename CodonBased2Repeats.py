@@ -40,10 +40,11 @@ from operator import mul
 
 
 class Codon2RepeatsPhy:
-    def __init__(self,numLeaf,blen,tree_newick,dataloc,cdmodel = False,align=False, removegaps = False):
+    def __init__(self,numLeaf,blen,tree_newick,dataloc,paralog=['EDN','ECP'], root_branch = ('N0','Tamarin'),cdmodel = False,align=False, removegaps = False):
         self.nleaf = numLeaf
         self.nbranch = 2*numLeaf -2
         self.blen = blen
+        self.paralog = paralog
 ##        if not self.nbranch == len(blen):
 ##            print 'please make sure the vector blen contains all leaves'
         self.newicktree = tree_newick
@@ -58,7 +59,7 @@ class Codon2RepeatsPhy:
         self.para = []
         self.modelnum = 0
         self.Tao = 0.0
-        self.root_branch = ('N0','Tamarin')
+        self.root_branch = root_branch
         
     def DataPre(self):
         try:
@@ -113,10 +114,10 @@ class Codon2RepeatsPhy:
         # Make a lookup table for sequences
         #fastaseqs = SeqIO.parse(open(self.seqloc,"rU"),'fasta')
         if align:
-            lookup = dict((rec.id,rec.seq.tostring()) for rec in self.DataPre())
+            lookup = dict((rec.id,str(rec.seq)) for rec in self.DataPre())
         elif removegaps:
             fastaseqs = SeqIO.parse(open(self.seqloc,"rU"),'fasta')
-            lookup = dict((rec.id,rec.seq.tostring()) for rec in fastaseqs)
+            lookup = dict((rec.id,str(rec.seq)) for rec in fastaseqs)
             gap_positions = []
             for k in lookup.keys():
                 gap_positions.extend([i for i,x in enumerate(lookup[k]) if x=='-'])
@@ -127,16 +128,18 @@ class Codon2RepeatsPhy:
             self.nsites = len(lookup[lookup.keys()[0]])
         else:
             fastaseqs = SeqIO.parse(open(self.seqloc,"rU"),'fasta')
-            lookup = dict((rec.id,rec.seq.tostring()) for rec in fastaseqs)
+            lookup = dict((rec.id,str(rec.seq)) for rec in fastaseqs)
             self.nsites = len(lookup[lookup.keys()[0]])
         
         for clade in tree_phy.get_terminals():
-            key = clade.name            
-            clade.sequences.append(lookup[key+'EDN'])
-            if lookup.has_key(key+'ECP'):
-                clade.sequences.append(lookup[key+'ECP'])
+            key = clade.name
+            paralog1 = self.paralog[0]
+            paralog2 = self.paralog[1]
+            clade.sequences.append(lookup[key+paralog1])
+            if lookup.has_key(key+paralog2):
+                clade.sequences.append(lookup[key+paralog2])
             else:
-                print("Clade",key,"doesn't have ECP gene")
+                print("Clade",key,"doesn't have"+ paralog2 +" gene")
             
         tree_nx = Phylo.to_networkx(tree_phy)
 
@@ -174,7 +177,7 @@ class Codon2RepeatsPhy:
 
     def get_data(self,codonmodel=False):
         d = {}
-        name = ['EDN','ECP']
+        name = self.paralog
         for clade in self.tree_phy.get_terminals():
             for i in range(len(clade.sequences)):
                 if not codonmodel:
@@ -489,7 +492,6 @@ class Codon2RepeatsPhy:
             else:
                 Q,distn = self.get_Q_and_distn(SubModel,para,Tao,1)
             P = scipy.sparse.linalg.expm(float(blen) * Q)
-            #P = scipy.linalg.expm(float(blen) * Q)
             edge_to_P[edge] = P
         root_distn = distn
         return edge_to_P, root_distn
@@ -542,7 +544,7 @@ class Codon2RepeatsPhy:
 
         """
         # maybe do not hard code this...
-        paralogs = ['EDN', 'ECP']
+        paralogs = self.paralog
         # assume we only have sequence data at the leaves...
         leaves = set(taxon for taxon, paralog in data)
         leaf_to_paralogs = {}
@@ -622,11 +624,11 @@ class Codon2RepeatsPhy:
                 elif casenum == 2:
                     bnds = [one_bnd]
                     bnds.extend([(None,0.0)]*(len(leaves)-1))
-                    bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None)])
+                    bnds.extend([(None, -0.05),(None, -0.05),(None, -0.05),(None, None)])
                 elif casenum == 3:
                     bnds = [one_bnd]
                     bnds.extend([(None,0.0)]*(len(leaves)-1))
-                    bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(0, None)])
+                    bnds.extend([(None, -0.05),(None, -0.05),(None, -0.05),(None, None),(0, None)])
                 elif casenum == 6 or casenum == 7:
                     bnds = [one_bnd]
                     bnds.extend([(None,0.0)]*(len(leaves)-1))
@@ -641,10 +643,10 @@ class Codon2RepeatsPhy:
                     bnds = [one_bnd]*(len(self.edge_to_blen)+2)
                 elif casenum == 2:
                     bnds = [one_bnd]*len(self.edge_to_blen)
-                    bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None)])
+                    bnds.extend([(None, -0.05),(None, -0.05),(None, -0.05),(None, None)])
                 elif casenum == 3:
                     bnds = [one_bnd]*len(self.edge_to_blen)
-                    bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(0, None)])
+                    bnds.extend([(None, -0.05),(None, -0.05),(None, -0.05),(None, None),(0, None)])
                 elif casenum == 6 or casenum == 7:
                     bnds = [one_bnd]*len(self.edge_to_blen)
                     bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(None, None),(0, None)])
@@ -691,14 +693,17 @@ class Codon2RepeatsPhy:
         
 
         result = scipy.optimize.minimize(ff, x0=guess, method='L-BFGS-B', bounds=bnds)
-        #result = scipy.optimize.minimize(ff, x0=guess, method='TNC', bounds=bnds)
+        self.PrintResult(output,result)
         print result
         if not clock:
-            self.update_blen_phylo()
+            try:
+                self.update_blen_phylo()
+            except:
+                print 'Please Check Update_blen_phylo for this case'
         else:
             print 'TODO implement update phylo tree for clock model'
 
-        self.PrintResult(output,result)
+        
         
         return result
     
@@ -827,7 +832,7 @@ class Codon2RepeatsPhy:
             Outgroup = set(self.treetopo).difference(nx.descendants(self.treetopo,self.SpecAfterDupli_node))
         except:
             Outgroup = set([])
-        paralog_name = ['EDN','ECP']
+        paralog_name = self.paralog
         leaves = set(taxon for taxon, paralog in self.data)
         with open(out_loc+'dataoutpaml.paml','w') as f:
             f.write(str(len(leaves)+len(leaves.difference(Outgroup)))+'\t'+ str(self.nsites) + '\n')
@@ -1066,7 +1071,7 @@ def cleanPAML(in_file,out_file, fasta_out = False):
             for record in SeqIO.parse(sim_paml,'phylip'):
                 for i in range(2):
                     f.write('>'+record.id+paralog_name[i]+'\n')
-                    f.write(record.seq.tostring()+'\n')
+                    f.write(str(rec.seq)+'\n')
 
   
 

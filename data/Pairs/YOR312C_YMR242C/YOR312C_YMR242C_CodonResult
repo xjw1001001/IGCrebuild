@@ -1,0 +1,152 @@
+      2    519
+
+YOR312C                         ATG GCT CAT TTC AAA GAA TAC CAA GTC ATT GGT CGT CGT TTA CCA ACT GAA TCC GTT CCA GAA CCA AAG TTG TTC AGA ATG AGA ATT TTT GCT TCA AAT GAA GTC ATC GCC AAG TCT CGT TAC TGG TAT TTC TTG CAA AAA TTG CAC AAG GTT AAG AAG GCT TCT GGT GAA ATT GTT TCC ATC AAC CAA ATC AAC GAA GCT CAC CCA ACC AAG GTC AAG AAC TTC GGT GTT TGG GTT AGA TAC GAT TCC AGA TCT GGT ACT CAC AAC ATG TAC AAG GAA ATC AGA GAC GTA TCC AGA GTT GCT GCC GTC GAA ACC TTA TAC CAA GAC ATG GCT GCT AGA CAC AGA GCT AGA TTT AGA TCT ATT CAC ATC TTG AAG GTT GCT GAA ATT GAA AAG ACT GCT GAT GTC AAG AGA CAA TAC GTC AAG CAA TTC TTG ACC AAG GAT TTA AAA TTC CCA TTA CCT CAC AGA GTC CAA AAA TCT ACC AAG ACT TTC TCT TAC AAG AGA CCA TCA ACC TTC TAC ??? 
+YMR242C                         ATG GCT CAC TTT AAA GAA TAC CAA GTT ATT GGC CGT CGT TTG CCA ACT GAA TCT GTT CCA GAA CCA AAG TTG TTC AGA ATG AGA ATC TTT GCT TCA AAT GAA GTT ATT GCC AAG TCT CGT TAC TGG TAT TTC TTG CAA AAG TTG CAC AAG GTT AAG AAG GCT TCT GGT GAA ATT GTT TCC ATC AAC CAA ATC AAC GAA GCT CAT CCA ACC AAG GTC AAG AAC TTC GGT GTC TGG GTT AGA TAC GAC TCC AGA TCT GGT ACT CAC AAT ATG TAC AAG GAA ATC AGA GAC GTC TCC AGA GTT GCT GCC GTC GAA ACC TTA TAC CAA GAC ATG GCT GCC AGA CAC AGA GCT AGA TTT AGA TCT ATT CAC ATC TTG AAG GTT GCT GAA ATT GAA AAG ACT GCT GAC GTC AAG AGA CAA TAC GTT AAG CAA TTT TTG ACC AAG GAC TTG AAA TTC CCA TTG CCT CAC AGA GTC CAA AAA TCC ACC AAG ACT TTC TCC TAC AAG AGA CCT TCC ACT TTC TAC ??? 
+
+
+
+Printing out site pattern counts
+
+
+         2        156  P
+
+YOR312C                         TTT AAA AAA AAC AAC AAG AAT ACC ACC ACT AGA ATC ATC ATG ATT ATT CAA CAC CAC CAT CCA CCA CCT CGT GAA GAC GAT GCC GCT GCT GGT GGT GTA GTC GTC GTT GTT TAC TAT TCA TCA TCC TCC TCT TCT TGG TTA TTA TTC TTC TTG TTT 
+YMR242C                         ... ... ..G ... ..T ... ... ... ..T ... ... ... ..T ... ..C ... ... ... ..T ..C ... ..T ... ... ... ... ..C ... ..C ... ..C ... ..C ... ..T ..C ... ... ... ... ..C ... ..T ..C ... ... ... ..G ... ..T ... ... 
+
+    1    3    1    3    1   15    1    4    1    4   13    4    1    4    1
+    4    7    5    1    1    5    1    1    3   10    2    3    2    1    9
+    1    3    1    4    3    1    6    8    1    1    1    3    1    2    4
+    2    1    3    6    2    5    2
+
+CODONML (in paml version 4.7, January 2013)  /Users/xji3/blast/pairs/YOR312C_YMR242C/YOR312C_YMR242C_modified.phylip
+Model: One dN/dS ratio for branches, 
+Codon frequency model: F3x4
+ns =   2  ls = 173
+
+Codon usage in sequences
+--------------------------------------------------------------
+Phe TTT  2  4 | Ser TCT  6  5 | Tyr TAT  1  1 | Cys TGT  0  0
+    TTC  8  6 |     TCC  4  6 |     TAC  8  8 |     TGC  0  0
+Leu TTA  4  1 |     TCA  2  1 | *** TAA  0  0 | *** TGA  0  0
+    TTG  5  8 |     TCG  0  0 |     TAG  0  0 | Trp TGG  2  2
+--------------------------------------------------------------
+Leu CTT  0  0 | Pro CCT  1  2 | His CAT  1  1 | Arg CGT  3  3
+    CTC  0  0 |     CCC  0  0 |     CAC  6  6 |     CGC  0  0
+    CTA  0  0 |     CCA  6  5 | Gln CAA  7  7 |     CGA  0  0
+    CTG  0  0 |     CCG  0  0 |     CAG  0  0 |     CGG  0  0
+--------------------------------------------------------------
+Ile ATT  5  5 | Thr ACT  4  5 | Asn AAT  1  2 | Ser AGT  0  0
+    ATC  5  5 |     ACC  5  4 |     AAC  4  3 |     AGC  0  0
+    ATA  0  0 |     ACA  0  0 | Lys AAA  4  3 | Arg AGA 13 13
+Met ATG  4  4 |     ACG  0  0 |     AAG 15 16 |     AGG  0  0
+--------------------------------------------------------------
+Val GTT  7  9 | Ala GCT 10  9 | Asp GAT  3  0 | Gly GGT  4  3
+    GTC  7  6 |     GCC  2  3 |     GAC  2  5 |     GGC  0  1
+    GTA  1  0 |     GCA  0  0 | Glu GAA 10 10 |     GGA  0  0
+    GTG  0  0 |     GCG  0  0 |     GAG  0  0 |     GGG  0  0
+--------------------------------------------------------------
+
+Codon position x base (3x4) table for each sequence.
+
+#1: YOR312C        
+position  1:    T:0.24419    C:0.13953    A:0.34884    G:0.26744
+position  2:    T:0.27907    C:0.23256    A:0.36047    G:0.12791
+position  3:    T:0.27907    C:0.29651    A:0.27326    G:0.15116
+Average         T:0.26744    C:0.22287    A:0.32752    G:0.18217
+
+#2: YMR242C        
+position  1:    T:0.24419    C:0.13953    A:0.34884    G:0.26744
+position  2:    T:0.27907    C:0.23256    A:0.36047    G:0.12791
+position  3:    T:0.28488    C:0.30814    A:0.23256    G:0.17442
+Average         T:0.26938    C:0.22674    A:0.31395    G:0.18992
+
+Sums of codon usage counts
+------------------------------------------------------------------------------
+Phe F TTT       6 | Ser S TCT      11 | Tyr Y TAT       2 | Cys C TGT       0
+      TTC      14 |       TCC      10 |       TAC      16 |       TGC       0
+Leu L TTA       5 |       TCA       3 | *** * TAA       0 | *** * TGA       0
+      TTG      13 |       TCG       0 |       TAG       0 | Trp W TGG       4
+------------------------------------------------------------------------------
+Leu L CTT       0 | Pro P CCT       3 | His H CAT       2 | Arg R CGT       6
+      CTC       0 |       CCC       0 |       CAC      12 |       CGC       0
+      CTA       0 |       CCA      11 | Gln Q CAA      14 |       CGA       0
+      CTG       0 |       CCG       0 |       CAG       0 |       CGG       0
+------------------------------------------------------------------------------
+Ile I ATT      10 | Thr T ACT       9 | Asn N AAT       3 | Ser S AGT       0
+      ATC      10 |       ACC       9 |       AAC       7 |       AGC       0
+      ATA       0 |       ACA       0 | Lys K AAA       7 | Arg R AGA      26
+Met M ATG       8 |       ACG       0 |       AAG      31 |       AGG       0
+------------------------------------------------------------------------------
+Val V GTT      16 | Ala A GCT      19 | Asp D GAT       3 | Gly G GGT       7
+      GTC      13 |       GCC       5 |       GAC       7 |       GGC       1
+      GTA       1 |       GCA       0 | Glu E GAA      20 |       GGA       0
+      GTG       0 |       GCG       0 |       GAG       0 |       GGG       0
+------------------------------------------------------------------------------
+
+
+Codon position x base (3x4) table, overall
+
+position  1:    T:0.24419    C:0.13953    A:0.34884    G:0.26744
+position  2:    T:0.27907    C:0.23256    A:0.36047    G:0.12791
+position  3:    T:0.28198    C:0.30233    A:0.25291    G:0.16279
+Average         T:0.26841    C:0.22481    A:0.32074    G:0.18605
+
+Codon frequencies under model, for use in evolver (TTT TTC TTA TTG ... GGG):
+  0.02010996  0.02156120  0.01803677  0.01160987
+  0.01675830  0.01796766  0.01503064  0.00967490
+  0.02597537  0.02784988  0.00000000  0.00000000
+  0.00921707  0.00988221  0.00000000  0.00532119
+  0.01149141  0.01232068  0.01030673  0.00663421
+  0.00957617  0.01026724  0.00858894  0.00552851
+  0.01484307  0.01591422  0.01331285  0.00856919
+  0.00526689  0.00564698  0.00472392  0.00304068
+  0.02872852  0.03080171  0.02576681  0.01658554
+  0.02394043  0.02566809  0.02147234  0.01382128
+  0.03710767  0.03978554  0.03328213  0.02142298
+  0.01316724  0.01411745  0.01180979  0.00760170
+  0.02202520  0.02361464  0.01975456  0.01271558
+  0.01835433  0.01967887  0.01646213  0.01059631
+  0.02844921  0.03050225  0.02551630  0.01642429
+  0.01009488  0.01082338  0.00905417  0.00582797
+
+
+
+Nei & Gojobori 1986. dN/dS (dN, dS)
+(Note: This matrix is not used in later ML. analysis.
+Use runmode = -2 for ML pairwise comparison.)
+
+YOR312C             
+YMR242C             -1.0000 (0.0000 0.2858)
+
+
+TREE #  1:  (1, 2);   MP score: 29
+lnL(ntime:  2  np:  4):   -775.639594      +0.000000
+   3..1     3..2  
+ 0.106397 0.106397 5.816665 0.000100
+
+Note: Branch length is defined as number of nucleotide substitutions per codon (not per neucleotide site).
+
+tree length =   0.21279
+
+(1: 0.10640, 2: 0.10640);
+
+(YOR312C: 0.10640, YMR242C: 0.10640);
+
+Detailed output identifying parameters
+
+kappa (ts/tv) =  5.81666
+
+omega (dN/dS) =  0.00010
+
+dN & dS for each branch
+
+ branch          t       N       S   dN/dS      dN      dS  N*dN  S*dS
+
+   3..1      0.106   361.8   157.2  0.0001  0.0000  0.1170   0.0  18.4
+   3..2      0.106   361.8   157.2  0.0001  0.0000  0.1170   0.0  18.4
+
+tree length for dN:       0.0000
+tree length for dS:       0.2341
+
+
+Time used:  0:01
