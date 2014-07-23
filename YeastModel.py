@@ -5,6 +5,22 @@ Geneconv code for Yeast Data
 from CodonBased2Repeats import *
 from Bio.Blast import NCBIXML
 import os
+from xlrd import open_workbook
+
+def readInitialPairs(xls_file_dir='./data/Pairs/Supplementary_Table_S1.xls'):
+    wb = open_workbook(xls_file_dir)
+    sheet = wb.sheets()[0]
+    col_list = [str(s.value) for s in sheet.row(0)]
+    gene_pairs = {}
+    for row in range(1,476):
+        pair_name = (str(sheet.cell(row,0).value),str(sheet.cell(row,1).value))
+        info = {col_list[col]:sheet.cell(row,col).value for col in range(2,sheet.ncols)}
+        gene_pairs[pair_name]=info
+            
+    return gene_pairs
+
+    
+
 
 def get_data(input_file):
     handle = open(input_file,'rU')
@@ -30,15 +46,24 @@ def blastsearch(query ,db,evalue , outfmt , out):
         '-db', db,
         '-evalue',str(evalue)]).split('\n')
 
-def run_blast(spe_list,pair_list,data,input_dir = '/Users/xji3/blast/YeastOutput/'):
+def run_blast(spe_list,pair_list,data_dna,evalue = 10,input_dir = '/Users/xji3/blast/YeastOutput/'):
     for spe in spe_list:
         for pair in pair_list:
             for paralog in pair:
+                if not os.path.exists(input_dir+paralog+'/'):
+                    os.mkdir(input_dir+paralog+'/')
+
+                if not paralog in data_dna['cerevisiae']:
+                    pair_list.remove(pair)
+                    continue
+                
                 if not os.path.exists(input_dir+paralog+'/'+paralog+'_dna.fas'):
                     with open(input_dir+paralog+'/'+paralog+'_dna.fas','w+') as f:
                         f.write('>'+paralog+'\n')
                         f.write(data_dna['cerevisiae'][paralog]+'\n')
-                blastsearch(input_dir+paralog+'/'+paralog+'_dna.fas',spe+'_dna',1e-10,5,input_dir+paralog+'/'+paralog+'_database_'+spe+'_dna_blastn.xml')
+
+                if not os.path.exists(input_dir+paralog+'/'+paralog+'_database_'+spe+'_dna_blastn.xml'):
+                    blastsearch(input_dir+paralog+'/'+paralog+'_dna.fas',spe+'_dna',evalue,5,input_dir+paralog+'/'+paralog+'_database_'+spe+'_dna_blastn.xml')
 
 def construct_input_fasta(data_dna, spe_list, pair, pair_dir = './data/Pairs/'):
     with open(pair_dir+pair[0]+'_'+pair[1]+'/'+pair[0]+'_'+pair[1]+'_input.fasta','w+') as f:
@@ -50,11 +75,13 @@ def construct_input_fasta(data_dna, spe_list, pair, pair_dir = './data/Pairs/'):
                 else:
                     print spe, 'does not have gene', paralog
 
-def build_ortholog_dict(spe_list,pair_list,input_dir = '/Users/xji3/blast/YeastOutput/'):
+def build_ortholog_dict(spe_list,pair_list,evalue = 10,input_dir = '/Users/xji3/blast/YeastOutput/'):
     ortholog_dict = {}
     for pair in pair_list:
         for spe in spe_list:
             for paralog in pair:
+                if not os.path.exists(input_dir+paralog+'/'+paralog+'_database_'+spe+'_dna_blastn.xml'):
+                    blastsearch(input_dir+paralog+'/'+paralog+'_dna.fas',spe+'_dna',evalue,5,input_dir+paralog+'/'+paralog+'_database_'+spe+'_dna_blastn.xml')
                 record = NCBIXML.read(open(input_dir+paralog+'/'+paralog+'_database_'+spe+'_dna_blastn.xml'))
                 if ortholog_dict.has_key(paralog):
                     ortholog_dict[paralog][spe]=[str(hit.hit_id) for hit in record.alignments]
@@ -62,15 +89,38 @@ def build_ortholog_dict(spe_list,pair_list,input_dir = '/Users/xji3/blast/YeastO
                     ortholog_dict[paralog]={spe:[str(hit.hit_id) for hit in record.alignments]}
 
     return ortholog_dict
-                
+
+def filter_have_duplicates_5spe_pairs(pair_list,spe_list,ortholog_dict):
+    remove_pair_dict = {spe:[] for spe in spe_list}
+    for pair in pair_list:
+        paralog1 = pair[0]
+        paralog2 = pair[1]
+        for spe in spe_list:
+            if len(ortholog_dict[paralog1][spe])==0:
+                if pair not in remove_pair_dict[spe]:
+                    remove_pair_dict[spe].append(pair)
+                continue
+
+    
+        
+            
+
+        
+##
+##class YeastDataset:
+##    def __init__(self, list_dir):
+##        self.listloc = list_dir
+##
+##
+##    def readpairs(self):
+##        
 
 if __name__=='__main__':
     pair_list_dir = './data/Pairs/pairs_from_paper.txt'
-    species_list = ['bayanus','castellii','cerevisiae','kluyveri','kudriavzevii','mikatae','paradoxus']
-    pair_list = []
-    with open(pair_list_dir,'r') as f:
-        for line in f:
-            pair_list.append(line.split())
+    species_list = ['bayanus','cerevisiae','kudriavzevii','mikatae','paradoxus','castellii','kluyveri']
+    
+    gene_pairs = readInitialPairs()
+    pair_list = gene_pairs.keys()
 
     data_dna = {}
     data_protein = {}
