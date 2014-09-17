@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YLR028C_YMR120C
+python UnRooted_Codon_Force_Tau_YLR028C_YMR120C.py > UnRooted_Codon_Force_Tau_YLR028C_YMR120C_PrintScreen.txt

@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YMR243C_YOR316C
+python UnRooted_Codon_Free_Tau_YMR243C_YOR316C.py > UnRooted_Codon_Free_Tau_YMR243C_YOR316C_PrintScreen.txt

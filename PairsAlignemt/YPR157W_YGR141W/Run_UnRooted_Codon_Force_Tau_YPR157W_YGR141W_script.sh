@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YPR157W_YGR141W
+python UnRooted_Codon_Force_Tau_YPR157W_YGR141W.py > UnRooted_Codon_Force_Tau_YPR157W_YGR141W_PrintScreen.txt

@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YBR117C_YPR074C
+python UnRooted_Codon_Force_Tau_YBR117C_YPR074C.py > UnRooted_Codon_Force_Tau_YBR117C_YPR074C_PrintScreen.txt

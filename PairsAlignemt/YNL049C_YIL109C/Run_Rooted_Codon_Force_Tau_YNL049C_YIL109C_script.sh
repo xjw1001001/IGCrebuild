@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YNL049C_YIL109C
+python Rooted_Codon_Force_Tau_YNL049C_YIL109C.py > Rooted_Codon_Force_Tau_YNL049C_YIL109C_PrintScreen.txt

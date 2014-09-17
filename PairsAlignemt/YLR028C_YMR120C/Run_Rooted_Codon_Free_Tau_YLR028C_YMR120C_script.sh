@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YLR028C_YMR120C
+python Rooted_Codon_Free_Tau_YLR028C_YMR120C.py > Rooted_Codon_Free_Tau_YLR028C_YMR120C_PrintScreen.txt

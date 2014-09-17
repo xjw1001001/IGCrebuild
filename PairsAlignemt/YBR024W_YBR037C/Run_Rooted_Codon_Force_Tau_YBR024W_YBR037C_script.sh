@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YBR024W_YBR037C
+python Rooted_Codon_Force_Tau_YBR024W_YBR037C.py > Rooted_Codon_Force_Tau_YBR024W_YBR037C_PrintScreen.txt

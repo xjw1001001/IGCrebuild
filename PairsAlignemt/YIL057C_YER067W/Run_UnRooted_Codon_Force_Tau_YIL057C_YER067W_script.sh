@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YIL057C_YER067W
+python UnRooted_Codon_Force_Tau_YIL057C_YER067W.py > UnRooted_Codon_Force_Tau_YIL057C_YER067W_PrintScreen.txt

@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YMR243C_YOR316C
+python Rooted_Codon_Force_Tau_YMR243C_YOR316C.py > Rooted_Codon_Force_Tau_YMR243C_YOR316C_PrintScreen.txt

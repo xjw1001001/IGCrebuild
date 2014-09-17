@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YMR142C_YDL082W
+python Rooted_Codon_Force_Tau_YMR142C_YDL082W.py > Rooted_Codon_Force_Tau_YMR142C_YDL082W_PrintScreen.txt

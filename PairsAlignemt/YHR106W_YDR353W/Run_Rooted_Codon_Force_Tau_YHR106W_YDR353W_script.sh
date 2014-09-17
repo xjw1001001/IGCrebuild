@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YHR106W_YDR353W
+python Rooted_Codon_Force_Tau_YHR106W_YDR353W.py > Rooted_Codon_Force_Tau_YHR106W_YDR353W_PrintScreen.txt

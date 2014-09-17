@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YPL037C_YDR252W
+python UnRooted_Codon_Free_Tau_YPL037C_YDR252W.py > UnRooted_Codon_Free_Tau_YPL037C_YDR252W_PrintScreen.txt

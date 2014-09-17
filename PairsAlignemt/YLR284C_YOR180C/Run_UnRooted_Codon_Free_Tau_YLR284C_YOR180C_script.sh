@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YLR284C_YOR180C
+python UnRooted_Codon_Free_Tau_YLR284C_YOR180C.py > UnRooted_Codon_Free_Tau_YLR284C_YOR180C_PrintScreen.txt

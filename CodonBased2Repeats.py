@@ -37,6 +37,7 @@ from copy import deepcopy
 import subprocess
 import operator
 from operator import mul
+import pickle
 
 
 class Codon2RepeatsPhy:
@@ -302,7 +303,7 @@ class Codon2RepeatsPhy:
                         Qnorm[i,j] = _pi['ACGT'.index(nb)]
                         if set([na,nb])==set(['A','G']) or set([na,nb])==set(['C','T']):
                             Qnorm[i,j] = Qnorm[i,j]*para[3]
-                        if codon_table[ca] == codon_table[cb]:
+                        if not codon_table[ca] == codon_table[cb]:
                             Qnorm[i,j] = Qnorm[i,j]*para[4]
             Qnorm = Qnorm - np.diag(Qnorm.sum(axis=1))
             dist = np.zeros((len(codon_nonstop)))
@@ -632,7 +633,7 @@ class Codon2RepeatsPhy:
                 elif casenum == 6 or casenum == 7:
                     bnds = [one_bnd]
                     bnds.extend([(None,0.0)]*(len(leaves)-1))
-                    bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(None, None),(0, None)])
+                    bnds.extend([(None, -0.05),(None, -0.05),(None, -0.05),(None, None),(None, None),(0, None)])
 
                 
                 
@@ -649,7 +650,7 @@ class Codon2RepeatsPhy:
                     bnds.extend([(None, -0.05),(None, -0.05),(None, -0.05),(None, None),(0, None)])
                 elif casenum == 6 or casenum == 7:
                     bnds = [one_bnd]*len(self.edge_to_blen)
-                    bnds.extend([(None, 0.0),(None, 0.0),(None, 0.0),(None, None),(None, None),(0, None)])
+                    bnds.extend([(None, -0.05),(None, -0.05),(None, -0.05),(None, None),(None, None),(0, None)])
 
             e = deepcopy(self.edge_to_blen.keys())
             if unrooted:
@@ -894,25 +895,6 @@ class Codon2RepeatsPhy:
             for i in range(len(node_path)-1):
                 node_path[i+1].branch_length = edge_to_blen_normalized[(node_path[i].name,node_path[i+1].name)]
 
-    def get_edge_to_M(self,edge_to_Q,edge_to_C,edge_to_blen,NumRepeats = 2):
-        #Q,d = self.get_Q_and_distn(self.modelnum, self.para, self.Tao, NumRepeats)
-        #assert(Q.size == C.size)
-        edge_to_P, root_distn = self.get_P(self.edge_to_blen,self.modelnum,self.para,self.Tao)
-        edge_to_M= {}
-        for edge in self.edge_to_blen:
-            Q = edge_to_Q[edge]
-            C = edge_to_C[edge]
-            A = np.vstack( (np.hstack((Q,C)),np.hstack((np.zeros(Q.shape),Q))) )
-            M = scipy.sparse.linalg.expm(float(edge_to_blen[edge]) * A)[0:Q.shape[0],Q.shape[1]:]
-            P = edge_to_P[edge]
-            P_zero_indices = [(np.where(P==0)[0][i],np.where(P==0)[1][i]) for i in range(len(np.where(P==0)[0]))]
-            M_zero_indices = [(np.where(M==0)[0][i],np.where(M==0)[1][i]) for i in range(len(np.where(M==0)[0]))]
-            for (i,j) in set(P_zero_indices).intersection(set(M_zero_indices)):
-                P[i,j] += self.err
-            edge_to_M[edge] = np.divide(M,P)
-
-        return edge_to_M
-
     def get_Tau_matrix(self,Normalizing_factor = 1.0,NumRepeats = 2):
         casenum = self.getcasenum(self.modelnum)
         if casenum < 6:
@@ -955,6 +937,26 @@ class Codon2RepeatsPhy:
 
         return Tau_matrix
 
+    def get_edge_to_M(self,edge_to_Q,edge_to_C,edge_to_blen,NumRepeats = 2):
+        # Q,d = self.get_Q_and_distn(self.modelnum, self.para, self.Tao, NumRepeats)
+        # assert(Q.size == C.size)
+        # Using Algorithm 3 in Tataru, Hoblth 2011 BMC Bioinformatics paper
+        edge_to_P, root_distn = self.get_P(self.edge_to_blen,self.modelnum,self.para,self.Tao)
+        edge_to_M= {}  # M is the uper right corner of the matrix exponential
+        for edge in self.edge_to_blen:
+            Q = edge_to_Q[edge]
+            C = edge_to_C[edge]
+            A = np.vstack( (np.hstack((Q,C)),np.hstack((np.zeros(Q.shape),Q))) )
+            M = scipy.sparse.linalg.expm(float(edge_to_blen[edge]) * A)[0:Q.shape[0],Q.shape[1]:]
+            P = edge_to_P[edge]
+            P_zero_indices = [(np.where(P==0)[0][i],np.where(P==0)[1][i]) for i in range(len(np.where(P==0)[0]))]
+            M_zero_indices = [(np.where(M==0)[0][i],np.where(M==0)[1][i]) for i in range(len(np.where(M==0)[0]))]
+            for (i,j) in set(P_zero_indices).intersection(set(M_zero_indices)):
+                P[i,j] += self.err
+            edge_to_M[edge] = np.divide(M,P)
+
+        return edge_to_M
+    
     def get_edge_to_M_Geneconv(self, NumRepeats =2):
         Q_post_duplication,d = self.get_Q_and_distn(self.modelnum, self.para, self.Tao, NumRepeats)
         expected_rate = self.get_expected_rate(Q_post_duplication)
@@ -963,6 +965,7 @@ class Codon2RepeatsPhy:
         
         Q_pre_duplication,d_pre = self.get_Q_and_distn(self.modelnum, self.para, self.Tao, 1)
         Tau_matrix = self.get_Tau_matrix(normalizing_factor,NumRepeats)
+        
 ##        Q_post_modified = deepcopy(Q_post_duplication_normalized)
 ##        Q_pre_modified = deepcopy(Q_pre_duplication)
 ##        nonzerolist = Q_post_duplication_normalized.nonzero()
@@ -979,9 +982,10 @@ class Codon2RepeatsPhy:
 ##                if not (i,j) in nonzeros:
 ##                    Q_pre_modified[i,j] += self.err
 
-        # Q modified is just created to avoid 0/0 case        
-        C_post = Tau_matrix #Coeff Matrix for Geneconv events
-        C_post_none_conv = (Q_post_duplication_normalized - Tau_matrix) #Coeff Matrix for none Geneconv events
+        # Q modified is just created to avoid 0/0 case
+        
+        C_post = Tau_matrix  # Coeff Matrix for Geneconv events, it's been normalized
+        C_post_none_conv = (Q_post_duplication_normalized - Tau_matrix)  # Coeff Matrix for none Geneconv events
         np.fill_diagonal(C_post_none_conv,0.0)
         C_pre = np.zeros(Tau_matrix.shape)
         C_pre_none_conv = deepcopy(Q_pre_duplication)
@@ -1003,7 +1007,7 @@ class Codon2RepeatsPhy:
                 edge_to_Q[edge] = Q_post_duplication_normalized
                 edge_to_C[edge] = C_post
                 edge_to_C_none[edge] = C_post_none_conv
-                edge_to_blen[edge] = self.edge_to_blen[edge]/normalizing_factor
+                edge_to_blen[edge] = self.edge_to_blen[edge]/normalizing_factor  # ? Do I need to normalize again?
             else:
                 edge_to_Q[edge] = Q_pre_duplication
                 edge_to_C[edge] = C_pre
@@ -1049,11 +1053,11 @@ class Codon2RepeatsPhy:
 ##        neg_ll = 0
 ##        for node_to_data_fvec1d in constraints:
 ##            lhood = get_lhood(T, edge_to_P, root, root_distn, node_to_data_fvec1d)
-##            neg_ll -= np.log(lhood)        
+##            neg_ll -= np.log(lhood)
 
-    
+    def save_to_file(self, file_name = './CodonBased2RepeatsClassSave.p'):
+        pickle.dump(test, open(file_name,'wb+'))  # use pickle to save the class which can be easily reconstructed by pickle.load()
                     
-            
 
 def cleanPAML(in_file,out_file, fasta_out = False):
     cleanedline = []

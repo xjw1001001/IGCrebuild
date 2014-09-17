@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YDR502C_YLR180W
+python UnRooted_Codon_Free_Tau_YDR502C_YLR180W.py > UnRooted_Codon_Free_Tau_YDR502C_YLR180W_PrintScreen.txt

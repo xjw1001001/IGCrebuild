@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YER131W_YGL189C
+python Rooted_Codon_Force_Tau_YER131W_YGL189C.py > Rooted_Codon_Force_Tau_YER131W_YGL189C_PrintScreen.txt

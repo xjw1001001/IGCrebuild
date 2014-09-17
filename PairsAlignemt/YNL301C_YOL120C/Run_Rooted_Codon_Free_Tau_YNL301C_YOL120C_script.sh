@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YNL301C_YOL120C
+python Rooted_Codon_Free_Tau_YNL301C_YOL120C.py > Rooted_Codon_Free_Tau_YNL301C_YOL120C_PrintScreen.txt

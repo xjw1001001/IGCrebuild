@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YMR143W_YDL083C
+python UnRooted_Codon_Free_Tau_YMR143W_YDL083C.py > UnRooted_Codon_Free_Tau_YMR143W_YDL083C_PrintScreen.txt

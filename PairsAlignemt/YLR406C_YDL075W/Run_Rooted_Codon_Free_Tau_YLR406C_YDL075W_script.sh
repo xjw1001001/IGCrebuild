@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YLR406C_YDL075W
+python Rooted_Codon_Free_Tau_YLR406C_YDL075W.py > Rooted_Codon_Free_Tau_YLR406C_YDL075W_PrintScreen.txt

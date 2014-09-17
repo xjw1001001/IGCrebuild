@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YDR502C_YLR180W
+python Rooted_Codon_Free_Tau_YDR502C_YLR180W.py > Rooted_Codon_Free_Tau_YDR502C_YLR180W_PrintScreen.txt

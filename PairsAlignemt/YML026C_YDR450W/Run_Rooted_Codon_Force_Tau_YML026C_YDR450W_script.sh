@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YML026C_YDR450W
+python Rooted_Codon_Force_Tau_YML026C_YDR450W.py > Rooted_Codon_Force_Tau_YML026C_YDR450W_PrintScreen.txt

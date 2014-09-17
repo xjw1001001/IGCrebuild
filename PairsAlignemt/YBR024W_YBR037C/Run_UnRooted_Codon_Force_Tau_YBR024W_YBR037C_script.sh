@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YBR024W_YBR037C
+python UnRooted_Codon_Force_Tau_YBR024W_YBR037C.py > UnRooted_Codon_Force_Tau_YBR024W_YBR037C_PrintScreen.txt

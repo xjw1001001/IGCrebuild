@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YDR099W_YER177W
+python UnRooted_Codon_Force_Tau_YDR099W_YER177W.py > UnRooted_Codon_Force_Tau_YDR099W_YER177W_PrintScreen.txt

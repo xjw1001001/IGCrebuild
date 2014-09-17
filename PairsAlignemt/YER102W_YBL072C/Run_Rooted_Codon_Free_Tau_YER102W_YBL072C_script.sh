@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YER102W_YBL072C
+python Rooted_Codon_Free_Tau_YER102W_YBL072C.py > Rooted_Codon_Free_Tau_YER102W_YBL072C_PrintScreen.txt

@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YGL062W_YBR218C
+python Rooted_Codon_Free_Tau_YGL062W_YBR218C.py > Rooted_Codon_Free_Tau_YGL062W_YBR218C_PrintScreen.txt

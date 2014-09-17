@@ -1,0 +1,3 @@
+#!/bin/bash
+cd YLR333C_YGR027C
+python Rooted_Codon_Free_Tau_YLR333C_YGR027C.py > Rooted_Codon_Free_Tau_YLR333C_YGR027C_PrintScreen.txt
