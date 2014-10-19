@@ -22,58 +22,7 @@ from scipy.sparse.linalg import expm_multiply
 from scipy.sparse import coo_matrix
 
 from node_ordering import get_node_evaluation_order
-
-    # For each process, precompute the eigendecomposition.
-    eigen_rate_expm_objects = []
-    nprocesses = len(processes_row)
-    for i in range(nprocesses):
-        row = processes_row[i]
-        col = processes_col[i]
-        rate = processes_rate[i]
-        obj = EigenRateExpm(Q)
-        eigen_rate_expm_objects.append(obj)
-
-
-
-class PlainExpm(object):
-    def expm_mul(self, edge_index, A):
-        """
-        Compute exp(Q_i * r_i) * A.
-
-        """
-        pass
-    def rate_mul(self, edge_index, PA):
-        """
-        Compute Q_i * r_i * PA.
-        This is for gradient calculation.
-
-        """
-        pass
-
-
-class EigenExpm(object):
-    def __init__(self, state_space_shape, row, col, rate):
-        Q = create_dense_rate_matrix(state_space_shape, row, col, rate)
-        self.Q = Q_dense
-        self.w, self.U = eig(Q_dense)
-        self.V = inv(self.U)
-
-    def expm_mul(self, rate_scaling_factor, A):
-        """
-        Compute exp(Q * r) * A.
-
-        """
-        w_exp = np.exp(self.w * rate_scaling_factor)
-        VA = self.V.dot(A)
-        return (self.U * w_exp).dot(VA)
-
-    def rate_mul(self, rate_scaling_factor, PA):
-        """
-        Compute Q * r * PA.
-        This is for gradient calculation.
-
-        """
-        return self.Q.dot(PA * rate_scaling_factor)
+from expm_helpers import PadeExpm, EigenExpm, ActionExpm
 
 
 
@@ -143,43 +92,6 @@ def get_tree_info(j_in):
     return T, root, edges, edge_rate_pairs, edge_process_pairs
 
 
-def create_sparse_rate_matrix(state_space_shape, row, col, rate):
-    """
-    Create the rate matrix.
-
-    """
-    # check conformability of input arrays
-    ndim = len(state_space_shape)
-    assert_equal(len(row.shape), 2)
-    assert_equal(len(col.shape), 2)
-    assert_equal(len(rate.shape), 1)
-    assert_equal(row.shape[0], rate.shape[0])
-    assert_equal(col.shape[0], rate.shape[0])
-    assert_equal(row.shape[1], ndim)
-    assert_equal(col.shape[1], ndim)
-
-    # create the sparse Q matrix from the sparse arrays
-    nstates = np.prod(state_space_shape)
-    mrow = np.ravel_multi_index(row.T, state_space_shape)
-    mcol = np.ravel_multi_index(col.T, state_space_shape)
-    Q = coo_matrix((rate, (mrow, mcol)), (nstates, nstates))
-
-    # get the dense array of exit rates, and set the diagonal
-    exit_rates = Q.sum(axis=1).A.flatten()
-    Q.setdiag(-exit_rates)
-
-    return Q
-
-
-def create_dense_rate_matrix(state_space_shape, row, col, rate):
-    """
-    Create the rate matrix.
-
-    """
-    m = create_sparse_rate_matrix(state_space_shape, row, col, rate)
-    return m.A
-
-
 def create_indicator_array(
         node,
         state_space_shape,
@@ -222,57 +134,15 @@ def create_indicator_array(
     return obs
 
 
-class EigenRateExpm(object):
-    def __init__(self, Q_dense):
-        print('computing eigendecomposition...')
-        self.w, self.U = eig(Q_dense)
-        print('inverting...')
-        self.V = inv(self.U)
-        print('done preprocessing the rate matrix.')
-
-    def get_P(self, rate_scaling_factor):
-        w_exp = np.exp(self.w * rate_scaling_factor)
-        P_raw = (self.U * w_exp).dot(self.V)
-        return np.clip(P_raw.real, 0, np.inf)
-
-
-def get_edge_rate_derivatives(
-
-        # inputs 
-        edge, node_to_array,
-
-        # same args as for get_conditional_likelihoods
-        T, root, edges, edge_rate_pairs, edge_process_pairs,
-        state_space_shape,
-        observable_nodes,
-        observable_axes,
-        iid_observations,
-        processes_row,
-        processes_col,
-        processes_rate,
-        ):
-    """
-    Trace back from the edge of interest to the root.
-
-    Delete unnecessary arrays as we trace back.
-
-    """
-    child_to_edge = dict((tail, (head, tail)) for head, tail in edges)
-    edge_to_rate = dict(edge_rate_pairs)
-    edge_to_process = dict(edge_process_pairs)
-
-
-
-
 def get_conditional_likelihoods(
+        # functions to compute expm_mul, per process (NEW)
+        f,
+        # original args
         T, root, edges, edge_rate_pairs, edge_process_pairs,
         state_space_shape,
         observable_nodes,
         observable_axes,
         iid_observations,
-        processes_row,
-        processes_col,
-        processes_rate,
         ):
     """
     Recursively compute conditional likelihoods at the root.
@@ -287,17 +157,6 @@ def get_conditional_likelihoods(
     child_to_edge = dict((tail, (head, tail)) for head, tail in edges)
     edge_to_rate = dict(edge_rate_pairs)
     edge_to_process = dict(edge_process_pairs)
-
-    # For each process, precompute the eigendecomposition.
-    eigen_rate_expm_objects = []
-    nprocesses = len(processes_row)
-    for i in range(nprocesses):
-        row = processes_row[i]
-        col = processes_col[i]
-        rate = processes_rate[i]
-        Q = create_dense_rate_matrix(state_space_shape, row, col, rate)
-        obj = EigenRateExpm(Q)
-        eigen_rate_expm_objects.append(obj)
 
     # For the few nodes that are active at a given point in the traversal,
     # we track a 2d array of shape (nsites, nstates).
@@ -334,23 +193,7 @@ def get_conditional_likelihoods(
             edge = child_to_edge[node]
             edge_rate = edge_to_rate[edge]
             edge_process = edge_to_process[edge]
-            row = processes_row[edge_process]
-            col = processes_col[edge_process]
-            rate = processes_rate[edge_process]
-            rate = rate * edge_rate
-
-            # First way
-            #Q = create_dense_rate_matrix(state_space_shape, row, col, rate)
-            #P = expm(Q)
-            #arr = P.dot(arr)
-
-            # Second way
-            #Q = create_sparse_rate_matrix(state_space_shape, row, col, rate)
-            #arr = expm_multiply(Q, arr)
-
-            # Third way
-            P = eigen_rate_expm_objects[edge_process].get_P(edge_rate)
-            arr = P.dot(arr)
+            arr = f[edge_process].expm_mul(edge_rate, arr)
 
         # Associate the array with the current node.
         node_to_array[node] = arr
@@ -393,8 +236,21 @@ def process_json_in(j_in):
     distn = np.zeros(nstates, dtype=float)
     np.put(distn, feas, prior_distribution)
 
+    # For each process, precompute the objects that are capable
+    # of computing expm_mul and rate_mul for log likelihoods
+    # and for its derivative with respect to edge-specific rates.
+    expm_klass = EigenExpm # TODO soft-code this
+    f = []
+    for i in range(nprocesses):
+        row = processes_row[edge_process]
+        col = processes_col[edge_process]
+        rate = processes_rate[edge_process]
+        obj = expm_klass(state_space_shape, row, col, rate)
+        f.append(obj)
+
     # Precompute conditional likelihood arrays per node.
     arr = get_conditional_likelihoods(
+            f,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             state_space_shape,
             observable_nodes,
