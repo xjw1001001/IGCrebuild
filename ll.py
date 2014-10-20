@@ -30,6 +30,10 @@ def get_site_weights(j_in):
     return np.array(j_in['site_weights'])
 
 
+def get_requested_derivatives(j_in):
+    return np.array(j_in['requested_derivatives'])
+
+
 def get_observables_info(j_in):
     return (
             np.array(j_in['observable_nodes']),
@@ -137,6 +141,8 @@ def create_indicator_array(
 def get_conditional_likelihoods(
         # functions to compute expm_mul, per process (NEW)
         f,
+        # boolean flag for storing all edges arrays (NEW)
+        store_all,
         # original args
         T, root, edges, edge_rate_pairs, edge_process_pairs,
         state_space_shape,
@@ -184,6 +190,8 @@ def get_conditional_likelihoods(
         # per-node arrays for edge length gradients, we keep them.
         for child in T.successors(node):
             arr *= node_to_array[child]
+            if not store_all:
+                del node_to_array[child]
 
         # When any node that is not the root is activated,
         # the matrix product P.dot(A) replaces A,
@@ -201,10 +209,160 @@ def get_conditional_likelihoods(
     # If we had been deleting arrays as they become unnecessary for
     # the log likelihood calculation, then we would have only
     # a single active array remaining at this point, corresponding to the root.
-    # But because we are saving the arrays for gradient calculations,
-    # we have more left.
-    assert_equal(set(node_to_array), set(T))
+    # But if we are saving the arrays for gradient calculations,
+    # then we have more left.
+    actual_keys = set(node_to_array)
+    if store_all:
+        desired_keys = set(T)
+    else:
+        desired_keys = {root}
+    assert_equal(actual_keys, desired_keys)
+
+    # Return the map from node to array.
     return node_to_array
+
+
+def get_edge_derivative(
+        # functions to compute expm_mul and rate_mul, per process (NEW),
+        f,
+        # single derivative edge (pair of head, tail nodes not index) (NEW)
+        derivative_edge,
+        # map from node to array returned by (NEW)
+        node_to_array,
+        # original args
+        T, root, edges, edge_rate_pairs, edge_process_pairs,
+        state_space_shape,
+        observable_nodes,
+        observable_axes,
+        iid_observations,
+        ):
+    """
+
+    """
+    # Unpack the edge of interest.
+    derivative_head_node, derivative_tail_node = derivative_edge
+
+    # For each edge use a new edge-specific array.
+    # Trace the evaluation back to the root.
+    node_to_deriv_array = {}
+
+    # Iterate over nodes on the path from the derivative edge tail node
+    # up to the root of the tree.
+    node = derivative_tail_node
+    while True:
+
+        # When a node is activated, its associated array
+        # is initialized to its observational likelihood array.
+        arr = create_indicator_array(
+                node,
+                state_space_shape,
+                observable_nodes,
+                observable_axes,
+                iid_observations)
+
+        # If we are not analyzing the root node then determine
+        # the characteristics of the edge upstream of the node.
+        if node != root:
+            edge = child_to_edge[node]
+            edge_rate = edge_to_rate[edge]
+            edge_process = edge_to_process[edge]
+
+        # At the tail node, compute the adjusted array
+        # for the edge of interest.
+        # At non-tail nodes, including the root,
+        # compute array using the same method as in the derivative-free
+        # evaluation.
+        # Arrays that are specific to the edge of interest
+        # may be deleted after they are used.
+        if node == derivative_tail_node:
+            arr = node_to_array[node]
+            arr = f[edge_process].rate_mul(edge_rate, arr)
+        else:
+            for child in T.successors(node):
+                if child in node_to_deriv_array:
+                    arr *= node_to_deriv_array[child]
+                    del node_to_deriv_array[child]
+                else:
+                    arr *= node_to_array[child]
+            if node != root:
+                arr = f[edge_process].expm_mul(edge_rate, arr)
+
+        # Associate the array with the current node.
+        node_to_deriv_array[node] = arr
+
+        # If the current node is the root node then we are done.
+        # Otherwise move to the parent node.
+        if node == root:
+            break
+        else:
+            head_node, tail_node = edge
+            node = head_node
+
+    # Among the arrays specific to the analysis of the derivative
+    # of the edge of interest, only the array at the root
+    # should still be active at this point.
+    assert_equal(set(node_to_deriv_array), {root})
+    return node_to_deriv_array[root]
+
+
+def get_edge_derivatives(
+        # functions to compute expm_mul and rate_mul, per process (NEW),
+        f,
+        # set of requested edge indices for edge rate derivatives (NEW)
+        requested_derivative_edge_indices,
+        # map from node to array returned by (NEW)
+        node_to_array,
+        # per-site likelihoods (1d array and not log likelihoods) (NEW)
+        likelihoods,
+        # original args
+        T, root, edges, edge_rate_pairs, edge_process_pairs,
+        state_space_shape,
+        observable_nodes,
+        observable_axes,
+        iid_observations,
+        ):
+    """
+    Recursively compute conditional likelihoods at the root.
+
+    Attempt to order things intelligently to avoid using
+    more memory than is necessary.
+
+    The data provided by the caller gives us a sparse matrix
+    of shape (nsites, nnodes, nstates).
+
+    """
+    child_to_edge = dict((tail, (head, tail)) for head, tail in edges)
+    edge_to_rate = dict(edge_rate_pairs)
+    edge_to_process = dict(edge_process_pairs)
+
+    # Compute the likelihood derivative for each requested edge length.
+    edge_index_to_derivatives = dict()
+    for edge_index in requested_derivative_edge_indices:
+
+        # Get the edge that corresponds to the edge index of interest.
+        derivative_edge = edges[edge_index]
+
+        # Compute the array at the root node.
+        arr = get_edge_derivative(
+                f,
+                derivative_edge,
+                node_to_array,
+                T, root, edges, edge_rate_pairs, edge_process_pairs,
+                state_space_shape,
+                observable_nodes,
+                observable_axes,
+                iid_observations)
+
+        # Apply the prior distribution to the array.
+        # Now we have the derivatives of the likelihoods with respect
+        # to the edge-specific rate scaling factors.
+        # We want the derivatives of the log likelihoods with respect
+        # to the log of the edge-specific rate scaling factors.
+        derivatives = distn.dot(arr)
+        edge_index_to_derivatives[edge_index] = derivatives
+
+    # Return the map from edge index to edge-specific derivatives.
+    return edge_index_to_derivatives
 
 
 def process_json_in(j_in):
@@ -213,6 +371,13 @@ def process_json_in(j_in):
     nnodes = j_in['node_count']
     nprocesses = j_in['process_count']
     state_space_shape = np.array(j_in['state_space_shape'])
+
+    # Unpack site weights. (NEW)
+    site_weights = get_site_weights(j_in)
+
+    # Unpack the indices of the edges for which the derivatives
+    # of the likelihood are requested. (NEW)
+    requested_derivatives = get_requested_derivatives(j_in)
 
     # Unpack stuff related to observables.
     info = get_observables_info(j_in)
@@ -248,31 +413,77 @@ def process_json_in(j_in):
         obj = expm_klass(state_space_shape, row, col, rate)
         f.append(obj)
 
+    # Determine whether to store intermediate arrays
+    # or whether to store only as many as necessary to compute
+    # the log likelihood.
+    store_all_likelihood_arrays = bool(np.any(requested_derivatives))
+
     # Precompute conditional likelihood arrays per node.
-    arr = get_conditional_likelihoods(
-            f,
+    node_to_array = get_conditional_likelihoods(
+            f, store_all_likelihood_arrays,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             state_space_shape,
             observable_nodes,
             observable_axes,
-            iid_observations,
-            processes_row,
-            processes_col,
-            processes_rate)
+            iid_observations)
+
+    # Get likelihoods at the root.
+    # These are passed to the derivatives procedure,
+    # to help compute the per-site derivatives of the log likelihoods
+    # with respect to the log of the edge-specific rate scaling parameters.
+    likelihoods = distn.dot(arr)
+    
+    # Compute the derivative of the likelihood
+    # with respect to each edge-specific rate scaling parameter.
+    requested_derivative_edge_indices = set(requested_derivatives)
+    ei_to_derivatives = get_edge_derivatives(
+            f, requested_derivative_edge_indices, node_to_array, likelihoods,
+            T, root, edges, edge_rate_pairs, edge_process_pairs,
+            state_space_shape,
+            observable_nodes,
+            observable_axes,
+            iid_observations)
 
     # Apply the prior distribution and take logs of the likelihoods.
-    likelihoods = distn.dot(arr)
     log_likelihoods = np.log(likelihoods)
 
     # Adjust for infeasibility.
     feasibilities = np.isfinite(log_likelihoods)
     log_likelihoods = np.where(feasibilities, log_likelihoods, 0)
 
+    # Reduce the log likelihoods according to the site weights.
+    if np.all(feasibilities):
+        feasibility = True
+        log_likelihood = np.dot(site_weights, log_likelihoods)
+    else:
+        feasibility = False
+        log_likelihood = 0
+
+    # Process the derivatives.
+    # They are currently in the form of derivatives of edge rates with respect
+    # to the likelihood, but we want to convert them to
+    # derivatives of log likelihood with respect to the logs of edge-specific
+    # rate scaling factors.
+    # According to calculus we can do it as follows.
+    # Also reduce the derivative array according to the site weights.
+    edge_to_rate = dict(edge_rate_pairs)
+    ei_to_d = {}
+    for ei, derivatives in ei_to_derivatives.items():
+        edge = edges[ei]
+        edge_rate = edge_to_rate[edge]
+        d = edge_rate * site_weights.dot(derivatives / likelihoods)
+        ei_to_d[ei] = float(d)
+
+    # Map the derivatives back to a list whose entries
+    # match the requested order of the indices.
+    derivatives_out = [ei_to_d[ei] for ei in requested_derivatives]
+
     # Create the output in a format that json will like.
     j_out = dict(
             status = 'success',
-            feasibilities = feasibilities.astype(int).tolist(),
-            log_likelihoods = log_likelihoods.tolist())
+            feasibility = feasibility,
+            log_likelihood = log_likelihood,
+            edge_derivatives = derivatives_out)
 
     return j_out
 
