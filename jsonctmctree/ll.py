@@ -239,6 +239,11 @@ def get_edge_derivative(
     """
 
     """
+    # Some preprocessing.
+    child_to_edge = dict((tail, (head, tail)) for head, tail in edges)
+    edge_to_rate = dict(edge_rate_pairs)
+    edge_to_process = dict(edge_process_pairs)
+
     # Unpack the edge of interest.
     derivative_head_node, derivative_tail_node = derivative_edge
 
@@ -314,6 +319,8 @@ def get_edge_derivatives(
         node_to_array,
         # per-site likelihoods (1d array and not log likelihoods) (NEW)
         likelihoods,
+        # distribution at the root (NEW)
+        distn,
         # original args
         T, root, edges, edge_rate_pairs, edge_process_pairs,
         state_space_shape,
@@ -406,7 +413,7 @@ def process_json_in(j_in):
     # and for its derivative with respect to edge-specific rates.
     expm_klass = EigenExpm # TODO soft-code this
     f = []
-    for i in range(nprocesses):
+    for edge_process in range(nprocesses):
         row = processes_row[edge_process]
         col = processes_col[edge_process]
         rate = processes_rate[edge_process]
@@ -431,13 +438,15 @@ def process_json_in(j_in):
     # These are passed to the derivatives procedure,
     # to help compute the per-site derivatives of the log likelihoods
     # with respect to the log of the edge-specific rate scaling parameters.
+    arr = node_to_array[root]
     likelihoods = distn.dot(arr)
     
     # Compute the derivative of the likelihood
     # with respect to each edge-specific rate scaling parameter.
     requested_derivative_edge_indices = set(requested_derivatives)
     ei_to_derivatives = get_edge_derivatives(
-            f, requested_derivative_edge_indices, node_to_array, likelihoods,
+            f, requested_derivative_edge_indices,
+            node_to_array, likelihoods, distn,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             state_space_shape,
             observable_nodes,

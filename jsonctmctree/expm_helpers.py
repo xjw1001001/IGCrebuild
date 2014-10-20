@@ -7,6 +7,8 @@ Some of these do precalculations, so they are not pure functions.
 from __future__ import division, print_function
 
 import numpy as np
+from numpy.testing import assert_equal
+
 import scipy.linalg
 import scipy.sparse.linalg
 from scipy.sparse import coo_matrix
