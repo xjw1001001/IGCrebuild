@@ -412,6 +412,8 @@ def process_json_in(j_in):
     # of computing expm_mul and rate_mul for log likelihoods
     # and for its derivative with respect to edge-specific rates.
     expm_klass = EigenExpm # TODO soft-code this
+    #expm_klass = PadeExpm # TODO soft-code this
+    #expm_klass = ActionExpm # TODO soft-code this
     f = []
     for edge_process in range(nprocesses):
         row = processes_row[edge_process]
@@ -480,7 +482,8 @@ def process_json_in(j_in):
     for ei, derivatives in ei_to_derivatives.items():
         edge = edges[ei]
         edge_rate = edge_to_rate[edge]
-        d = edge_rate * site_weights.dot(derivatives / likelihoods)
+        #d = edge_rate * site_weights.dot(derivatives / likelihoods)
+        d = site_weights.dot(derivatives / likelihoods)
         ei_to_d[ei] = float(d)
 
     # Map the derivatives back to a list whose entries

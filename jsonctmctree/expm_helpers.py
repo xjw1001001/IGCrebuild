@@ -74,9 +74,11 @@ class PadeExpm(object):
         This is for gradient calculation.
 
         """
-        return self.Q.dot(PA * rate_scaling_factor)
+        return rate_scaling_factor * self.Q.dot(PA)
 
 
+#TODO more carefully treat matrices that can be permuted to block diagonal
+#     with zeros on one of the diagonals.
 class EigenExpm(object):
     def __init__(self, state_space_shape, row, col, rate):
         self.Q = create_dense_rate_matrix(state_space_shape, row, col, rate)
@@ -98,7 +100,7 @@ class EigenExpm(object):
         This is for gradient calculation.
 
         """
-        return self.Q.dot(PA * rate_scaling_factor)
+        return rate_scaling_factor * self.Q.dot(PA)
 
 
 class ActionExpm(object):
@@ -111,7 +113,7 @@ class ActionExpm(object):
 
         """
         return scipy.sparse.linalg.expm_multiply(
-                self.Q, A, start=rate_scaling_factor)
+                rate_scaling_factor * self.Q, A)
 
     def rate_mul(self, rate_scaling_factor, PA):
         """
@@ -119,4 +121,4 @@ class ActionExpm(object):
         This is for gradient calculation.
 
         """
-        return self.Q.dot(PA * rate_scaling_factor)
+        return rate_scaling_factor * self.Q.dot(PA)
