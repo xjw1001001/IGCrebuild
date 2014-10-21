@@ -31,4 +31,5 @@ if __name__=='__main__':
     
     r1 = test.estimate(args, Model, guess_w_blen,output = './UnRootedTest_Codon_corrected'+'_'.join(test.paralog)+'_Free_Tau.txt', est_blen = True, clock = False,print_result = True)
 
+    test.save_to_file('./YBL087C_YER117W_UF_Codon_Class.p')
 

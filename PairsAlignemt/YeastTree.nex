@@ -1,0 +1,8 @@
+#NEXUS
+Begin Taxa;
+ Dimensions NTax=7;
+ TaxLabels cerevisiae paradoxus mikatae kudriavzevii bayanus castellii kluyveri;
+End;
+Begin Trees;
+ Tree tree1=[&U]((((((cerevisiae:1.00000,paradoxus:1.00000):1.00000,mikatae:1.00000):1.00000,kudriavzevii:1.00000):1.00000,bayanus:1.00000):1.00000,castellii:1.00000):1.00000,kluyveri:1.00000):1.00000;
+End;

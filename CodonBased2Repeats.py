@@ -589,12 +589,14 @@ class Codon2RepeatsPhy:
 ##        T, root, edge_to_blen, tree_phy = test.get_tree_info()
         if clock:
             self.root='root'
+            new_root_branch = ('root', self.root_branch[1])
             self.treetopo.remove_edge(*self.root_branch)
             self.treetopo.add_node('root')
             self.treetopo.add_edges_from([('root',self.root_branch[0]),('root',self.root_branch[1])])
             self.edge_to_blen.pop(self.root_branch)
-            self.edge_to_blen[('root',self.root_branch[0])] = self.blen
-            self.edge_to_blen[('root',self.root_branch[1])] = self.blen
+            self.edge_to_blen[('root',self.root_branch[0])] = self.blen[0]
+            self.edge_to_blen[('root',self.root_branch[1])] = self.blen[0]
+            self.root_branch = new_root_branch
             leaves = set(v for v, degree in self.treetopo.degree().items() if degree == 1) 
         casenum = self.getcasenum(SubModel)
         if casenum < 6:
@@ -1056,7 +1058,7 @@ class Codon2RepeatsPhy:
 ##            neg_ll -= np.log(lhood)
 
     def save_to_file(self, file_name = './CodonBased2RepeatsClassSave.p'):
-        pickle.dump(test, open(file_name,'wb+'))  # use pickle to save the class which can be easily reconstructed by pickle.load()
+        pickle.dump(self, open(file_name,'wb+'))  # use pickle to save the class which can be easily reconstructed by pickle.load()
                     
 
 def cleanPAML(in_file,out_file, fasta_out = False):

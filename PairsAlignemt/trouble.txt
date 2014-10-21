@@ -1,0 +1,8 @@
+Rooted_HKY_Force_Tau_YDR502C_YLR180W.py  +
+Rooted_HKY_Force_Tau_YPL087W_YBR183W.py  +
+Rooted_HKY_Force_Tau_YDR518W_YCL043C.py  +
+Rooted_HKY_Free_Tau_YLR028C_YMR120C.py
+Rooted_HKY_Force_Tau_YLR028C_YMR120C.py
+UnRooted_HKY_Free_Tau_YLR028C_YMR120C.py
+UnRooted_HKY_Force_Tau_YLR028C_YMR120C.py
+Rooted_HKY_Force_Tau_YBL087C_YER117W.py  +

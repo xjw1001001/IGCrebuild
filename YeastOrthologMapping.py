@@ -3,6 +3,7 @@ New ortholog mapping script
 '''
 from YeastModel import *
 import subprocess
+import Bio.Alphabet
 
 
 def read_ortholog(input_file_dir = '/Users/xji3/blast/YeastAlignment/all-output.txt'):
@@ -126,6 +127,7 @@ if __name__=='__main__':
                     print line.split()[-1]
 
     Pair_to_sequence = {pair:{pair[0]:{},pair[1]:{}} for pair in Filtered_one_outgroup if pair[0] in castellii_name2id or pair[1] in castellii_name2id}
+    #Pair_to_sequence = {pair:{pair[0]:{},pair[1]:{}} for pair in Filtered_two_outgroup if pair[0] in castellii_name2id or pair[1] in castellii_name2id}
     input_file = '/Users/xji3/blast/YeastAlignment/Broadinstitute/Scas.fasta'
     data_castellii = {}
     handle = open(input_file,'rU')
@@ -145,7 +147,7 @@ if __name__=='__main__':
                 Pair_to_sequence[pair][pair[1]]['castellii']=data_castellii[id1]
             else:
                 print '=====================Warning====================='
-                print pair,' cannot find theirs sequences'
+                print pair,' cannot find their sequences'
                 remove_pair_list.append(pair)
         else:
             seq_known = castellii_data[castellii_name2id[pair[1]]]
@@ -157,7 +159,7 @@ if __name__=='__main__':
                 Pair_to_sequence[pair][pair[0]]['castellii']=data_castellii[id1]
             else:
                 print '=====================Warning====================='
-                print pair,' cannot find theirs sequences'
+                print pair,' cannot find their sequences'
                 remove_pair_list.append(pair)            
     for pair in remove_pair_list:
         Pair_to_sequence.pop(pair)
@@ -209,6 +211,7 @@ if __name__=='__main__':
 
 ###
 #Now output fasta file for alignment input
+#    output nex file for RevBayes input
 ###
     for pair in Pairs_for_alignment:
         paralog1 = pair[0]
@@ -223,6 +226,13 @@ if __name__=='__main__':
                 f.write(Pair_to_sequence[pair][paralog2][spe]+'\n')
             f.write('>'+'kluyveri'+paralog1+'\n')
             f.write(Pair_to_sequence[pair]['kluyveri']+'\n')
+
+        # Now convert the fasta file to Nexus file
+        out_handle = './PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.nex'
+        in_handle = './PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_input.fasta'
+        count = SeqIO.convert(in_handle, 'fasta', out_handle, 'nexus',alphabet=Bio.Alphabet.generic_dna)
+        
+            
     
 ###
 #Now use fsa to do multiple sequence alignment
@@ -251,10 +261,10 @@ if __name__=='__main__':
 ###
 #Now generate python code for cluster
 ###
-    Sample_py_rooted_free = './PairsAlignemt/Rooted_Codon_Free_Tau_YBL087C_YER117W.py'
-    Sample_py_rooted_force = './PairsAlignemt/Rooted_Codon_Force_Tau_YBL087C_YER117W.py'
-    Sample_py_unrooted_free = './PairsAlignemt/UnRooted_Codon_Free_Tau_YBL087C_YER117W.py'
-    Sample_py_unrooted_force = './PairsAlignemt/UnRooted_Codon_Force_Tau_YBL087C_YER117W.py'
+    Sample_py_rooted_free = './PairsAlignemt/Rooted_HKY_Free_Tau_YBL087C_YER117W.py'
+    Sample_py_rooted_force = './PairsAlignemt/Rooted_HKY_Force_Tau_YBL087C_YER117W.py'
+    Sample_py_unrooted_free = './PairsAlignemt/UnRooted_HKY_Free_Tau_YBL087C_YER117W.py'
+    Sample_py_unrooted_force = './PairsAlignemt/UnRooted_HKY_Force_Tau_YBL087C_YER117W.py'
 
     replace_paralog1 = 'YBL087C'
     replace_paralog2 = 'YER117W'
@@ -290,7 +300,7 @@ if __name__=='__main__':
 ###
 #Now generate sh file for cluster
 ###
-    with open('./PairsAlignemt/run_all_yeast_pairs.sh','w+') as f:
+    with open('./PairsAlignemt/run_all_yeast_pairs_HKY.sh','w+') as f:
         f.write('#!/bin/bash'+'\n')
         for pair in Pairs_for_alignment:
             paralog1 = pair[0]
@@ -304,3 +314,23 @@ if __name__=='__main__':
                     g.write('#!/bin/bash'+'\n')
                     g.write('cd '+paralog1+'_'+paralog2+'\n')
                     g.write(' '.join(['python',target_py_file,'>',target_py_file.replace('.py','_PrintScreen.txt')]))
+
+###
+#Now generate sh file for local comp to run HKY 
+###
+    with open('./PairsAlignemt/run_all_yeast_pairs_HKY_local.sh','w+') as f:
+        f.write('#!/bin/bash'+'\n')
+        for pair in Pairs_for_alignment:
+            paralog1 = pair[0]
+            paralog2 = pair[1]
+            py_list = [Sample_py_rooted_free,Sample_py_rooted_force,Sample_py_unrooted_free,Sample_py_unrooted_force]
+            for py_file in py_list:
+                target_py_file = py_file.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt/','')
+                sh_file = py_file.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt/','./PairsAlignemt/'+paralog1+'_'+paralog2+'/Run_').replace('.py','_script.sh')
+                f.write(' '.join(['chmod', '+x', sh_file.replace('./PairsAlignemt/','./')])+'\n')
+                f.write(' '.join([sh_file.replace('./PairsAlignemt/','./')])+'\n')
+                with open(sh_file,'w+') as g:
+                    g.write('#!/bin/bash'+'\n')
+                    g.write('cd '+paralog1+'_'+paralog2+'\n')
+                    g.write(' '.join(['/Library/Frameworks/Python.framework/Versions/7.3/bin/python',target_py_file,'>',target_py_file.replace('.py','_PrintScreen.txt')]))
+

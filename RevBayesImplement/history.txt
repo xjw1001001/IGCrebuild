@@ -1,0 +1,30 @@
+source("./Geneconv_HKY.Rev")
+clear
+source("./Geneconv_HKY.Rev")
+T <- readTrees("../PairsAlignemt/YeastTree.nex")
+T
+T <- readTrees("../PairsAlignemt/YeastTree.nex")
+clear
+source("./Geneconv_HKY.Rev")
+clear
+clean()
+clean
+source("./Geneconv_HKY.Rev")
+clear
+source("./Geneconv_HKY.Rev")
+phylogeny
+treeAssembly
+Topology
+topology
+clear
+source("./Geneconv_HKY.Rev")
+topology ~ uniformTopology(n_species, names)
+topology
+topology.setValue()
+topology ~ Topology(T)
+uniformTopology
+Topology(T)
+T
+topology ~ uniformTopology(n_species, names)
+topology.clamp(T)
+quit()

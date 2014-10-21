@@ -32,4 +32,5 @@ if __name__=='__main__':
     
     r1 = test.estimate(args, Model, guess_w_blen,output = './RootedTest_Codon_corrected'+'_'.join(test.paralog)+'_Force_Tau.txt', est_blen = True,force_tau = True, clock = True,print_result = True)
 
+    test.save_to_file('./YBL087C_YER117W_R0_Codon_Class.p')
 
