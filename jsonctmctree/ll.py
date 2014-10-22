@@ -411,9 +411,9 @@ def process_json_in(j_in):
     # For each process, precompute the objects that are capable
     # of computing expm_mul and rate_mul for log likelihoods
     # and for its derivative with respect to edge-specific rates.
-    expm_klass = EigenExpm # TODO soft-code this
+    #expm_klass = EigenExpm # TODO soft-code this
     #expm_klass = PadeExpm # TODO soft-code this
-    #expm_klass = ActionExpm # TODO soft-code this
+    expm_klass = ActionExpm # TODO soft-code this
     f = []
     for edge_process in range(nprocesses):
         row = processes_row[edge_process]
@@ -466,29 +466,31 @@ def process_json_in(j_in):
     if np.all(feasibilities):
         feasibility = True
         log_likelihood = np.dot(site_weights, log_likelihoods)
+
+        # Process the derivatives.
+        # They are currently in the form of derivatives of edge rates
+        # with respect to the likelihood, but we want to convert them to
+        # derivatives of log likelihood with respect to the logs
+        # of edge-specific rate scaling factors.
+        # According to calculus we can do it as follows.
+        # Also reduce the derivative array according to the site weights.
+        edge_to_rate = dict(edge_rate_pairs)
+        ei_to_d = {}
+        for ei, derivatives in ei_to_derivatives.items():
+            edge = edges[ei]
+            edge_rate = edge_to_rate[edge]
+            d = site_weights.dot(derivatives / likelihoods)
+            ei_to_d[ei] = float(d)
+
+        # Map the derivatives back to a list whose entries
+        # match the requested order of the indices.
+        derivatives_out = [ei_to_d[ei] for ei in requested_derivatives]
+
     else:
         feasibility = False
         log_likelihood = 0
+        derivatives_out = [0] * len(requested_derivatives)
 
-    # Process the derivatives.
-    # They are currently in the form of derivatives of edge rates with respect
-    # to the likelihood, but we want to convert them to
-    # derivatives of log likelihood with respect to the logs of edge-specific
-    # rate scaling factors.
-    # According to calculus we can do it as follows.
-    # Also reduce the derivative array according to the site weights.
-    edge_to_rate = dict(edge_rate_pairs)
-    ei_to_d = {}
-    for ei, derivatives in ei_to_derivatives.items():
-        edge = edges[ei]
-        edge_rate = edge_to_rate[edge]
-        #d = edge_rate * site_weights.dot(derivatives / likelihoods)
-        d = site_weights.dot(derivatives / likelihoods)
-        ei_to_d[ei] = float(d)
-
-    # Map the derivatives back to a list whose entries
-    # match the requested order of the indices.
-    derivatives_out = [ei_to_d[ei] for ei in requested_derivatives]
 
     # Create the output in a format that json will like.
     j_out = dict(
