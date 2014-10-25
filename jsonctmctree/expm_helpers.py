@@ -7,7 +7,7 @@ Some of these do precalculations, so they are not pure functions.
 from __future__ import division, print_function
 
 import numpy as np
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_
 
 import scipy.linalg
 import scipy.sparse.linalg
@@ -31,15 +31,31 @@ def create_sparse_rate_matrix(state_space_shape, row, col, rate):
     assert_equal(row.shape[1], ndim)
     assert_equal(col.shape[1], ndim)
 
-    # create the sparse Q matrix from the sparse arrays
+    # Define the transition rate matrix after the multivariate process
+    # is collapsed to a univariate process.
     nstates = np.prod(state_space_shape)
     mrow = np.ravel_multi_index(row.T, state_space_shape)
     mcol = np.ravel_multi_index(col.T, state_space_shape)
+
+    # self-transitions are not allowed
+    assert_(not np.any(mrow == mcol))
+
+    # create the sparse Q matrix from the sparse arrays
     Q = coo_matrix((rate, (mrow, mcol)), (nstates, nstates))
 
     # get the dense array of exit rates, and set the diagonal
     exit_rates = Q.sum(axis=1).A.flatten()
-    Q.setdiag(-exit_rates)
+    assert_equal(exit_rates.shape[0], nstates)
+
+    # FIXME
+    # Temporarily disabling the setdiag of coo_matrix.
+    # When it is OK to use new scipy, use the setdiag path instead.
+    if False:
+        Q.setdiag(-exit_rates)
+    else:
+        Q.row = np.concatenate((Q.row, np.arange(nstates)))
+        Q.col = np.concatenate((Q.col, np.arange(nstates)))
+        Q.data = np.concatenate((Q.data, -exit_rates))
 
     return Q
 
