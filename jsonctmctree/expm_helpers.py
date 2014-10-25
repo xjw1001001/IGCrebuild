@@ -56,6 +56,7 @@ def create_sparse_rate_matrix(state_space_shape, row, col, rate):
         Q.row = np.concatenate((Q.row, np.arange(nstates)))
         Q.col = np.concatenate((Q.col, np.arange(nstates)))
         Q.data = np.concatenate((Q.data, -exit_rates))
+        Q.has_canonical_format = False
 
     return Q
 
