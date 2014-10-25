@@ -1,5 +1,5 @@
 Introduction
-------------
+============
 
 The technical motivation of this project was to work with likelihoods
 for parametric models of multivariate finite-state continuous-time evolution
@@ -59,7 +59,6 @@ the dependence between variables.
 The multivariate sample space is {A, C, G, T}^2.
 
 
-
 Covarion-like or Tuffley-Steel models of molecular evolution
 ------------------------------------------------------------
 
@@ -69,8 +68,7 @@ One example is an evolving latent binary variable that controls
 the overall rate of evolution at a nucleotide position
 that evolves according to HKY85.
 
-The multivariate sample space is {A, C, G, T} x {0, 1}.
-
+The multivariate sample space is {0, 1} x {A, C, G, T}.
 
 
 Examples from other fields, with bounded integer variables and no branching
