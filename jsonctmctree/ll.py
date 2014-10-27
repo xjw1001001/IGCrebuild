@@ -12,9 +12,6 @@ from __future__ import division, print_function, absolute_import
 import networkx as nx
 import numpy as np
 from numpy.testing import assert_equal
-from scipy.linalg import expm, eig, inv
-from scipy.sparse.linalg import expm_multiply
-from scipy.sparse import coo_matrix
 
 from .expm_helpers import PadeExpm, EigenExpm, ActionExpm
 
@@ -28,9 +25,6 @@ from .common_unpacking import (
 from .common_likelihood import (
         create_indicator_array,
         get_conditional_likelihoods)
-
-
-
 
 
 def get_site_weights(j_in):
@@ -144,17 +138,10 @@ def get_edge_derivative(
 
 
 def get_edge_derivatives(
-        # functions to compute expm_mul and rate_mul, per process (NEW),
         f,
-        # set of requested edge indices for edge rate derivatives (NEW)
         requested_derivative_edge_indices,
-        # map from node to array returned by (NEW)
         node_to_array,
-        # per-site likelihoods (1d array and not log likelihoods) (NEW)
-        likelihoods,
-        # distribution at the root (NEW)
         distn,
-        # original args
         T, root, edges, edge_rate_pairs, edge_process_pairs,
         state_space_shape,
         observable_nodes,
@@ -169,6 +156,17 @@ def get_edge_derivatives(
 
     The data provided by the caller gives us a sparse matrix
     of shape (nsites, nnodes, nstates).
+
+    Parameters
+    ----------
+    f : functions to compute expm_mul and rate_mul, per process
+        functions
+    requested_derivative_edge_indices : set of edge indices
+        set of requested edge indices for edge rate derivatives
+    node_to_array : dict
+        map from node to array returned by get_conditional_likelihoods
+    distn : 1d array
+        prior state distribution at the root
 
     """
     child_to_edge = dict((tail, (head, tail)) for head, tail in edges)
@@ -281,7 +279,7 @@ def process_json_in(j_in):
     requested_derivative_edge_indices = set(requested_derivatives)
     ei_to_derivatives = get_edge_derivatives(
             f, requested_derivative_edge_indices,
-            node_to_array, likelihoods, distn,
+            node_to_array, distn,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             state_space_shape,
             observable_nodes,
