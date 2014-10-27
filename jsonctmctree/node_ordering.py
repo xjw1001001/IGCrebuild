@@ -2,7 +2,7 @@
 Functions related to node ordering.
 
 """
-from __future__ import print_function
+from __future__ import division, print_function, absolute_import
 
 import networkx as nx
 from numpy.testing import assert_equal

@@ -7,7 +7,7 @@ and while allowing more flexibility in the representation of
 inhomogeneity of the process across branches.
 
 """
-from __future__ import print_function, division
+from __future__ import division, print_function, absolute_import
 
 import argparse
 import json
@@ -21,18 +21,17 @@ from scipy.linalg import expm, eig, inv
 from scipy.sparse.linalg import expm_multiply
 from scipy.sparse import coo_matrix
 
-from node_ordering import get_node_evaluation_order
-from expm_helpers import PadeExpm, EigenExpm, ActionExpm
+from .node_ordering import get_node_evaluation_order
+from .expm_helpers import PadeExpm, EigenExpm, ActionExpm
 
+from .common_unpacking import (
+        SimpleError,
+        SimpleShapeError,
+        get_observables_info,
+        get_tree_info,
+        get_prior_info,
+        )
 
-# Simple errors can go directly into the json error message
-# without a stack trace.
-
-class SimpleError(Exception):
-    pass
-
-class SimpleShapeError(SimpleError):
-    pass
 
 
 def get_site_weights(j_in):
@@ -41,89 +40,6 @@ def get_site_weights(j_in):
 
 def get_requested_derivatives(j_in):
     return np.array(j_in['requested_derivatives'])
-
-
-def get_observables_info(j_in, nnodes, state_space_shape):
-    naxes = state_space_shape.shape[0]
-    observable_nodes = np.array(j_in['observable_nodes'])
-    observable_axes = np.array(j_in['observable_axes'])
-    iid_observations = np.array(j_in['iid_observations'])
-
-    # check ndims
-    if len(observable_nodes.shape) != 1:
-        raise SimpleShapeError(
-                'expected the array of observable nodes '
-                'to be one-dimensional')
-    if len(observable_axes.shape) != 1:
-        raise SimpleShapeError(
-                'expected the array of observable axes '
-                'to be one-dimensional')
-    if len(iid_observations.shape) != 2:
-        raise SimpleShapeError(
-                'expected the array of observable observations '
-                'to be two-dimensional')
-
-    # check dtypes
-    if not issubclass(observable_nodes.dtype.type, np.integer):
-        raise SimpleError(
-                'expected observable_nodes to be an array of integers, '
-                'but found dtype %s' % observable_nodes.dtype)
-    if not issubclass(observable_axes.dtype.type, np.integer):
-        raise SimpleError(
-                'expected observable_axes to be an array of integers, '
-                'but found dtype %s' % observable_axes.dtype)
-
-    # check conformant shapes
-    if observable_nodes.shape[0] != observable_axes.shape[0]:
-        raise SimpleShapeError(
-                'The array of observable_nodes has length %d '
-                'and the array of observable_axes has length %d '
-                'but these are expected to be identical.' % (
-                    observable_nodes.shape[0],
-                    observable_axes.shape[0]))
-    if observable_nodes.shape[0] != iid_observations.shape[1]:
-        raise SimpleShapeError(
-                'The array of observable_nodes has length %d '
-                'and each iid observation has length %d '
-                'but these are expected to be identical.' % (
-                    observable_nodes.shape[0],
-                    iid_observations.shape[1]))
-
-    # check contents
-    if (
-            np.any(observable_nodes < 0) or
-            np.any(observable_axes < 0) or
-            np.any(iid_observations < 0)):
-        raise SimpleError(
-                'The arrays of observable_nodes, observable_axes, '
-                'and iid_observations must have non-negative integers')
-    if np.any(nnodes <= observable_nodes):
-        raise SimpleError(
-                'Each node index in the observable_nodes sequence '
-                'should be an integer between 0 and node_count-1 inclusive. '
-                'One or more of the observable node indices are too large')
-    if np.any(naxes <= observable_axes):
-        raise SimpleError(
-                'Each axis index in the observable_axes sequence '
-                'should be an integer between 0 and the number of axes '
-                'of the state space, minus one, inclusive. '
-                'One or more of the observable axis indices are too large')
-    if np.any(state_space_shape[observable_axes] <= iid_observations):
-        raise SimpleError(
-                'The entries of each iid observation '
-                'should be within the range of observed axis '
-                'of the state space ')
-
-    return (
-            observable_nodes,
-            observable_axes,
-            iid_observations)
-
-
-def get_prior_info(j_in):
-    return (
-            np.array(j_in['prior_feasible_states']),
-            np.array(j_in['prior_distribution'], dtype=float))
 
 
 def get_processes_info(j_in):
@@ -138,74 +54,6 @@ def get_processes_info(j_in):
             np.array(processes_row),
             np.array(processes_col),
             np.array(processes_rate, dtype=float))
-
-
-def check_tree_row_indices(row, node_count):
-    """This is just for error checking.
-    """
-    nodes = set(range(node_count))
-    unexpected_row_indices = list(set(row) - nodes)
-    if unexpected_row_indices:
-        raise SimpleError(
-                'Found unexpected row indices in the tree definition. '
-                'Because the provided node count is %d, '
-                'the row indices are expected to be non-negative integers '
-                'less than %d. '
-                'But the following row indices were observed: %s' % (
-                    node_count, node_count, unexpected_row_indices))
-
-
-def check_tree_col_indices(col, node_count):
-    """This is just for error checking.
-    """
-    nodes = set(range(node_count))
-    unexpected_col_indices = list(set(col) - nodes)
-    if unexpected_col_indices:
-        raise SimpleError(
-                'Found unexpected col indices in the tree definition. '
-                'Because the provided node count is %d, '
-                'the col indices are expected to be non-negative integers '
-                'less than %d. '
-                'But the following col indices were observed: %s' % (
-                    node_count, node_count, unexpected_col_indices))
-
-
-def get_tree_info(j_in):
-    node_count = j_in['node_count']
-    process_count = j_in['process_count']
-    tree = j_in['tree']
-    nodes = set(range(node_count))
-    row = tree['row']
-    col = tree['col']
-    rate = np.array(tree['rate'], dtype=float)
-    process = np.array(tree['process'])
-    check_tree_row_indices(row, node_count)
-    check_tree_col_indices(col, node_count)
-    negative_rates = rate[rate < 0]
-    if negative_rates:
-        raise SimpleError(
-                'the edge-specific rate scaling factors '
-                'should be non-negative')
-    T = nx.DiGraph()
-    T.add_nodes_from(range(node_count))
-    edges = zip(row, col)
-    T.add_edges_from(edges)
-    if len(T.edges()) != len(edges):
-        raise Exception('the tree has an unexpected number of edges')
-    if len(edges) + 1 != len(T):
-        raise Exception('expected the number of edges to be one more '
-                'than the number of nodes')
-    in_degree = T.in_degree()
-    roots = [n for n in nodes if in_degree[n] == 0]
-    if len(roots) != 1:
-        raise Exception('expected exactly one root')
-    for i in range(node_count):
-        T.in_degree()
-    root = roots[0]
-    edges = zip(row, col)
-    edge_rate_pairs = zip(edges, rate)
-    edge_process_pairs = zip(edges, process)
-    return T, root, edges, edge_rate_pairs, edge_process_pairs
 
 
 def create_indicator_array(
