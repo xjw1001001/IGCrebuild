@@ -42,9 +42,9 @@ The top-level input json object has the following members:
    and the edge-specific scaling factors of the process rates.
    The names `row` and `col` are in analogy to the representation
    of the branching timeline as a sparse matrix.
-    * `col` : An array specifying the endpoint node closer to the root
+    * `row` : An array specifying the endpoint node closer to the root
       for each directed edge of the branching timeline.
-    * `row` : An array specifying the endpoint node farther from the root
+    * `col` : An array specifying the endpoint node farther from the root
       for each directed edge of the branching timeline.
     * `rate` : An array specifying the rate scaling factor
       for each directed edge of the branching timeline.
