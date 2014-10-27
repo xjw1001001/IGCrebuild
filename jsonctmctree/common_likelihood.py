@@ -8,6 +8,11 @@ linear combinations of labeled transitions on edges.
 """
 from __future__ import division, print_function, absolute_import
 
+import numpy as np
+from numpy.testing import assert_equal
+
+from .node_ordering import get_node_evaluation_order
+
 
 def create_indicator_array(
         node,
@@ -52,11 +57,8 @@ def create_indicator_array(
 
 
 def get_conditional_likelihoods(
-        # functions to compute expm_mul, per process (NEW)
         f,
-        # boolean flag for storing all edges arrays (NEW)
         store_all,
-        # original args
         T, root, edges, edge_rate_pairs, edge_process_pairs,
         state_space_shape,
         observable_nodes,
@@ -71,6 +73,13 @@ def get_conditional_likelihoods(
 
     The data provided by the caller gives us a sparse matrix
     of shape (nsites, nnodes, nstates).
+
+    Parameters
+    ----------
+    f : sequence of functions indexed by process (TODO rename this...)
+        These functions compute expm_mul and rate_mul.
+    store_all : bool
+        Indicates whether all edge arrays should be stored.
 
     """
     child_to_edge = dict((tail, (head, tail)) for head, tail in edges)
