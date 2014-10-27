@@ -24,4 +24,5 @@ setup(
         packages=['jsonctmctree'],
         test_suite='nose.collector',
         package_data={'jsonctmctree' : ['tests/test_*.py']},
+        scripts=['scripts/jsonctmctree-ll', 'scripts/jsonctmctree-expect'],
         )
