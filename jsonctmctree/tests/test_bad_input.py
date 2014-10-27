@@ -7,7 +7,7 @@ from __future__ import print_function, division
 from numpy.testing import assert_raises
 
 import jsonctmctree.ll
-from jsonctmctree.ll import SimpleError
+from jsonctmctree.ll import SimpleError, SimpleShapeError
 
 
 def get_good_univariate_input():
@@ -44,4 +44,10 @@ def test_good_univariate_input():
 def test_bad_observation_shape():
     j_in = get_good_univariate_input()
     j_in['iid_observations'] = [0, 0, 1]
+    assert_raises(SimpleShapeError, jsonctmctree.ll.process_json_in, j_in)
+
+
+def test_out_of_bounds_observable_axis():
+    j_in = get_good_univariate_input()
+    j_in['observable_axes'] = [0, 1]
     assert_raises(SimpleError, jsonctmctree.ll.process_json_in, j_in)
