@@ -13,12 +13,15 @@ import scipy.linalg
 import scipy.sparse.linalg
 from scipy.sparse import coo_matrix
 
-__all__ = ['PadeExpm', 'EigenExpm', 'ActionExpm']
+__all__ = [
+        'PadeExpm', 'EigenExpm', 'ActionExpm',
+        'ExplicitExpmFrechet',
+        ]
 
 
-def create_sparse_rate_matrix(state_space_shape, row, col, rate):
+def create_sparse_pre_rate_matrix(state_space_shape, row, col, rate):
     """
-    Create the rate matrix.
+    Create the pre-rate matrix with empty diagonal.
 
     """
     # check conformability of input arrays
@@ -40,8 +43,17 @@ def create_sparse_rate_matrix(state_space_shape, row, col, rate):
     # self-transitions are not allowed
     assert_(not np.any(mrow == mcol))
 
-    # create the sparse Q matrix from the sparse arrays
-    Q = coo_matrix((rate, (mrow, mcol)), (nstates, nstates))
+    # create the sparse pre_Q matrix from the sparse arrays
+    return coo_matrix((rate, (mrow, mcol)), (nstates, nstates))
+
+
+def create_sparse_rate_matrix(state_space_shape, row, col, rate):
+    """
+    Create the rate matrix.
+
+    """
+    nstates = np.prod(state_space_shape)
+    Q = create_sparse_pre_rate_matrix(state_space_shape, row, col, rate)
 
     # get the dense array of exit rates, and set the diagonal
     exit_rates = Q.sum(axis=1).A.flatten()
@@ -139,3 +151,24 @@ class ActionExpm(object):
 
         """
         return rate_scaling_factor * self.Q.dot(PA)
+
+
+class ExplicitExpmFrechet(object):
+    """
+    This is for computing conditional expectations on edges.
+
+    """
+    def __init__(self, state_space_shape, row, col, rate, expect):
+        self.Q = create_sparse_rate_matrix(
+                state_space_shape, row, col, rate)
+        self.E = create_sparse_pre_rate_matrix(
+                state_space_shape, row, col, rate * expect)
+
+    def get_expm_and_frechet(self, rate_scaling_factor):
+        t = rate_scaling_factor
+        QAt = (self.Q * t).A
+        EAt = (self.E * t).A
+        P, numerator = scipy.linalg.expm_frechet(QAt, EAt)
+        del QAt
+        del EAt
+        return P, numerator
