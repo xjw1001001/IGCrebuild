@@ -64,6 +64,8 @@ def get_node_to_marginal_distn(
 
     """
     # Precompute some stuff.
+    assert_equal(len(distn.shape), 1)
+    nstates = distn.shape[0]
     child_to_edge = dict((tail, (head, tail)) for head, tail in edges)
     edge_to_rate = dict(edge_rate_pairs)
     edge_to_process = dict(edge_process_pairs)
@@ -104,24 +106,41 @@ def get_node_to_marginal_distn(
             edge_process = edge_to_process[edge]
             edge_rate = edge_to_rate[edge]
 
+            # Ingredients:
+            # Marginal distribution at the head node of the edge.
+            # Probability transition matrix along the edge.
+            # Partial likelihood of the subtree.
+
             # Extract the marginal state distribution
             # at the 'head' of the edge.
             head_marginal_distn = node_to_marginal_distn[head_node]
             subtree_array = node_to_subtree_array[tail_node]
-            next_distn = f[edge_process].expm_rmul(
-                    edge_rate,
-                    head_marginal_distn.T).T
-            next_distn = next_distn * subtree_array
+            # TODO Replace this with combined expm product.
+            P = f[edge_process].expm_mul(edge_rate, np.identity(nstates))
+            next_distn = head_marginal_distn.T.dot(P).T
+            #next_distn = head_marginal_distn.T.dot(P).T
+            #next_distn = f[edge_process].expm_rmul(
+                    #edge_rate,
+                    #head_marginal_distn.T).T
+
 
             # FIXME
             # print stuff for debugging
             """
+            print('edge:', edge)
+            print('head marginal distribution:')
+            print(head_marginal_distn)
+            print('transition probability matrix:')
+            print(P)
+            print('unnormalized array of distributions before subtree mult:')
+            print(next_distn)
             print('subtree array:')
             print(subtree_array)
-            print('unnormalized array of distributions:')
-            print(next_distn)
-            print()
             """
+
+            next_distn = next_distn * subtree_array
+            #print('entrywise product:')
+            #print(next_distn)
 
         # Normalize these per-site distributions
         # and add to the collection of marginal distributions at nodes.
@@ -129,7 +148,11 @@ def get_node_to_marginal_distn(
         #tail_marginal_distn = next_distn / row_sums[:, np.newaxis]
         #node_to_marginal_distn[tail_node] = next_distn
         col_sums_recip = pseudo_reciprocal(next_distn.sum(axis=0))
-        node_to_marginal_distn[tail_node] = next_distn * col_sums_recip
+        next_marginal_distn = next_distn * col_sums_recip
+        node_to_marginal_distn[tail_node] = next_marginal_distn
+        #print('normalized marginal distributions as columns per site:')
+        #print(next_marginal_distn)
+        #print()
 
     return node_to_marginal_distn
 
@@ -217,12 +240,16 @@ def get_edge_to_site_expectations(
             J = np.outer(d, v) * P
             #row_sums = J.sum(axis=1)
             #J = J * pseudo_reciprocal(row_sums)[:, np.newaxis]
-            J = J / J.sum()
+            J_total = J.sum()
+            if J_total:
+                J = J / J_total
+            else:
+                J = np.zeros_like(J)
 
             # Report J for debugging.
-            #print('site:', site)
-            #print('J:')
-            #print(J)
+            print('site:', site)
+            print('J:')
+            print(J)
             #print('J column sums:', J.sum(axis=0))
             #print('J row sums:', J.sum(axis=1))
 
@@ -276,8 +303,8 @@ def process_json_in(j_in):
     # of computing expm_mul and rate_mul for log likelihoods
     # and for its derivative with respect to edge-specific rates.
     #expm_klass = EigenExpm # TODO soft-code this
-    #expm_klass = PadeExpm # TODO soft-code this
-    expm_klass = ActionExpm # TODO soft-code this
+    expm_klass = PadeExpm # TODO soft-code this
+    #expm_klass = ActionExpm # TODO soft-code this
     f = []
     expm_frechet_objects = []
     for edge_process in range(nprocesses):
@@ -307,12 +334,10 @@ def process_json_in(j_in):
 
     # FIXME
     # Print node to subtree array for debugging.
-    """
     print('subtree arrays:')
     for node in range(nnodes):
         print(node_to_subtree_array[node])
     print()
-    """
 
     # Check the shape of the array.
     # Avoid copying a lot of huge arrays.
@@ -365,7 +390,6 @@ def process_json_in(j_in):
     feasibilities = np.isfinite(log_likelihoods)
     log_likelihoods = np.where(feasibilities, log_likelihoods, 0)
 
-    # Reduce the log likelihoods according to the site weights.
     if np.all(feasibilities):
         feasibility = True
 

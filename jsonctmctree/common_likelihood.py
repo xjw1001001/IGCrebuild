@@ -76,6 +76,8 @@ def get_subtree_likelihoods(
     The shape of each output array is (nstates, nsites).
 
     """
+    nstates = np.prod(state_space_shape)
+
     edge_to_rate = dict(edge_rate_pairs)
     edge_to_process = dict(edge_process_pairs)
 
@@ -99,7 +101,13 @@ def get_subtree_likelihoods(
             edge_rate = edge_to_rate[edge]
             edge_process = edge_to_process[edge]
             child_arr = node_to_array[child]
+
             child_edge_arr = f[edge_process].expm_mul(edge_rate, child_arr)
+            
+            #TODO check this
+            #P = f[edge_process].expm_mul(edge_rate, np.identity(nstates))
+            #child_edge_arr = child_arr.T.dot(P).T
+
             arr *= child_edge_arr
             if not store_all:
                 del node_to_array[child]
