@@ -6,7 +6,7 @@ import json
 import traceback
 import sys
 
-from jsonctmctree.ll import process_json_in
+from jsonctmctree.expect import process_json_in
 from jsonctmctree.common_unpacking import SimpleError, SimpleShapeError
 
 
@@ -37,7 +37,6 @@ def main(args):
 
 
 if __name__ == '__main__':
-    raise Exception('not implemented')
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true')
     j_out = main(parser.parse_args())

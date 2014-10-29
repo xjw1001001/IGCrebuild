@@ -35,26 +35,6 @@ from .common_likelihood import (
         get_conditional_likelihoods)
 
 
-#TODO remove
-class ExplicitExpmFrechet(object):
-    """
-    This is for computing conditional expectations on edges.
-
-    """
-    def __init__(self, state_space_shape, row, col, rate, coeffs):
-        self.Q = create_sparse_rate_matrix(state_space_shape, row, col, rate)
-        self.E = create_sparse_rate_matrix(state_space_shape, row, col, coeffs)
-
-    def get_expm_and_frechet(self, rate_scaling_factor):
-        QA = self.Q.A
-        EA = self.E.A
-        t = rate_scaling_factor
-        P, interact = scipy.linalg.expm_frechet(QA * t, EA)
-        del QA
-        del EA
-        return P, interact
-
-
 def get_processes_info(j_in):
     processes_row = []
     processes_col = []
@@ -72,9 +52,9 @@ def get_processes_info(j_in):
             np.array(processes_expect, dtype=float))
 
 
-def get_expectations(
-        f, expm_frechet_objects,
-        node_to_array, distn,
+def get_node_to_marginal_distn(
+        f,
+        node_to_subtree_array, distn,
         T, root, edges, edge_rate_pairs, edge_process_pairs,
         state_space_shape,
         observable_nodes,
@@ -88,22 +68,15 @@ def get_expectations(
     edge_to_rate = dict(edge_rate_pairs)
     edge_to_process = dict(edge_process_pairs)
 
-    # The conditional likelihoods have already been precomputed.
-
+    # The likelihoods downstream of nodes have already been precomputed.
+    
+    # Build the marginal distributions.
     node_to_marginal_distn = {}
 
     ordered_nodes = list(get_node_evaluation_order(T, root))
     for node in reversed(ordered_nodes):
-        upstream_edge_array = node_to_array[node]
         if node == root:
-            likelihoods = distn.dot(upstream_edge_array)
-            # It is possible that some likelihoods that should be zero
-            # are listed as tiny floating point numbers,
-            # so force these to be zero.
-            # Then normalize the likelihoods as the marginal distribution
-            # at the root.
-            d = np.clip(likelihoods, 0, np.inf)
-            node_to_marginal_distn[root] = d / d.sum()
+            next_distn = node_to_subtree_array[root]
         else:
             # For non-root nodes the 'upstream edge' is of interest,
             # because we want to compute the weighted sum of expectations
@@ -111,19 +84,99 @@ def get_expectations(
             edge = child_to_edge[node]
             edge_process = edge_to_process[edge]
             edge_rate = edge_to_rate[edge]
+            head_node, tail_node = edge
 
-            # Explicitly compute the transition probability matrix
-            # as the matrix exponential of the transition rate matrix,
-            # and also compute the 'interaction matrix' as its
-            # frechet derivative in the direction of the provided
-            # transition expectation coefficients.
-            obj = expm_frechet_objects[edge_process]
-            P, numerator = obj.get_expm_and_frechet(edge_rate)
+            # Extract the marginal state distribution
+            # at the 'head' of the edge.
+            head_marginal_distn = node_to_marginal_distn[head_node]
+            subtree_array = node_to_subtree_array[tail_node]
+            next_distn = f[edge_process].expm_mul(edge_rate, subtree_array)
+
+        # Normalize these per-site distributions
+        # and add to the collection of marginal distributions at nodes.
+        row_sums = next_distn.sum(axis=1)
+        tail_marginal_distn = next_distn / row_sums[:, np.newaxis]
+        node_to_marginal_distn[tail_node] = next_distn
+
+    return node_to_marginal_distn
 
 
-    # Compute Frechet derivatives of matrix exponentials on-demand,
-    # and be careful with memory so delete them when no longer needed.
+def get_expectations(
+        nsites,
+        f, expm_frechet_objects, node_to_marginal_distn,
+        node_to_subtree_array, distn,
+        T, root, edges, edge_rate_pairs, edge_process_pairs,
+        state_space_shape,
+        observable_nodes,
+        observable_axes,
+        iid_observations):
+    """
 
+    """
+    # Precompute some stuff.
+    child_to_edge = dict((tail, (head, tail)) for head, tail in edges)
+    edge_to_rate = dict(edge_rate_pairs)
+    edge_to_process = dict(edge_process_pairs)
+
+    # The likelihoods downstream of nodes have already been precomputed.
+    # The marginal distributions at nodes have also been computed.
+
+    # Compute the expectations on edges.
+    # Skip the root because it has no associated edge.
+    ordered_nodes = list(get_node_evaluation_order(T, root))
+    for node in reversed(ordered_nodes[1:]):
+
+        # For non-root nodes the 'upstream edge' is of interest,
+        # because we want to compute the weighted sum of expectations
+        # of labeled transitions along the edge.
+        edge = child_to_edge[node]
+        edge_process = edge_to_process[edge]
+        edge_rate = edge_to_rate[edge]
+        head_node, tail_node = edge
+
+        # Extract the marginal state distribution
+        # at the 'head' of the edge.
+        head_marginal_distn = node_to_marginal_distn[head_node]
+        subtree_array = node_to_subtree_array[tail_node]
+
+        # Explicitly compute the transition probability matrix
+        # as the matrix exponential of the transition rate matrix.
+        # Also compute a thing that I'm calling the K matrix,
+        # whose i, j entry is the weighted sum of the expected
+        # number of transitions on the edge, given that the state of the
+        # node at the 'head' of the edge is i and that the
+        # state of the node at the 'tail' of the edge is j.
+        obj = expm_frechet_objects[edge_process]
+        P, K = obj.get_expm_and_frechet(edge_rate)
+
+        #FIXME I am using brute force; do something intelligent instead!
+
+        # First get the J matrix for each site -- this is the joint
+        # distribution over states at the endpoints of the edge.
+        # It is brutally inefficient to compute this separately for
+        # each site!
+        # Next, compute the hadamard product of this J matrix
+        # with the K matrix computed using the frechet derivative
+        # of the matrix exponential.
+        # Finally, take the sum of the all entries in this
+        # hadamard product as the expectation associated with the site.
+        # This is so bad!
+
+        # Take entrywise reciprocal of P, taking care to not divide by zero.
+        P_filled = np.where(P, P, 1)
+        P_recip = np.where(P, np.reciprocal(P_filled), 0)
+
+        site_expectations = np.empty(nsites, dtype=float)
+        for site in range(nsites):
+            marginal_distn = head_marginal_distn[site]
+            J = marginal_distn[:, np.newaxis] * P * subtree_array
+            row_sums = J.sum(axis=1)
+            J = J / row_sums[:, np.newaxis]
+            site_expectations[site] = (J * K * P_recip).sum()
+
+        edge_to_site_expectations[edge] = site_expectations
+
+    return edge_to_site_expectations
 
 
 def process_json_in(j_in):
@@ -179,7 +232,7 @@ def process_json_in(j_in):
     store_all_likelihood_arrays = bool(np.any(requested_derivatives))
 
     # Precompute conditional likelihood arrays per node.
-    node_to_array = get_conditional_likelihoods(
+    node_to_subtree_array = get_subtree_likelihoods(
             f, store_all_likelihood_arrays,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             state_space_shape,
@@ -191,16 +244,27 @@ def process_json_in(j_in):
     # These are passed to the derivatives procedure,
     # to help compute the per-site derivatives of the log likelihoods
     # with respect to the log of the edge-specific rate scaling parameters.
-    arr = node_to_array[root]
+    arr = node_to_subtree_array[root]
     likelihoods = distn.dot(arr)
     
-    # Compute the derivative of the likelihood
-    # with respect to each edge-specific rate scaling parameter.
     #requested_derivative_edge_indices = set(requested_derivatives)
     #ei_to_derivatives = get_edge_derivatives(
-    foo = get_expectations(
-            f, expm_frechet_objects,
-            node_to_array, distn,
+    # compute something other than marginal distribution
+    node_to_marginal_distn = get_node_to_marginal_distn(
+            f,
+            node_to_subtree_array, distn,
+            T, root, edges, edge_rate_pairs, edge_process_pairs,
+            state_space_shape,
+            observable_nodes,
+            observable_axes,
+            iid_observations)
+
+    # Compute expectations.
+    nsites = iid_observations.shape[0]
+    edge_to_expectation = get_expectations(
+            nsites,
+            f, expm_frechet_objects, node_to_marginal_distn,
+            node_to_subtree_array, distn,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             state_space_shape,
             observable_nodes,

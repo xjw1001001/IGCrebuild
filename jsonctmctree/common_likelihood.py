@@ -56,6 +56,69 @@ def create_indicator_array(
     return obs
 
 
+def get_subtree_likelihoods(
+        f,
+        store_all,
+        T, root, edges, edge_rate_pairs, edge_process_pairs,
+        state_space_shape,
+        observable_nodes,
+        observable_axes,
+        iid_observations,
+        ):
+    """
+    Compute likelihood arrays associated with nodes.
+
+    Unlike get_conditional_likelihoods, this function
+    does not look at the upstream edge of the node.
+
+    """
+    edge_to_rate = dict(edge_rate_pairs)
+    edge_to_process = dict(edge_process_pairs)
+
+    # For the few nodes that are active at a given point in the traversal,
+    # we track a 2d array of shape (nsites, nstates).
+    node_to_array = {}
+    for node in get_node_evaluation_order(T, root):
+
+        # When a node is activated, its associated array
+        # is initialized to its observational likelihood array.
+        arr = create_indicator_array(
+                node,
+                state_space_shape,
+                observable_nodes,
+                observable_axes,
+                iid_observations)
+
+        # Multiplicatively accumulate over outgoing edges.
+        for child in T.successors(node):
+            edge = (node, child)
+            edge_rate = edge_to_rate[edge]
+            edge_process = edge_to_process[edge]
+            child_arr = node_to_array[child]
+            child_edge_arr = f[edge_process].expm_mul(edge_rate, child_arr)
+            arr *= child_edge_arr
+            if not store_all:
+                del node_to_array[child]
+
+        # Associate the array with the current node.
+        node_to_array[node] = arr
+
+    # If we had been deleting arrays as they become unnecessary for
+    # the log likelihood calculation, then we would have only
+    # a single active array remaining at this point, corresponding to the root.
+    # But if we are saving the arrays for gradient calculations,
+    # then we have more left.
+    actual_keys = set(node_to_array)
+    if store_all:
+        desired_keys = set(T)
+    else:
+        desired_keys = {root}
+    assert_equal(actual_keys, desired_keys)
+
+    # Return the map from node to array.
+    return node_to_array
+
+
 def get_conditional_likelihoods(
         f,
         store_all,
@@ -80,6 +143,15 @@ def get_conditional_likelihoods(
         These functions compute expm_mul and rate_mul.
     store_all : bool
         Indicates whether all edge arrays should be stored.
+
+    Notes
+    -----
+    This function computes the likelihood for everything in the subtree
+    conditional on the state at the head of the upstream edge, if any,
+    of the associated node, without accounting for any observation
+    data at that upstream node.
+    An alternative representation would track subtree likelihood
+    at each node, accounting for the observation data at that node.
 
     """
     child_to_edge = dict((tail, (head, tail)) for head, tail in edges)
