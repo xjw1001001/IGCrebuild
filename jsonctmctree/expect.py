@@ -75,8 +75,25 @@ def get_node_to_marginal_distn(
 
     ordered_nodes = list(get_node_evaluation_order(T, root))
     for node in reversed(ordered_nodes):
+
+        # FIXME
+        # Check the indicator array, for debugging.
+        # This should really go into a unit test.
+        """
+        ind = create_indicator_array(
+                node,
+                state_space_shape,
+                observable_nodes,
+                observable_axes,
+                iid_observations)
+        print('node:', node)
+        print('indicator array:')
+        print(ind)
+        print()
+        """
+
         if node == root:
-            next_distn = node_to_subtree_array[root]
+            next_distn = node_to_subtree_array[root] * distn[:, np.newaxis]
             tail_node = root
         else:
             # For non-root nodes the 'upstream edge' is of interest,
@@ -91,16 +108,28 @@ def get_node_to_marginal_distn(
             # at the 'head' of the edge.
             head_marginal_distn = node_to_marginal_distn[head_node]
             subtree_array = node_to_subtree_array[tail_node]
-            next_distn = f[edge_process].expm_rmul(edge_rate, subtree_array.T).T
+            next_distn = f[edge_process].expm_rmul(
+                    edge_rate,
+                    head_marginal_distn.T).T
+            next_distn = next_distn * subtree_array
+
+            # FIXME
+            # print stuff for debugging
+            """
+            print('subtree array:')
+            print(subtree_array)
+            print('unnormalized array of distributions:')
+            print(next_distn)
+            print()
+            """
 
         # Normalize these per-site distributions
         # and add to the collection of marginal distributions at nodes.
         #row_sums = next_distn.sum(axis=1)
         #tail_marginal_distn = next_distn / row_sums[:, np.newaxis]
         #node_to_marginal_distn[tail_node] = next_distn
-        col_sums = next_distn.sum(axis=0)
-        tail_marginal_distn = next_distn / col_sums
-        node_to_marginal_distn[tail_node] = next_distn
+        col_sums_recip = pseudo_reciprocal(next_distn.sum(axis=0))
+        node_to_marginal_distn[tail_node] = next_distn * col_sums_recip
 
     return node_to_marginal_distn
 
@@ -186,9 +215,25 @@ def get_edge_to_site_expectations(
             assert_equal(d.shape, (nstates, ))
             assert_equal(v.shape, (nstates, ))
             J = np.outer(d, v) * P
-            row_sums = J.sum(axis=1)
-            J = J * pseudo_reciprocal(row_sums)[:, np.newaxis]
-            site_expectations[site] = (J * K * P_recip).sum()
+            #row_sums = J.sum(axis=1)
+            #J = J * pseudo_reciprocal(row_sums)[:, np.newaxis]
+            J = J / J.sum()
+
+            # Report J for debugging.
+            #print('site:', site)
+            #print('J:')
+            #print(J)
+            #print('J column sums:', J.sum(axis=0))
+            #print('J row sums:', J.sum(axis=1))
+
+            # Report site-specific K for debugging.
+            # The i, j entry of this matrix should give the
+            # requested weighted sum of transition counts on the edge.
+            K_mod = K * P_recip
+            #print('K:')
+            #print(K)
+
+            site_expectations[site] = (J * K_mod).sum()
 
         edge_to_site_expectations[edge] = site_expectations
 
@@ -260,6 +305,15 @@ def process_json_in(j_in):
             observable_axes,
             iid_observations)
 
+    # FIXME
+    # Print node to subtree array for debugging.
+    """
+    print('subtree arrays:')
+    for node in range(nnodes):
+        print(node_to_subtree_array[node])
+    print()
+    """
+
     # Check the shape of the array.
     # Avoid copying a lot of huge arrays.
     for node in range(nnodes):
@@ -281,6 +335,11 @@ def process_json_in(j_in):
             observable_nodes,
             observable_axes,
             iid_observations)
+
+    print('node to marginal distribution, for debugging:')
+    for node in range(nnodes):
+        print(node_to_marginal_distn[node])
+    print()
 
     # Check the shape of the array.
     # Avoid copying a lot of huge arrays.

@@ -32,7 +32,7 @@ def test_simple_model():
             processes = [dict(
                 row = [[0], [0]],
                 col = [[1], [2]],
-                rate = [1.0, 2.0],
+                rate = [3.0, 1.0],
                 expect = [1.0, 1.0])],
             observable_nodes = [2],
             observable_axes = [0],
