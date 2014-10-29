@@ -39,6 +39,7 @@ def test_simple_model():
             iid_observations = [
                 [0],
                 [1],
+                [0],
                 [2]])
 
     j_out = process_json_in(j_in)

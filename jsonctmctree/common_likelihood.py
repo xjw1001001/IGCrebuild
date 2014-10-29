@@ -23,6 +23,8 @@ def create_indicator_array(
     """
     Create the initial array indicating observations.
 
+    The shape of each output array is (nstates, nsites).
+
     """
     nsites, nobservables = iid_observations.shape
     state_space_ndim = len(state_space_shape)
@@ -71,12 +73,14 @@ def get_subtree_likelihoods(
     Unlike get_conditional_likelihoods, this function
     does not look at the upstream edge of the node.
 
+    The shape of each output array is (nstates, nsites).
+
     """
     edge_to_rate = dict(edge_rate_pairs)
     edge_to_process = dict(edge_process_pairs)
 
     # For the few nodes that are active at a given point in the traversal,
-    # we track a 2d array of shape (nsites, nstates).
+    # we track a 2d array of shape (nstates, nsites).
     node_to_array = {}
     for node in get_node_evaluation_order(T, root):
 

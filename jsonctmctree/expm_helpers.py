@@ -136,6 +136,16 @@ class ActionExpm(object):
     def __init__(self, state_space_shape, row, col, rate):
         self.Q = create_sparse_rate_matrix(state_space_shape, row, col, rate)
 
+    def expm_rmul(self, rate_scaling_factor, A):
+        """
+        Compute A * exp(Q * r).
+
+        This uses the fact that exp(X.T) = exp(X).T.
+
+        """
+        return scipy.sparse.linalg.expm_multiply(
+                rate_scaling_factor * self.Q.T, A.T).T
+
     def expm_mul(self, rate_scaling_factor, A):
         """
         Compute exp(Q * r) * A.

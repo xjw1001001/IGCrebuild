@@ -91,12 +91,15 @@ def get_node_to_marginal_distn(
             # at the 'head' of the edge.
             head_marginal_distn = node_to_marginal_distn[head_node]
             subtree_array = node_to_subtree_array[tail_node]
-            next_distn = f[edge_process].expm_mul(edge_rate, subtree_array)
+            next_distn = f[edge_process].expm_rmul(edge_rate, subtree_array.T).T
 
         # Normalize these per-site distributions
         # and add to the collection of marginal distributions at nodes.
-        row_sums = next_distn.sum(axis=1)
-        tail_marginal_distn = next_distn / row_sums[:, np.newaxis]
+        #row_sums = next_distn.sum(axis=1)
+        #tail_marginal_distn = next_distn / row_sums[:, np.newaxis]
+        #node_to_marginal_distn[tail_node] = next_distn
+        col_sums = next_distn.sum(axis=0)
+        tail_marginal_distn = next_distn / col_sums
         node_to_marginal_distn[tail_node] = next_distn
 
     return node_to_marginal_distn
@@ -112,7 +115,7 @@ def pseudo_reciprocal(A):
 
 
 def get_edge_to_site_expectations(
-        nsites,
+        nsites, nstates,
         f, expm_frechet_objects, node_to_marginal_distn,
         node_to_subtree_array, distn,
         T, root, edges, edge_rate_pairs, edge_process_pairs,
@@ -178,8 +181,11 @@ def get_edge_to_site_expectations(
 
         site_expectations = np.empty(nsites, dtype=float)
         for site in range(nsites):
-            marginal_distn = head_marginal_distn[site]
-            J = marginal_distn[:, np.newaxis] * P * subtree_array
+            d = head_marginal_distn[:, site]
+            v = subtree_array[:, site]
+            assert_equal(d.shape, (nstates, ))
+            assert_equal(v.shape, (nstates, ))
+            J = np.outer(d, v) * P
             row_sums = J.sum(axis=1)
             J = J * pseudo_reciprocal(row_sums)[:, np.newaxis]
             site_expectations[site] = (J * K * P_recip).sum()
@@ -212,8 +218,11 @@ def process_json_in(j_in):
     info = get_processes_info(j_in)
     processes_row, processes_col, processes_rate, processes_expect = info
 
-    # Interpret the prior distribution.
+    # Deduce some counts.
     nstates = np.prod(state_space_shape)
+    nsites = iid_observations.shape[0]
+
+    # Interpret the prior distribution.
     feas = np.ravel_multi_index(prior_feasible_states.T, state_space_shape)
     distn = np.zeros(nstates, dtype=float)
     np.put(distn, feas, prior_distribution)
@@ -251,6 +260,11 @@ def process_json_in(j_in):
             observable_axes,
             iid_observations)
 
+    # Check the shape of the array.
+    # Avoid copying a lot of huge arrays.
+    for node in range(nnodes):
+        assert_equal(node_to_subtree_array[node].shape, (nstates, nsites))
+
     # Get likelihoods at the root.
     # These are passed to the derivatives procedure,
     # to help compute the per-site derivatives of the log likelihoods
@@ -258,9 +272,7 @@ def process_json_in(j_in):
     arr = node_to_subtree_array[root]
     likelihoods = distn.dot(arr)
     
-    #requested_derivative_edge_indices = set(requested_derivatives)
-    #ei_to_derivatives = get_edge_derivatives(
-    # compute something other than marginal distribution
+    # Compute something other than marginal distribution.
     node_to_marginal_distn = get_node_to_marginal_distn(
             f,
             node_to_subtree_array, distn,
@@ -270,10 +282,14 @@ def process_json_in(j_in):
             observable_axes,
             iid_observations)
 
+    # Check the shape of the array.
+    # Avoid copying a lot of huge arrays.
+    for node in range(nnodes):
+        assert_equal(node_to_marginal_distn[node].shape, (nstates, nsites))
+
     # Compute expectations.
-    nsites = iid_observations.shape[0]
     edge_to_site_expectations = get_edge_to_site_expectations(
-            nsites,
+            nsites, nstates,
             f, expm_frechet_objects, node_to_marginal_distn,
             node_to_subtree_array, distn,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
