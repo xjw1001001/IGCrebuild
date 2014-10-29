@@ -32,7 +32,7 @@ from .common_unpacking import (
 
 from .common_likelihood import (
         create_indicator_array,
-        get_conditional_likelihoods)
+        get_subtree_likelihoods)
 
 
 def get_processes_info(j_in):
@@ -77,14 +77,15 @@ def get_node_to_marginal_distn(
     for node in reversed(ordered_nodes):
         if node == root:
             next_distn = node_to_subtree_array[root]
+            tail_node = root
         else:
             # For non-root nodes the 'upstream edge' is of interest,
             # because we want to compute the weighted sum of expectations
             # of labeled transitions along the edge.
             edge = child_to_edge[node]
+            head_node, tail_node = edge
             edge_process = edge_to_process[edge]
             edge_rate = edge_to_rate[edge]
-            head_node, tail_node = edge
 
             # Extract the marginal state distribution
             # at the 'head' of the edge.
@@ -101,7 +102,16 @@ def get_node_to_marginal_distn(
     return node_to_marginal_distn
 
 
-def get_expectations(
+def pseudo_reciprocal(A):
+    """
+    Elementwise function 0->0, x->1/x
+
+    """
+    A_filled = np.where(A, A, 1)
+    return np.where(A, np.reciprocal(A_filled), 0)
+
+
+def get_edge_to_site_expectations(
         nsites,
         f, expm_frechet_objects, node_to_marginal_distn,
         node_to_subtree_array, distn,
@@ -123,8 +133,9 @@ def get_expectations(
 
     # Compute the expectations on edges.
     # Skip the root because it has no associated edge.
+    edge_to_site_expectations = {}
     ordered_nodes = list(get_node_evaluation_order(T, root))
-    for node in reversed(ordered_nodes[1:]):
+    for node in reversed(ordered_nodes[:-1]):
 
         # For non-root nodes the 'upstream edge' is of interest,
         # because we want to compute the weighted sum of expectations
@@ -163,15 +174,14 @@ def get_expectations(
         # This is so bad!
 
         # Take entrywise reciprocal of P, taking care to not divide by zero.
-        P_filled = np.where(P, P, 1)
-        P_recip = np.where(P, np.reciprocal(P_filled), 0)
+        P_recip = pseudo_reciprocal(P)
 
         site_expectations = np.empty(nsites, dtype=float)
         for site in range(nsites):
             marginal_distn = head_marginal_distn[site]
             J = marginal_distn[:, np.newaxis] * P * subtree_array
             row_sums = J.sum(axis=1)
-            J = J / row_sums[:, np.newaxis]
+            J = J * pseudo_reciprocal(row_sums)[:, np.newaxis]
             site_expectations[site] = (J * K * P_recip).sum()
 
         edge_to_site_expectations[edge] = site_expectations
@@ -200,7 +210,7 @@ def process_json_in(j_in):
 
     # Unpack stuff related to the edge-specific processes.
     info = get_processes_info(j_in)
-    processes_row, processes_col, processes_rate = info
+    processes_row, processes_col, processes_rate, processes_expect = info
 
     # Interpret the prior distribution.
     nstates = np.prod(state_space_shape)
@@ -223,13 +233,14 @@ def process_json_in(j_in):
         expect = processes_expect[edge_process]
         obj = expm_klass(state_space_shape, row, col, rate)
         f.append(obj)
-        obj = ExplicitExpmFrechet(state_space_shape, row, col, expect)
+        obj = ExplicitExpmFrechet(state_space_shape, row, col, rate, expect)
         expm_frechet_objects.append(obj)
 
-    # Determine whether to store intermediate arrays
-    # or whether to store only as many as necessary to compute
-    # the log likelihood.
-    store_all_likelihood_arrays = bool(np.any(requested_derivatives))
+    # Always store the likelihood arrays.
+    # The only purpose of this function is to compute the labeled
+    # edge expecatations, and this requires precomputing
+    # the likelihood arrays.
+    store_all_likelihood_arrays = True
 
     # Precompute conditional likelihood arrays per node.
     node_to_subtree_array = get_subtree_likelihoods(
@@ -261,7 +272,7 @@ def process_json_in(j_in):
 
     # Compute expectations.
     nsites = iid_observations.shape[0]
-    edge_to_expectation = get_expectations(
+    edge_to_site_expectations = get_edge_to_site_expectations(
             nsites,
             f, expm_frechet_objects, node_to_marginal_distn,
             node_to_subtree_array, distn,
@@ -270,6 +281,7 @@ def process_json_in(j_in):
             observable_nodes,
             observable_axes,
             iid_observations)
+
 
     # Apply the prior distribution and take logs of the likelihoods.
     log_likelihoods = np.log(likelihoods)
@@ -281,38 +293,26 @@ def process_json_in(j_in):
     # Reduce the log likelihoods according to the site weights.
     if np.all(feasibilities):
         feasibility = True
-        log_likelihood = np.dot(site_weights, log_likelihoods)
 
-        # Process the derivatives.
-        # They are currently in the form of derivatives of edge rates
-        # with respect to the likelihood, but we want to convert them to
-        # derivatives of log likelihood with respect to the logs
-        # of edge-specific rate scaling factors.
-        # According to calculus we can do it as follows.
-        # Also reduce the derivative array according to the site weights.
-        edge_to_rate = dict(edge_rate_pairs)
-        ei_to_d = {}
-        for ei, derivatives in ei_to_derivatives.items():
-            edge = edges[ei]
-            edge_rate = edge_to_rate[edge]
-            d = site_weights.dot(derivatives / likelihoods)
-            ei_to_d[ei] = float(d)
-
-        # Map the derivatives back to a list whose entries
-        # match the requested order of the indices.
-        derivatives_out = [ei_to_d[ei] for ei in requested_derivatives]
+        # Map expectations back to edge indices.
+        # Note that this is per site per edge.
+        # Take the transpose of this, so that the outer index
+        # loops over sites.
+        expectations_out = []
+        for edge in edges:
+            site_expectations = edge_to_site_expectations[edge]
+            expectations_out.append(site_expectations)
+        expectations_out = zip(*expectations_out)
 
     else:
         feasibility = False
-        log_likelihood = 0
-        derivatives_out = [0] * len(requested_derivatives)
+        expectations_out = None
 
 
     # Create the output in a format that json will like.
     j_out = dict(
             status = 'success',
             feasibility = feasibility,
-            log_likelihood = log_likelihood,
-            edge_derivatives = derivatives_out)
+            expectations = expectations_out)
 
     return j_out
