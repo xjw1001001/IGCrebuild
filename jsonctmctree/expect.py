@@ -63,9 +63,12 @@ def get_node_to_marginal_distn(
     """
 
     """
-    # Precompute some stuff.
+    # Deduce counts.
     assert_equal(len(distn.shape), 1)
     nstates = distn.shape[0]
+    nsites = iid_observations.shape[0]
+
+    # Precompute some stuff.
     child_to_edge = dict((tail, (head, tail)) for head, tail in edges)
     edge_to_rate = dict(edge_rate_pairs)
     edge_to_process = dict(edge_process_pairs)
@@ -97,6 +100,9 @@ def get_node_to_marginal_distn(
         if node == root:
             next_distn = node_to_subtree_array[root] * distn[:, np.newaxis]
             tail_node = root
+
+            col_sums_recip = pseudo_reciprocal(next_distn.sum(axis=0))
+            next_distn = next_distn * col_sums_recip
         else:
             # For non-root nodes the 'upstream edge' is of interest,
             # because we want to compute the weighted sum of expectations
@@ -116,12 +122,30 @@ def get_node_to_marginal_distn(
             head_marginal_distn = node_to_marginal_distn[head_node]
             subtree_array = node_to_subtree_array[tail_node]
             # TODO Replace this with combined expm product.
+
             P = f[edge_process].expm_mul(edge_rate, np.identity(nstates))
-            next_distn = head_marginal_distn.T.dot(P).T
+
+            #next_distn = head_marginal_distn.T.dot(P).T
             #next_distn = head_marginal_distn.T.dot(P).T
             #next_distn = f[edge_process].expm_rmul(
                     #edge_rate,
                     #head_marginal_distn.T).T
+
+            #TODO please replace with a vectorized version
+            next_distn = np.zeros((nstates, nsites))
+            for site in range(nsites):
+                for i in range(nstates):
+                    d = P[i] * subtree_array[:, site]
+                    total = d.sum()
+                    if total:
+                        d /= total
+                    else:
+                        d = np.zeros_like(d)
+                    p = head_marginal_distn[i, site]
+                    next_distn[:, site] += p * d
+            print('next distn:')
+            print(next_distn)
+            print()
 
 
             # FIXME
@@ -138,21 +162,22 @@ def get_node_to_marginal_distn(
             print(subtree_array)
             """
 
-            next_distn = next_distn * subtree_array
+            #next_distn = next_distn * subtree_array
             #print('entrywise product:')
             #print(next_distn)
 
         # Normalize these per-site distributions
         # and add to the collection of marginal distributions at nodes.
-        #row_sums = next_distn.sum(axis=1)
-        #tail_marginal_distn = next_distn / row_sums[:, np.newaxis]
-        #node_to_marginal_distn[tail_node] = next_distn
-        col_sums_recip = pseudo_reciprocal(next_distn.sum(axis=0))
-        next_marginal_distn = next_distn * col_sums_recip
-        node_to_marginal_distn[tail_node] = next_marginal_distn
+        ##row_sums = next_distn.sum(axis=1)
+        ##tail_marginal_distn = next_distn / row_sums[:, np.newaxis]
+        ##node_to_marginal_distn[tail_node] = next_distn
+        #col_sums_recip = pseudo_reciprocal(next_distn.sum(axis=0))
+        #next_marginal_distn = next_distn * col_sums_recip
+        #node_to_marginal_distn[tail_node] = next_marginal_distn
         #print('normalized marginal distributions as columns per site:')
         #print(next_marginal_distn)
         #print()
+        node_to_marginal_distn[tail_node] = next_distn
 
     return node_to_marginal_distn
 

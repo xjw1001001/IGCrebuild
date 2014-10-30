@@ -60,7 +60,7 @@ def test_simple_model():
     # The rate towards the decided state 2 is twice as fast
     # as the rate towards the decided state 1.
 
-    np.set_printoptions(precision=16)
+    #np.set_printoptions(precision=16)
 
     nnodes = 4
     nedges = nnodes - 1
