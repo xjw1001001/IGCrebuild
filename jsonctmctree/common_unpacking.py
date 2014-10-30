@@ -47,20 +47,24 @@ def get_observables_info(j_in, nnodes, state_space_shape):
         raise SimpleShapeError(
                 'expected the array of observable axes '
                 'to be one-dimensional')
+
+    # check ndim of iid observations, handling the empty case
+    nobservables = observable_axes.shape[0]
     if len(iid_observations.shape) != 2:
         raise SimpleShapeError(
-                'expected the array of observable observations '
-                'to be two-dimensional')
+                'expected the array of i.i.d. observations '
+                'to be two-dimensional when observations are available')
 
     # check dtypes
-    if not issubclass(observable_nodes.dtype.type, np.integer):
-        raise SimpleError(
-                'expected observable_nodes to be an array of integers, '
-                'but found dtype %s' % observable_nodes.dtype)
-    if not issubclass(observable_axes.dtype.type, np.integer):
-        raise SimpleError(
-                'expected observable_axes to be an array of integers, '
-                'but found dtype %s' % observable_axes.dtype)
+    if nobservables:
+        if not issubclass(observable_nodes.dtype.type, np.integer):
+            raise SimpleError(
+                    'expected observable_nodes to be an array of integers, '
+                    'but found dtype %s' % observable_nodes.dtype)
+        if not issubclass(observable_axes.dtype.type, np.integer):
+            raise SimpleError(
+                    'expected observable_axes to be an array of integers, '
+                    'but found dtype %s' % observable_axes.dtype)
 
     # check conformant shapes
     if observable_nodes.shape[0] != observable_axes.shape[0]:
@@ -70,13 +74,14 @@ def get_observables_info(j_in, nnodes, state_space_shape):
                 'but these are expected to be identical.' % (
                     observable_nodes.shape[0],
                     observable_axes.shape[0]))
-    if observable_nodes.shape[0] != iid_observations.shape[1]:
-        raise SimpleShapeError(
-                'The array of observable_nodes has length %d '
-                'and each iid observation has length %d '
-                'but these are expected to be identical.' % (
-                    observable_nodes.shape[0],
-                    iid_observations.shape[1]))
+    if nobservables:
+        if observable_nodes.shape[0] != iid_observations.shape[1]:
+            raise SimpleShapeError(
+                    'The array of observable_nodes has length %d '
+                    'and each iid observation has length %d '
+                    'but these are expected to be identical.' % (
+                        observable_nodes.shape[0],
+                        iid_observations.shape[1]))
 
     # check contents
     if (
@@ -86,22 +91,23 @@ def get_observables_info(j_in, nnodes, state_space_shape):
         raise SimpleError(
                 'The arrays of observable_nodes, observable_axes, '
                 'and iid_observations must have non-negative integers')
-    if np.any(nnodes <= observable_nodes):
-        raise SimpleError(
-                'Each node index in the observable_nodes sequence '
-                'should be an integer between 0 and node_count-1 inclusive. '
-                'One or more of the observable node indices are too large')
-    if np.any(naxes <= observable_axes):
-        raise SimpleError(
-                'Each axis index in the observable_axes sequence '
-                'should be an integer between 0 and the number of axes '
-                'of the state space, minus one, inclusive. '
-                'One or more of the observable axis indices are too large')
-    if np.any(state_space_shape[observable_axes] <= iid_observations):
-        raise SimpleError(
-                'The entries of each iid observation '
-                'should be within the range of observed axis '
-                'of the state space ')
+    if nobservables:
+        if np.any(nnodes <= observable_nodes):
+            raise SimpleError(
+                    'Each node index in the observable_nodes sequence should '
+                    'be an integer between 0 and node_count-1 inclusive. '
+                    'One or more of the observable node indices are too large')
+        if np.any(naxes <= observable_axes):
+            raise SimpleError(
+                    'Each axis index in the observable_axes sequence '
+                    'should be an integer between 0 and the number of axes '
+                    'of the state space, minus one, inclusive. '
+                    'One or more of the observable axis indices are too large')
+        if np.any(state_space_shape[observable_axes] <= iid_observations):
+            raise SimpleError(
+                    'The entries of each iid observation '
+                    'should be within the range of observed axis '
+                    'of the state space ')
 
     return (
             observable_nodes,
