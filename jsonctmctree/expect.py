@@ -255,8 +255,53 @@ def get_edge_to_site_expectations(
 
         # Take entrywise reciprocal of P, taking care to not divide by zero.
         P_recip = pseudo_reciprocal(P)
-
         site_expectations = np.empty(nsites, dtype=float)
+
+        for site in range(nsites):
+
+            #TODO please replace with a vectorized version
+            J = np.zeros((nstates, nstates))
+            for i in range(nstates):
+                d = P[i] * subtree_array[:, site]
+                total = d.sum()
+                if total:
+                    d /= total
+                else:
+                    d = np.zeros_like(d)
+                p = head_marginal_distn[i, site]
+                J[i] = p * d
+
+            """
+            d = head_marginal_distn[:, site]
+            v = subtree_array[:, site]
+            assert_equal(d.shape, (nstates, ))
+            assert_equal(v.shape, (nstates, ))
+            J = np.outer(d, v) * P
+            J_total = J.sum()
+            if J_total:
+                J = J / J_total
+            else:
+                J = np.zeros_like(J)
+            """
+
+            # Report J for debugging.
+            print('site:', site)
+            print('J:')
+            print(J)
+            #print('J column sums:', J.sum(axis=0))
+            #print('J row sums:', J.sum(axis=1))
+
+            # Report site-specific K for debugging.
+            # The i, j entry of this matrix should give the
+            # requested weighted sum of transition counts on the edge.
+            K_mod = K * P_recip
+            #print('K:')
+            #print(K)
+
+            site_expectations[site] = (J * K_mod).sum()
+
+
+        """
         for site in range(nsites):
             d = head_marginal_distn[:, site]
             v = subtree_array[:, site]
@@ -286,6 +331,7 @@ def get_edge_to_site_expectations(
             #print(K)
 
             site_expectations[site] = (J * K_mod).sum()
+        """
 
         edge_to_site_expectations[edge] = site_expectations
 
