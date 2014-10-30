@@ -81,22 +81,6 @@ def get_node_to_marginal_distn(
     ordered_nodes = list(get_node_evaluation_order(T, root))
     for node in reversed(ordered_nodes):
 
-        # FIXME
-        # Check the indicator array, for debugging.
-        # This should really go into a unit test.
-        """
-        ind = create_indicator_array(
-                node,
-                state_space_shape,
-                observable_nodes,
-                observable_axes,
-                iid_observations)
-        print('node:', node)
-        print('indicator array:')
-        print(ind)
-        print()
-        """
-
         if node == root:
             next_distn = node_to_subtree_array[root] * distn[:, np.newaxis]
             tail_node = root
@@ -125,11 +109,6 @@ def get_node_to_marginal_distn(
 
             P = f[edge_process].expm_mul(edge_rate, np.identity(nstates))
 
-            #next_distn = head_marginal_distn.T.dot(P).T
-            #next_distn = head_marginal_distn.T.dot(P).T
-            #next_distn = f[edge_process].expm_rmul(
-                    #edge_rate,
-                    #head_marginal_distn.T).T
 
             #TODO please replace with a vectorized version
             next_distn = np.zeros((nstates, nsites))
@@ -143,40 +122,7 @@ def get_node_to_marginal_distn(
                         d = np.zeros_like(d)
                     p = head_marginal_distn[i, site]
                     next_distn[:, site] += p * d
-            print('next distn:')
-            print(next_distn)
-            print()
 
-
-            # FIXME
-            # print stuff for debugging
-            """
-            print('edge:', edge)
-            print('head marginal distribution:')
-            print(head_marginal_distn)
-            print('transition probability matrix:')
-            print(P)
-            print('unnormalized array of distributions before subtree mult:')
-            print(next_distn)
-            print('subtree array:')
-            print(subtree_array)
-            """
-
-            #next_distn = next_distn * subtree_array
-            #print('entrywise product:')
-            #print(next_distn)
-
-        # Normalize these per-site distributions
-        # and add to the collection of marginal distributions at nodes.
-        ##row_sums = next_distn.sum(axis=1)
-        ##tail_marginal_distn = next_distn / row_sums[:, np.newaxis]
-        ##node_to_marginal_distn[tail_node] = next_distn
-        #col_sums_recip = pseudo_reciprocal(next_distn.sum(axis=0))
-        #next_marginal_distn = next_distn * col_sums_recip
-        #node_to_marginal_distn[tail_node] = next_marginal_distn
-        #print('normalized marginal distributions as columns per site:')
-        #print(next_marginal_distn)
-        #print()
         node_to_marginal_distn[tail_node] = next_distn
 
     return node_to_marginal_distn
@@ -271,67 +217,12 @@ def get_edge_to_site_expectations(
                 p = head_marginal_distn[i, site]
                 J[i] = p * d
 
-            """
-            d = head_marginal_distn[:, site]
-            v = subtree_array[:, site]
-            assert_equal(d.shape, (nstates, ))
-            assert_equal(v.shape, (nstates, ))
-            J = np.outer(d, v) * P
-            J_total = J.sum()
-            if J_total:
-                J = J / J_total
-            else:
-                J = np.zeros_like(J)
-            """
-
-            # Report J for debugging.
-            print('site:', site)
-            print('J:')
-            print(J)
-            #print('J column sums:', J.sum(axis=0))
-            #print('J row sums:', J.sum(axis=1))
-
             # Report site-specific K for debugging.
             # The i, j entry of this matrix should give the
             # requested weighted sum of transition counts on the edge.
             K_mod = K * P_recip
-            #print('K:')
-            #print(K)
 
             site_expectations[site] = (J * K_mod).sum()
-
-
-        """
-        for site in range(nsites):
-            d = head_marginal_distn[:, site]
-            v = subtree_array[:, site]
-            assert_equal(d.shape, (nstates, ))
-            assert_equal(v.shape, (nstates, ))
-            J = np.outer(d, v) * P
-            #row_sums = J.sum(axis=1)
-            #J = J * pseudo_reciprocal(row_sums)[:, np.newaxis]
-            J_total = J.sum()
-            if J_total:
-                J = J / J_total
-            else:
-                J = np.zeros_like(J)
-
-            # Report J for debugging.
-            print('site:', site)
-            print('J:')
-            print(J)
-            #print('J column sums:', J.sum(axis=0))
-            #print('J row sums:', J.sum(axis=1))
-
-            # Report site-specific K for debugging.
-            # The i, j entry of this matrix should give the
-            # requested weighted sum of transition counts on the edge.
-            K_mod = K * P_recip
-            #print('K:')
-            #print(K)
-
-            site_expectations[site] = (J * K_mod).sum()
-        """
 
         edge_to_site_expectations[edge] = site_expectations
 
@@ -403,13 +294,6 @@ def process_json_in(j_in):
             observable_axes,
             iid_observations)
 
-    # FIXME
-    # Print node to subtree array for debugging.
-    print('subtree arrays:')
-    for node in range(nnodes):
-        print(node_to_subtree_array[node])
-    print()
-
     # Check the shape of the array.
     # Avoid copying a lot of huge arrays.
     for node in range(nnodes):
@@ -431,11 +315,6 @@ def process_json_in(j_in):
             observable_nodes,
             observable_axes,
             iid_observations)
-
-    print('node to marginal distribution, for debugging:')
-    for node in range(nnodes):
-        print(node_to_marginal_distn[node])
-    print()
 
     # Check the shape of the array.
     # Avoid copying a lot of huge arrays.
@@ -483,6 +362,6 @@ def process_json_in(j_in):
     j_out = dict(
             status = 'success',
             feasibility = feasibility,
-            expectations = expectations_out)
+            edge_expectations = expectations_out)
 
     return j_out
