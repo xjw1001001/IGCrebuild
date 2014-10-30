@@ -10,7 +10,6 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from scipy.linalg import expm
-from scipy.sparse.linalg import expm_multiply
 from jsonctmctree.expect import process_json_in
 
 
@@ -110,6 +109,36 @@ def test_tiny_model():
             assert_allclose(actual_decrease, theoretical_decrease)
 
 
+def _get_simple_model_expectations_summary(nnodes, r0, r1, e0, e1):
+    nedges = nnodes - 1
+    nodes = range(nnodes)
+
+    j_in = dict(
+            node_count = nnodes,
+            process_count = 1,
+            state_space_shape = [3],
+            prior_feasible_states = [[0]],
+            prior_distribution = [1.0],
+            tree = dict(
+                row = nodes[:-1],
+                col = nodes[1:],
+                process = [0]*nedges,
+                rate = [1]*nedges,
+                ),
+            processes = [dict(
+                row = [[0], [0]],
+                col = [[1], [2]],
+                rate = [r0, r1],
+                expect = [e0, e1])],
+            observable_nodes = [nnodes-1],
+            observable_axes = [0],
+            iid_observations = [
+                [0],
+                [1],
+                [0],
+                [2]])
+    return process_json_in(j_in)
+
 def test_simple_model():
 
     # Define a tree that is a path with four nodes and three edges.
@@ -120,98 +149,64 @@ def test_simple_model():
     # The rate towards the decided state 2 is twice as fast
     # as the rate towards the decided state 1.
 
-    np.set_printoptions(precision=16)
-
-    nnodes = 4
-    nedges = nnodes - 1
-
-    print('*** simple model ***')
-
-    j_in = dict(
-            node_count = 4,
-            process_count = 1,
-            state_space_shape = [3],
-            prior_feasible_states = [[0]],
-            prior_distribution = [1.0],
-            tree = dict(
-                row = np.arange(nedges).tolist(),
-                col = np.arange(1, nedges+1).tolist(),
-                process = np.zeros(nedges, dtype=int).tolist(),
-                rate = np.ones(nedges, dtype=int).tolist(),
-                ),
-            processes = [dict(
-                row = [[0], [0]],
-                col = [[1], [2]],
-                rate = [0.1, 0.2],
-                expect = [1.0, 1.0])],
-            observable_nodes = [nnodes-1],
-            observable_axes = [0],
-            iid_observations = [
-                [0],
-                [1],
-                [0],
-                [2]])
-
-    # Compute marginal distributions at internal nodes analytically.
     nnodes = 4
     nstates = 3
+    nedges = nnodes - 1
+    r0 = 0.1
+    r1 = 0.2
+    r = r0 + r1
+
+    # Compute some theoretical probabilities.
+    x = np.arange(nnodes)
+    theoretical_probs = (1 - np.exp(-r * x)) / (1 - np.exp(-r * nedges))
+    theoretical_diffs = theoretical_probs[1:] - theoretical_probs[:-1]
+
+    # Check the combined model.
+    # Validate expectations at each of the four sites.
+    j_out = _get_simple_model_expectations_summary(nnodes, r0, r1, 1, 1)
+    edge_expectations = j_out['edge_expectations']
+    assert_allclose(edge_expectations[0], 0)
+    assert_allclose(edge_expectations[1], theoretical_diffs)
+    assert_allclose(edge_expectations[2], 0)
+    assert_allclose(edge_expectations[3], theoretical_diffs)
+
+    # Check weighted expectations for only the first transition type.
+    # Validate expectations at each of the four sites.
+    j_out = _get_simple_model_expectations_summary(nnodes, r0, r1, 1, 0)
+    edge_expectations = j_out['edge_expectations']
+    assert_allclose(edge_expectations[0], 0)
+    assert_allclose(edge_expectations[1], theoretical_diffs)
+    assert_allclose(edge_expectations[2], 0)
+    assert_allclose(edge_expectations[3], 0)
+
+    # Check weighted expectations for only the second transition type.
+    # Validate expectations at each of the four sites.
+    j_out = _get_simple_model_expectations_summary(nnodes, r0, r1, 0, 1)
+    edge_expectations = j_out['edge_expectations']
+    assert_allclose(edge_expectations[0], 0)
+    assert_allclose(edge_expectations[1], 0)
+    assert_allclose(edge_expectations[2], 0)
+    assert_allclose(edge_expectations[3], theoretical_diffs)
+
+    # Check brute force calculation of marginal distributions.
     Q = np.array([
-        [-0.3, 0.1, 0.2],
-        [ 0.0, 0.0, 0.0],
-        [ 0.0, 0.0, 0.0]], dtype=float)
+        [-r, r0, r1],
+        [0, 0, 0],
+        [0, 0, 0]], dtype=float)
     P = expm(Q)
-    Px = expm_multiply(Q, np.identity(nstates))
-    assert_allclose(P, Px)
-    print(P)
     W = np.zeros((nnodes, nstates))
     for assign in product(range(nstates), repeat=nnodes):
         assign = list(assign)
         # compute a likelihood
         if assign[0] != 0:
             continue
-        if assign[-1] != 2:
+        if assign[-1] != 1:
             continue
         lk = 1
         for i, j in zip(assign[:-1], assign[1:]):
             lk *= P[i, j]
         for node, state in enumerate(assign):
             W[node, state] += lk
-    print('brute force marginal state distributions at nodes:')
-    for node in range(nnodes):
-        print('node:', node)
-        print('distn:', W[node] / W[node].sum())
-    print()
-
-    for r in 0.1, 0.2:
-        print('*** brute force r = ', r, '***')
-        # Compute marginal distributions at internal nodes analytically.
-        nnodes = 4
-        nstates = 2
-        Q = np.array([
-            [-r, r],
-            [ 0, 0]], dtype=float)
-        P = expm(Q)
-        Px = expm_multiply(Q, np.identity(nstates))
-        assert_allclose(P, Px)
-        print(P)
-        W = np.zeros((nnodes, nstates))
-        for assign in product(range(nstates), repeat=nnodes):
-            assign = list(assign)
-            # compute a likelihood
-            if assign[0] != 0:
-                continue
-            if assign[-1] != 1:
-                continue
-            lk = 1
-            for i, j in zip(assign[:-1], assign[1:]):
-                lk *= P[i, j]
-            for node, state in enumerate(assign):
-                W[node, state] += lk
-        print('brute force marginal state distributions at nodes:')
-        for node in range(nnodes):
-            print('node:', node)
-            print('distn:', W[node] / W[node].sum())
-        print()
-
-    j_out = process_json_in(j_in)
-    print(j_out)
+    distn = W / W.sum(axis=1)[:, np.newaxis]
+    brute_diffs = (distn[1:] - distn[:-1])[:, 1]
+    assert_allclose(brute_diffs, theoretical_diffs)
