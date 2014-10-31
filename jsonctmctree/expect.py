@@ -360,12 +360,9 @@ def process_json_in(j_in, debug=False):
             debug=debug)
 
 
-    # Apply the prior distribution and take logs of the likelihoods.
-    log_likelihoods = np.log(likelihoods)
-
-    # Adjust for infeasibility.
-    feasibilities = np.isfinite(log_likelihoods)
-    log_likelihoods = np.where(feasibilities, log_likelihoods, 0)
+    # Mark sites with likelihoods greater than zero as feasible.
+    feasibilities = (likelihoods > 0)
+    log_likelihoods = np.log(np.where(feasibilities, likelihoods, 1))
 
     if np.all(feasibilities):
         feasibility = True
