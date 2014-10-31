@@ -111,10 +111,9 @@ def get_node_to_marginal_distn(
             # at the 'head' of the edge.
             head_marginal_distn = node_to_marginal_distn[head_node]
             subtree_array = node_to_subtree_array[tail_node]
+
             # TODO Replace this with combined expm product.
-
             P = f[edge_process].expm_mul(edge_rate, np.identity(nstates))
-
 
             #TODO please replace with a vectorized version
             next_distn = np.zeros((nstates, nsites))
@@ -128,6 +127,14 @@ def get_node_to_marginal_distn(
                         d = np.zeros_like(d)
                     p = head_marginal_distn[i, site]
                     next_distn[:, site] += p * d
+
+            # Attempt a vectorized implementation.
+            """
+            P_dot_rem = f[edge_process].expm_mul(edge_rate, subtree_array)
+            A = head_marginal_distn.T * pseudo_reciprocal(P_dot_rem)
+            AP = f[edge_process].expm_rmul(edge_rate, A)
+            next_distn = (AP * subtree_array).T
+            """
 
         node_to_marginal_distn[tail_node] = next_distn
 
@@ -284,8 +291,8 @@ def process_json_in(j_in, debug=False):
     # of computing expm_mul and rate_mul for log likelihoods
     # and for its derivative with respect to edge-specific rates.
     #expm_klass = EigenExpm # TODO soft-code this
-    expm_klass = PadeExpm # TODO soft-code this
-    #expm_klass = ActionExpm # TODO soft-code this
+    #expm_klass = PadeExpm # TODO soft-code this
+    expm_klass = ActionExpm # TODO soft-code this
     f = []
     expm_frechet_objects = []
     for edge_process in range(nprocesses):
