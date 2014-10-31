@@ -5,6 +5,7 @@ Check posterior expectations involving co-evolution with a latent variable.
 from __future__ import division, print_function, absolute_import
 
 from itertools import product, permutations
+import json
 
 import numpy as np
 from numpy.testing import assert_equal, assert_array_less
@@ -111,6 +112,8 @@ def test_latent_variable():
                 [0, 1, 0, 1, 2],
                 ]
             )
+
+    #print(json.dumps(j_in, indent=4))
 
     j_out = process_json_in(j_in)
     site = 0
