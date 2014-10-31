@@ -11,6 +11,8 @@ For each process, an extra vector the same size as the rate vector is required.
 """
 from __future__ import division, print_function, absolute_import
 
+import sys
+
 import networkx as nx
 import numpy as np
 from numpy.testing import assert_equal
@@ -59,7 +61,8 @@ def get_node_to_marginal_distn(
         state_space_shape,
         observable_nodes,
         observable_axes,
-        iid_observations):
+        iid_observations,
+        debug=False):
     """
 
     """
@@ -80,6 +83,9 @@ def get_node_to_marginal_distn(
 
     ordered_nodes = list(get_node_evaluation_order(T, root))
     for node in reversed(ordered_nodes):
+
+        if debug:
+            print('  node', node, '...', file=sys.stderr)
 
         if node == root:
             next_distn = node_to_subtree_array[root] * distn[:, np.newaxis]
@@ -145,7 +151,8 @@ def get_edge_to_site_expectations(
         state_space_shape,
         observable_nodes,
         observable_axes,
-        iid_observations):
+        iid_observations,
+        debug=False):
     """
 
     """
@@ -162,6 +169,9 @@ def get_edge_to_site_expectations(
     edge_to_site_expectations = {}
     ordered_nodes = list(get_node_evaluation_order(T, root))
     for node in reversed(ordered_nodes[:-1]):
+
+        if debug:
+            print('  node', node, '...', file=sys.stderr)
 
         # For non-root nodes the 'upstream edge' is of interest,
         # because we want to compute the weighted sum of expectations
@@ -205,6 +215,9 @@ def get_edge_to_site_expectations(
 
         for site in range(nsites):
 
+            if debug:
+                print('    site', site, '...', file=sys.stderr)
+
             #TODO please replace with a vectorized version
             J = np.zeros((nstates, nstates))
             for i in range(nstates):
@@ -229,7 +242,10 @@ def get_edge_to_site_expectations(
     return edge_to_site_expectations
 
 
-def process_json_in(j_in):
+def process_json_in(j_in, debug=False):
+
+    if debug:
+        print('unpacking json input...', file=sys.stderr)
 
     # Unpack some sizes and shapes.
     nnodes = j_in['node_count']
@@ -261,11 +277,14 @@ def process_json_in(j_in):
     distn = np.zeros(nstates, dtype=float)
     np.put(distn, feas, prior_distribution)
 
+    if debug:
+        print('initializing expm objects...', file=sys.stderr)
+
     # For each process, precompute the objects that are capable
     # of computing expm_mul and rate_mul for log likelihoods
     # and for its derivative with respect to edge-specific rates.
-    #expm_klass = EigenExpm # TODO soft-code this
-    expm_klass = PadeExpm # TODO soft-code this
+    expm_klass = EigenExpm # TODO soft-code this
+    #expm_klass = PadeExpm # TODO soft-code this
     #expm_klass = ActionExpm # TODO soft-code this
     f = []
     expm_frechet_objects = []
@@ -286,6 +305,8 @@ def process_json_in(j_in):
     store_all_likelihood_arrays = True
 
     # Precompute conditional likelihood arrays per node.
+    if debug:
+        print('computing subtree likelihoods...', file=sys.stderr)
     node_to_subtree_array = get_subtree_likelihoods(
             f, store_all_likelihood_arrays,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
@@ -306,7 +327,9 @@ def process_json_in(j_in):
     arr = node_to_subtree_array[root]
     likelihoods = distn.dot(arr)
     
-    # Compute something other than marginal distribution.
+    # Compute the marginal distribution.
+    if debug:
+        print('computing marginal distributions...', file=sys.stderr)
     node_to_marginal_distn = get_node_to_marginal_distn(
             f,
             node_to_subtree_array, distn,
@@ -314,7 +337,8 @@ def process_json_in(j_in):
             state_space_shape,
             observable_nodes,
             observable_axes,
-            iid_observations)
+            iid_observations,
+            debug=debug)
 
     # Check the shape of the array.
     # Avoid copying a lot of huge arrays.
@@ -322,6 +346,8 @@ def process_json_in(j_in):
         assert_equal(node_to_marginal_distn[node].shape, (nstates, nsites))
 
     # Compute expectations.
+    if debug:
+        print('computing site expectations...', file=sys.stderr)
     edge_to_site_expectations = get_edge_to_site_expectations(
             nsites, nstates,
             f, expm_frechet_objects, node_to_marginal_distn,
@@ -330,7 +356,8 @@ def process_json_in(j_in):
             state_space_shape,
             observable_nodes,
             observable_axes,
-            iid_observations)
+            iid_observations,
+            debug=debug)
 
 
     # Apply the prior distribution and take logs of the likelihoods.

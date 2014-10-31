@@ -21,7 +21,7 @@ def main(args):
                 status = 'error',
                 message = 'json parsing error: ' + traceback.format_exc())
     try:
-        return process_json_in(j_in)
+        return process_json_in(j_in, debug=args.debug)
     except SimpleError as e:
         if args.debug:
             raise
