@@ -283,8 +283,8 @@ def process_json_in(j_in, debug=False):
     # For each process, precompute the objects that are capable
     # of computing expm_mul and rate_mul for log likelihoods
     # and for its derivative with respect to edge-specific rates.
-    expm_klass = EigenExpm # TODO soft-code this
-    #expm_klass = PadeExpm # TODO soft-code this
+    #expm_klass = EigenExpm # TODO soft-code this
+    expm_klass = PadeExpm # TODO soft-code this
     #expm_klass = ActionExpm # TODO soft-code this
     f = []
     expm_frechet_objects = []
@@ -326,6 +326,16 @@ def process_json_in(j_in, debug=False):
     # with respect to the log of the edge-specific rate scaling parameters.
     arr = node_to_subtree_array[root]
     likelihoods = distn.dot(arr)
+    feasibilities = (likelihoods > 0)
+
+    # If the problem is infeasible, then return without computing expectations.
+    if not np.all(feasibilities):
+        print(node_to_subtree_array)
+        j_out = dict(
+                status = 'success',
+                feasibility = False,
+                edge_expectations = None)
+        return j_out
     
     # Compute the marginal distribution.
     if debug:
@@ -359,33 +369,21 @@ def process_json_in(j_in, debug=False):
             iid_observations,
             debug=debug)
 
-
-    # Mark sites with likelihoods greater than zero as feasible.
-    feasibilities = (likelihoods > 0)
-    log_likelihoods = np.log(np.where(feasibilities, likelihoods, 1))
-
-    if np.all(feasibilities):
-        feasibility = True
-
-        # Map expectations back to edge indices.
-        # Note that this is per site per edge.
-        # Take the transpose of this, so that the outer index
-        # loops over sites.
-        expectations_out = []
-        for edge in edges:
-            site_expectations = edge_to_site_expectations[edge]
-            expectations_out.append(site_expectations)
-        expectations_out = zip(*expectations_out)
-
-    else:
-        feasibility = False
-        expectations_out = None
+    # Map expectations back to edge indices.
+    # Note that this is per site per edge.
+    # Take the transpose of this, so that the outer index
+    # loops over sites.
+    expectations_out = []
+    for edge in edges:
+        site_expectations = edge_to_site_expectations[edge]
+        expectations_out.append(site_expectations)
+    expectations_out = zip(*expectations_out)
 
 
     # Create the output in a format that json will like.
     j_out = dict(
             status = 'success',
-            feasibility = feasibility,
+            feasibility = True,
             edge_expectations = expectations_out)
 
     return j_out

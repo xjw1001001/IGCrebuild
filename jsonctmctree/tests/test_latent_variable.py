@@ -7,7 +7,7 @@ from __future__ import division, print_function, absolute_import
 from itertools import product, permutations
 
 import numpy as np
-from numpy.testing import assert_allclose
+from numpy.testing import assert_equal, assert_array_less
 
 from jsonctmctree.expect import process_json_in
 
@@ -52,14 +52,7 @@ def test_latent_variable():
             process = [0]*nedges,
             )
 
-    for info in rate_info:
-        print(info)
-
     row, col, rate, expect = zip(*rate_info)
-    print(row)
-    print(col)
-    print(rate)
-    print(expect)
     proc = dict(
             row=row,
             col=col,
@@ -82,5 +75,9 @@ def test_latent_variable():
                 ]
             )
 
-    j_out = process_json_in(j_in, debug=True)
-    print(j_out)
+    j_out = process_json_in(j_in)
+    site = 0
+    expectations = j_out['edge_expectations'][site]
+    assert_equal(len(expectations), nedges)
+    assert_array_less(0, expectations)
+    assert_array_less(1, expectations[1])
