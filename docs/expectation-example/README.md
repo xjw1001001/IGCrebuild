@@ -78,14 +78,6 @@ The top-level input json object has the following members:
    are observable at nodes that do not correspond to terminal nodes
    branching timeline, and at the terminal node that corresponds
    to the out-group, only one of the variables is observable.
- * `site_weights` : A weight associated to each of the observations
-   that are assumed to be independently and identically distributed.
-   This gives the caller flexibility to collapse multiple
-   identical distributions into a single pattern
-   with an appropriately increased weight.
-   In our example we have not made use of this flexibility,
-   so all of the site weights are 1 and the array
-   of observations has repeated identical observations.
  * `iid_observations` : An array of joint observations
    of variables at nodes on the branching timeline.
    Each observation is an array defining the variable state
