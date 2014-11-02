@@ -112,29 +112,12 @@ def get_node_to_marginal_distn(
             head_marginal_distn = node_to_marginal_distn[head_node]
             subtree_array = node_to_subtree_array[tail_node]
 
-            # TODO Replace this with combined expm product.
-            P = f[edge_process].expm_mul(edge_rate, np.identity(nstates))
-
-            #TODO please replace with a vectorized version
-            next_distn = np.zeros((nstates, nsites))
-            for site in range(nsites):
-                for i in range(nstates):
-                    d = P[i] * subtree_array[:, site]
-                    total = d.sum()
-                    if total:
-                        d /= total
-                    else:
-                        d = np.zeros_like(d)
-                    p = head_marginal_distn[i, site]
-                    next_distn[:, site] += p * d
-
-            # Attempt a vectorized implementation.
-            """
-            P_dot_rem = f[edge_process].expm_mul(edge_rate, subtree_array)
-            A = head_marginal_distn.T * pseudo_reciprocal(P_dot_rem)
-            AP = f[edge_process].expm_rmul(edge_rate, A)
-            next_distn = (AP * subtree_array).T
-            """
+            # This vectorized implementation was worked out in
+            # one of the test files in this module.
+            A = head_marginal_distn * pseudo_reciprocal(
+                    f[edge_process].expm_mul(edge_rate, subtree_array))
+            B = f[edge_process].expm_rmul(edge_rate, A.T)
+            next_distn = B.T * subtree_array
 
         node_to_marginal_distn[tail_node] = next_distn
 

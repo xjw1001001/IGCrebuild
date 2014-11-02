@@ -114,34 +114,10 @@ def _method_5(M, P, R):
     # This is an attempt to more fully vectorize method 4.
     # Try removing the explicit loop over sites.
     #
-    nstates, nsites = M.shape
-    D = np.zeros_like(M)
-
-    """
-    for site in range(nsites):
-
-        # In this method, use matrix algebra at the per-site level,
-        # without combining multiple sites into the formulas.
-        m = M[:, site]
-        r = R[:, site]
-        d = np.zeros(nstates)
-        assert_equal(m.shape, (nstates, ))
-        assert_equal(r.shape, (nstates, ))
-
-        # d = m.T * inv(diag(P * r)) * P * diag(r)
-        a = m / P.dot(r)
-        b = a.dot(P)
-        d = b * r
-
-        D[:, site] = d
-    """
-
     A = M / P.dot(R)
     B = A.T.dot(P)
     D = B.T * R
-
     return D
-
 
 
 def test_marginal_distribution_notations():
