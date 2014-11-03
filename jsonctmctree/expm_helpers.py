@@ -182,3 +182,19 @@ class ExplicitExpmFrechet(object):
         del QAt
         del EAt
         return P, numerator
+
+
+class ImplicitExpmFrechet(object):
+    """
+    This is for computing conditional expectations on edges.
+
+    Experimentally try using an expm-frechet-vector-product.
+
+    If Jij is the 2d joint distribution over states at the endpoints of an edge,
+    then I want to compute the following to get the expectation.
+    sum_ij ( Jij * expm_frechet(Q, Q o E)ij / expm(Q)ij )
+    The trick is that it may be possible to compute this
+    using only matrix-vector products.
+
+    """
+    pass
