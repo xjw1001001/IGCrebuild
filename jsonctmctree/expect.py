@@ -19,7 +19,7 @@ from numpy.testing import assert_equal
 
 from .expm_helpers import (
         PadeExpm, EigenExpm, ActionExpm,
-        ExplicitExpmFrechet)
+        ExplicitExpmFrechet, ImplicitExpmFrechet)
 
 from .expm_helpers import create_dense_rate_matrix
 
@@ -184,6 +184,7 @@ def get_edge_to_site_expectations(
         # node at the 'head' of the edge is i and that the
         # state of the node at the 'tail' of the edge is j.
         obj = expm_frechet_objects[edge_process]
+        """
         P, K = obj.get_expm_and_frechet(edge_rate)
 
         #FIXME I am using brute force; do something intelligent instead!
@@ -228,6 +229,15 @@ def get_edge_to_site_expectations(
             site_expectations[site] = (J * K_mod).sum()
 
         edge_to_site_expectations[edge] = site_expectations
+        """
+        PR, KR = obj.get_expm_frechet_product(edge_rate, subtree_array)
+        A = head_marginal_distn * pseudo_reciprocal(PR)
+        edge_to_site_expectations[edge] = np.diag(A.T.dot(KR))
+
+        #def _method_4(M, P, R, K):
+            ## Fully vectorized.
+            #A = M * _pseudo_reciprocal(P.dot(R))
+            #return np.diag(A.T.dot(K.dot(R)))
 
     return edge_to_site_expectations
 
@@ -285,7 +295,8 @@ def process_json_in(j_in, debug=False):
         expect = processes_expect[edge_process]
         obj = expm_klass(state_space_shape, row, col, rate)
         f.append(obj)
-        obj = ExplicitExpmFrechet(state_space_shape, row, col, rate, expect)
+        #obj = ExplicitExpmFrechet(state_space_shape, row, col, rate, expect)
+        obj = ImplicitExpmFrechet(state_space_shape, row, col, rate, expect)
         expm_frechet_objects.append(obj)
 
     # Always store the likelihood arrays.

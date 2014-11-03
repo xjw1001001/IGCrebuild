@@ -6,7 +6,8 @@ Ideally we could avoid ever computing this matrix explicitly.
 M : (nstates, nsites), in
 P : (nstates, nstates), in
 R : (nstates, nsites), in
-J : (nstates, nstates), out
+K : (nstates, nstates), in
+S : (nsites, ), out
 
 """
 from __future__ import division, print_function, absolute_import

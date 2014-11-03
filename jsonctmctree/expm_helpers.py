@@ -15,7 +15,7 @@ from scipy.sparse import coo_matrix
 
 __all__ = [
         'PadeExpm', 'EigenExpm', 'ActionExpm',
-        'ExplicitExpmFrechet',
+        'ExplicitExpmFrechet', 'ImplicitExpmFrechet',
         ]
 
 
@@ -57,7 +57,7 @@ def create_sparse_rate_matrix(state_space_shape, row, col, rate):
 
     # get the dense array of exit rates, and set the diagonal
     exit_rates = Q.sum(axis=1).A.flatten()
-    assert_equal(exit_rates.shape[0], nstates)
+    assert_equal(exit_rates.shape, (nstates, ))
 
     # FIXME
     # Temporarily disabling the setdiag of coo_matrix.
@@ -195,6 +195,73 @@ class ImplicitExpmFrechet(object):
     sum_ij ( Jij * expm_frechet(Q, Q o E)ij / expm(Q)ij )
     The trick is that it may be possible to compute this
     using only matrix-vector products.
+    
+    This is possible.  See the tests directory for more details.
 
     """
-    pass
+    def __init__(self, state_space_shape, row, col, rate, expect):
+        """
+        Define a sparse rate matrix with shape (2n, 2n) where n is nstates.
+
+        [[R - D, R o E],
+         [  0,   R - D]]
+
+        This uses some folk theory of Frechet derivatives of matrix
+        exponentiation that I picked up from Hobolth and Tataru
+        and other miscellaneous sources, and it is combined with
+        an algorithm by Al-Mohy et al.
+
+        """
+        nstates = np.prod(state_space_shape)
+        self.nstates = nstates
+
+        # Initialize the upper-left sparse matrix.
+        Q00 = create_sparse_pre_rate_matrix(
+                state_space_shape, row, col, rate)
+        exit_rates = Q00.sum(axis=1).A.flatten()
+        assert_equal(exit_rates.shape, (nstates, ))
+
+        # Initialize the upper-right sparse matrix.
+        Q01 = create_sparse_pre_rate_matrix(
+                state_space_shape, row, col, rate * expect)
+        Q01.col += nstates
+
+        # Define the diagonal entries of the upper-left sparse matrix.
+        Q00.row = np.concatenate((Q00.row, np.arange(nstates)))
+        Q00.col = np.concatenate((Q00.col, np.arange(nstates)))
+        Q00.data = np.concatenate((Q00.data, -exit_rates))
+        Q00.has_canonical_format = False
+
+        # Initialize the lower-right spasre matrix.
+        Q11 = Q00.copy()
+        Q11.row += nstates
+        Q11.col += nstates
+
+        # Define the full matrix to be exponentiated.
+        F_row = np.concatenate([Q00.row, Q01.row, Q11.row])
+        F_col = np.concatenate([Q00.col, Q01.col, Q11.col])
+        F_data = np.concatenate([Q00.data, Q01.data, Q11.data])
+        F = coo_matrix((F_data, (F_row, F_col)), (2*nstates, 2*nstates))
+
+        # Store the full matrix.
+        self.F = F
+
+    def get_expm_frechet_product(self, rate_scaling_factor, A):
+        """
+        expm([[R - D, R o E],    A0
+              [  0,   R - D]])   A1
+
+        P A0 + K A1
+        0 A0 + P A1
+
+        Returns
+        -------
+        P dot A
+        K dot A
+
+        """
+        AA = np.vstack((A, A))
+        BB = scipy.sparse.linalg.expm_multiply(self.F * rate_scaling_factor, AA)
+        PA = BB[self.nstates:]
+        KA = BB[:self.nstates] - PA
+        return PA, KA
