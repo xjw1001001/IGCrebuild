@@ -176,68 +176,11 @@ def get_edge_to_site_expectations(
         head_marginal_distn = node_to_marginal_distn[head_node]
         subtree_array = node_to_subtree_array[tail_node]
 
-        # Explicitly compute the transition probability matrix
-        # as the matrix exponential of the transition rate matrix.
-        # Also compute a thing that I'm calling the K matrix,
-        # whose i, j entry is the weighted sum of the expected
-        # number of transitions on the edge, given that the state of the
-        # node at the 'head' of the edge is i and that the
-        # state of the node at the 'tail' of the edge is j.
+        # Use a clever implicit schmeme for the exponential integration.
         obj = expm_frechet_objects[edge_process]
-        """
-        P, K = obj.get_expm_and_frechet(edge_rate)
-
-        #FIXME I am using brute force; do something intelligent instead!
-
-        # First get the J matrix for each site -- this is the joint
-        # distribution over states at the endpoints of the edge.
-        # It is brutally inefficient to compute this separately for
-        # each site!
-        # Next, compute the hadamard product of this J matrix
-        # with the K matrix computed using the frechet derivative
-        # of the matrix exponential.
-        # Finally, take the sum of the all entries in this
-        # hadamard product as the expectation associated with the site.
-        # This is so bad!
-
-        # Take entrywise reciprocal of P, taking care to not divide by zero.
-        P_recip = pseudo_reciprocal(P)
-        site_expectations = np.empty(nsites, dtype=float)
-
-        for site in range(nsites):
-
-            if debug:
-                print('    site', site, '...', file=sys.stderr)
-
-            #TODO please replace with a vectorized version
-            J = np.zeros((nstates, nstates))
-            for i in range(nstates):
-                d = P[i] * subtree_array[:, site]
-                total = d.sum()
-                if total:
-                    d /= total
-                else:
-                    d = np.zeros_like(d)
-                p = head_marginal_distn[i, site]
-                J[i] = p * d
-
-            # Report site-specific K for debugging.
-            # The i, j entry of this matrix should give the
-            # requested weighted sum of transition counts on the edge.
-            K_mod = K * P_recip
-
-            site_expectations[site] = (J * K_mod).sum()
-
-        edge_to_site_expectations[edge] = site_expectations
-        """
         PR, KR = obj.get_expm_frechet_product(edge_rate, subtree_array)
         A = head_marginal_distn * pseudo_reciprocal(PR)
         edge_to_site_expectations[edge] = np.diag(A.T.dot(KR))
-
-        #def _method_4(M, P, R, K):
-            ## Fully vectorized.
-            #A = M * _pseudo_reciprocal(P.dot(R))
-            #return np.diag(A.T.dot(K.dot(R)))
 
     return edge_to_site_expectations
 
