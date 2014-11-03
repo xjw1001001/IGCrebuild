@@ -48,7 +48,7 @@ def _sample_time_nonreversible_rate_matrix(nstates):
     P = np.diag(d)
     return Q, d
 
-def _compute_expectations(Q, d):
+def _compute_expectations(Q, d, dwell_expect):
     nnodes = 5
     nedges = nnodes - 1
     nstates = d.shape[0]
@@ -64,7 +64,7 @@ def _compute_expectations(Q, d):
             prior_feasible_states = [[s] for s in states],
             prior_distribution = d.tolist(),
             dwell_states = [[s] for s in states],
-            dwell_expect = [1] * nstates,
+            dwell_expect = dwell_expect,
             tree = dict(
                 row = [0, 0, 2, 2],
                 col = [2, 1, 4, 3],
@@ -88,15 +88,16 @@ def _compute_expectations(Q, d):
 
 
 def test_prior_expectations():
-    n = 4
+    nstates = 4
     for fn_sample in (
         _sample_time_reversible_rate_matrix,
         _sample_time_nonreversible_rate_matrix,
         ):
 
-        Q, d = fn_sample(n)
+        Q, d = fn_sample(nstates)
         expected_rate = -np.diag(Q).dot(d)
-        j_out = _compute_expectations(Q, d)
+        dwell_expect = [1] * nstates
+        j_out = _compute_expectations(Q, d, dwell_expect)
         edge_expectations = j_out['edge_expectations']
         for site, expectations in enumerate(edge_expectations):
             assert_allclose(sum(expectations), expected_rate)
@@ -106,3 +107,14 @@ def test_prior_expectations():
         edge_dwell = j_out['edge_dwell']
         for site, edge_dwell_sums in enumerate(edge_dwell):
             assert_allclose(edge_dwell_sums, 1)
+
+        # Check that the dwell proportions at each site on each edge
+        # correspond to the equilibrium distribution.
+        for s in range(nstates):
+            dwell_expect = [0] * nstates
+            dwell_expect[s] = 1
+            j_out = _compute_expectations(Q, d, dwell_expect)
+            edge_dwell = j_out['edge_dwell']
+            for site, edge_dwell_sums in enumerate(edge_dwell):
+                assert_allclose(edge_dwell_sums, d[s])
+
