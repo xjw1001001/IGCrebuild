@@ -32,7 +32,8 @@ from .common_unpacking import (
         get_observables_info,
         get_tree_info,
         get_prior_info,
-        get_dwell_info)
+        get_dwell_info,
+        get_root_request_info)
 
 from .common_likelihood import (
         create_indicator_array,
@@ -220,6 +221,10 @@ def process_json_in(j_in, debug=False):
     info = get_dwell_info(j_in)
     dwell_states, dwell_expect = info
 
+    # Unpack stuff related to requests for state distribution at the root.
+    info = get_root_request_info(j_in)
+    root_posterior_states, root_posterior_expect = info
+
     # Deduce some counts.
     nstates = np.prod(state_space_shape)
     nsites = iid_observations.shape[0]
@@ -378,11 +383,29 @@ def process_json_in(j_in, debug=False):
             edge_dwell_out.append(dwell_expectations)
         edge_dwell_out = zip(*edge_dwell_out)
 
+    # Get the linear combination of posterior probabilities of root states.
+    # One linear combination is provided per site.
+    root_values = None
+    if root_posterior_states is not None:
+
+        # Get the list of state indices.
+        ind = np.ravel_multi_index(root_posterior_states.T, state_space_shape)
+
+        # Get the marginal distribution per site (nstates, nsites).
+        M = node_to_marginal_distn[root]
+
+        # Pick only the requested states, and include all sites.
+        M[ind, :]
+
+        # Get the weighted sum of requested states for each site.
+        root_values = root_posterior_expect.dot(M).tolist()
+
     # Create the output in a format that json will like.
     j_out = dict(
             status = 'success',
             feasibility = True,
             edge_expectations = expectations_out,
-            edge_dwell = edge_dwell_out)
+            edge_dwell = edge_dwell_out,
+            root_values = root_values)
 
     return j_out

@@ -18,6 +18,7 @@ __all__ = [
         'get_tree_info',
         'get_prior_info',
         'get_dwell_info',
+        'get_root_request_info',
         ]
 
 
@@ -120,6 +121,28 @@ def get_prior_info(j_in):
     return (
             np.array(j_in['prior_feasible_states']),
             np.array(j_in['prior_distribution'], dtype=float))
+
+
+def get_root_request_info(j_in):
+    """
+    Optionally return per-site root state information.
+
+    For each site, return a linear combination of posterior
+    probabilities of states at the root.
+    This could be used for EM, for example.
+
+    """
+    states = j_in.get('root_posterior_states', None)
+    expect = j_in.get('root_posterior_expect', None)
+    none_count = sum(1 for x in (states, expect) if x is None)
+    if none_count not in (0, 2):
+        raise SimpleError('expected neither or both of '
+                'root_posterior_states and '
+                'root_posterior_expect to be provided')
+    if not none_count:
+        return np.array(states), np.array(expect, dtype=float)
+    else:
+        return None, None
 
 
 def get_dwell_info(j_in):
