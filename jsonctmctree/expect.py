@@ -348,7 +348,7 @@ def process_json_in(j_in, debug=False):
 
     # Compute dwell expectations if requested.
     edge_dwell_out = None
-    if dwell_states:
+    if dwell_states is not None:
         if debug:
             print('computing dwell expectations...', file=sys.stderr)
         edge_to_dwell_expectations = get_edge_to_site_expectations(
@@ -361,6 +361,12 @@ def process_json_in(j_in, debug=False):
                 observable_axes,
                 iid_observations,
                 debug=debug)
+
+        # These dwell times will be scaled by the edge-specific scaling factor.
+        # We want to remove that effect.
+        for edge, edge_rate in edge_rate_pairs:
+            if edge_rate:
+                edge_to_dwell_expectations[edge] /= edge_rate
 
         # Map expectations back to edge indices.
         # Note that this is per site per edge.

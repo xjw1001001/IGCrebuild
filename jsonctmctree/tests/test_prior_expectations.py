@@ -26,9 +26,9 @@ def _sample_distn(n):
     d = np.exp(np.random.randn(n))
     return d / d.sum()
 
-def _sample_time_reversible_rate_matrix(n):
-    d = _sample_distn(n)
-    Q = _sample_symmetric_rates(n) * d
+def _sample_time_reversible_rate_matrix(nstates):
+    d = _sample_distn(nstates)
+    Q = _sample_symmetric_rates(nstates) * d
     Q -= np.diag(Q.sum(axis=1))
     assert_allclose(Q.sum(axis=1), 0, atol=1e-13)
     assert_allclose(d.dot(Q), 0, atol=1e-13)
@@ -36,8 +36,8 @@ def _sample_time_reversible_rate_matrix(n):
     assert_symmetric_matrix(P.dot(Q))
     return Q, d
 
-def _sample_time_nonreversible_rate_matrix(n):
-    Q = np.exp(np.random.randn(n, n))
+def _sample_time_nonreversible_rate_matrix(nstates):
+    Q = np.exp(np.random.randn(nstates, nstates))
     Q -= np.diag(Q.sum(axis=1))
     w, V = scipy.linalg.eig(Q, left=True, right=False)
     i = np.argmin(np.abs(w))
@@ -63,6 +63,8 @@ def _compute_expectations(Q, d):
             state_space_shape = [nstates],
             prior_feasible_states = [[s] for s in states],
             prior_distribution = d.tolist(),
+            dwell_states = [[s] for s in states],
+            dwell_expect = [1] * nstates,
             tree = dict(
                 row = [0, 0, 2, 2],
                 col = [2, 1, 4, 3],
@@ -98,3 +100,9 @@ def test_prior_expectations():
         edge_expectations = j_out['edge_expectations']
         for site, expectations in enumerate(edge_expectations):
             assert_allclose(sum(expectations), expected_rate)
+
+        # Check dwell proportion expectations.
+        # The sum of state proportions should be 1.0 on each edge.
+        edge_dwell = j_out['edge_dwell']
+        for site, edge_dwell_sums in enumerate(edge_dwell):
+            assert_allclose(edge_dwell_sums, 1)
