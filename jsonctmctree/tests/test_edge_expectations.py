@@ -7,7 +7,7 @@ from __future__ import division, print_function, absolute_import
 from itertools import product
 
 import numpy as np
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_array_less
 
 from scipy.linalg import expm
 from jsonctmctree.expect import process_json_in
@@ -61,6 +61,8 @@ def _get_tiny_model_expectations_summary(nnodes, r):
             state_space_shape = [2],
             prior_feasible_states = [[0]],
             prior_distribution = [1.0],
+            dwell_states = [[1]],
+            dwell_expect = [1],
             tree = dict(
                 row = nodes[:-1],
                 col = nodes[1:],
@@ -91,6 +93,8 @@ def test_tiny_model():
     nsites = 1
     site = 0
 
+    dwells = []
+
     for r in (0.1, 0.2):
         j_out = _get_tiny_model_expectations_summary(nnodes, r)
         expectations = j_out['edge_expectations'][site]
@@ -107,6 +111,20 @@ def test_tiny_model():
             actual_decrease = expectations[i]
             assert_allclose(actual_decrease, desired_decrease)
             assert_allclose(actual_decrease, theoretical_decrease)
+
+        # For each edge, check the dwell proportion for the absorbing state.
+        dwell = np.array(j_out['edge_dwell'][site])
+
+        # Assert that the dwell times are between 0 and 1 and are increasing.
+        assert_array_less(0, dwell)
+        assert_array_less(dwell, 1)
+        assert_array_less(0, dwell[1:] - dwell[:-1])
+
+        dwells.append(dwell)
+
+    # Check that the dwell time in the absorbing state is greater
+    # on each edge for the process whose rate is larger.
+    assert_array_less(dwell[0], dwell[1])
 
 
 def _get_simple_model_expectations_summary(nnodes, r0, r1, e0, e1):

@@ -40,8 +40,9 @@ def create_sparse_pre_rate_matrix(state_space_shape, row, col, rate):
     mrow = np.ravel_multi_index(row.T, state_space_shape)
     mcol = np.ravel_multi_index(col.T, state_space_shape)
 
-    # self-transitions are not allowed
-    assert_(not np.any(mrow == mcol))
+    # Diagonal entries are allowed for computing dwell times,
+    # but they are not allowed for transition expectations.
+    #assert_(not np.any(mrow == mcol))
 
     # create the sparse pre_Q matrix from the sparse arrays
     return coo_matrix((rate, (mrow, mcol)), (nstates, nstates))
@@ -184,9 +185,82 @@ class ExplicitExpmFrechet(object):
         return P, numerator
 
 
-class ImplicitExpmFrechet(object):
+class ImplicitDwellExpmFrechet(object):
     """
-    This is for computing conditional expectations on edges.
+    For computing conditional dwell expectations on edges.
+
+    """
+    def __init__(self, state_space_shape, row, col, rate, s_state, s_weight):
+        """
+        Define a sparse rate matrix with shape (2n, 2n) where n is nstates.
+
+        [[R - D,   E  ],
+         [  0,   R - D]]
+
+        This uses some folk theory of Frechet derivatives of matrix
+        exponentiation that I picked up from Hobolth and Tataru
+        and other miscellaneous sources, and it is combined with
+        an algorithm by Al-Mohy et al.
+
+        """
+        nstates = np.prod(state_space_shape)
+        self.nstates = nstates
+
+        # Initialize the upper-left sparse matrix.
+        Q00 = create_sparse_pre_rate_matrix(
+                state_space_shape, row, col, rate)
+        exit_rates = Q00.sum(axis=1).A.flatten()
+        assert_equal(exit_rates.shape, (nstates, ))
+
+        # Initialize the upper-right sparse diagonal matrix.
+        Q01 = create_sparse_pre_rate_matrix(
+                state_space_shape, s_state, s_state, s_weight)
+        Q01.col += nstates
+
+        # Define the diagonal entries of the upper-left sparse matrix.
+        Q00.row = np.concatenate((Q00.row, np.arange(nstates)))
+        Q00.col = np.concatenate((Q00.col, np.arange(nstates)))
+        Q00.data = np.concatenate((Q00.data, -exit_rates))
+        Q00.has_canonical_format = False
+
+        # Initialize the lower-right sparse matrix.
+        Q11 = Q00.copy()
+        Q11.row += nstates
+        Q11.col += nstates
+
+        # Define the full matrix to be exponentiated.
+        F_row = np.concatenate([Q00.row, Q01.row, Q11.row])
+        F_col = np.concatenate([Q00.col, Q01.col, Q11.col])
+        F_data = np.concatenate([Q00.data, Q01.data, Q11.data])
+        F = coo_matrix((F_data, (F_row, F_col)), (2*nstates, 2*nstates))
+
+        # Store the full matrix.
+        self.F = F
+
+    def get_expm_frechet_product(self, rate_scaling_factor, A):
+        """
+        expm([[R - D, R o E],    A0
+              [  0,   R - D]])   A1
+
+        P A0 + K A1
+        0 A0 + P A1
+
+        Returns
+        -------
+        P dot A
+        K dot A
+
+        """
+        AA = np.vstack((A, A))
+        BB = scipy.sparse.linalg.expm_multiply(self.F * rate_scaling_factor, AA)
+        PA = BB[self.nstates:]
+        KA = BB[:self.nstates] - PA
+        return PA, KA
+
+
+class ImplicitTransitionExpmFrechet(object):
+    """
+    For computing conditional transition count expectations on edges.
 
     Experimentally try using an expm-frechet-vector-product.
 
@@ -232,7 +306,7 @@ class ImplicitExpmFrechet(object):
         Q00.data = np.concatenate((Q00.data, -exit_rates))
         Q00.has_canonical_format = False
 
-        # Initialize the lower-right spasre matrix.
+        # Initialize the lower-right sparse matrix.
         Q11 = Q00.copy()
         Q11.row += nstates
         Q11.col += nstates

@@ -19,7 +19,8 @@ from numpy.testing import assert_equal
 
 from .expm_helpers import (
         PadeExpm, EigenExpm, ActionExpm,
-        ExplicitExpmFrechet, ImplicitExpmFrechet)
+        ImplicitTransitionExpmFrechet,
+        ImplicitDwellExpmFrechet)
 
 from .expm_helpers import create_dense_rate_matrix
 
@@ -30,7 +31,8 @@ from .common_unpacking import (
         SimpleShapeError,
         get_observables_info,
         get_tree_info,
-        get_prior_info)
+        get_prior_info,
+        get_dwell_info)
 
 from .common_likelihood import (
         create_indicator_array,
@@ -180,7 +182,10 @@ def get_edge_to_site_expectations(
         obj = expm_frechet_objects[edge_process]
         PR, KR = obj.get_expm_frechet_product(edge_rate, subtree_array)
         A = head_marginal_distn * pseudo_reciprocal(PR)
-        edge_to_site_expectations[edge] = np.diag(A.T.dot(KR))
+        #TODO after testing, remove the comment
+        #TODO the diag(A.T.dot(X)) can be simplified...
+        #edge_to_site_expectations[edge] = np.diag(A.T.dot(KR))
+        edge_to_site_expectations[edge] = (A * KR).sum(axis=0)
 
     return edge_to_site_expectations
 
@@ -211,6 +216,10 @@ def process_json_in(j_in, debug=False):
     info = get_processes_info(j_in)
     processes_row, processes_col, processes_rate, processes_expect = info
 
+    # Unpack stuff related to posterior dwell time calculations.
+    info = get_dwell_info(j_in)
+    dwell_states, dwell_expect = info
+
     # Deduce some counts.
     nstates = np.prod(state_space_shape)
     nsites = iid_observations.shape[0]
@@ -238,9 +247,23 @@ def process_json_in(j_in, debug=False):
         expect = processes_expect[edge_process]
         obj = expm_klass(state_space_shape, row, col, rate)
         f.append(obj)
-        #obj = ExplicitExpmFrechet(state_space_shape, row, col, rate, expect)
-        obj = ImplicitExpmFrechet(state_space_shape, row, col, rate, expect)
+        obj = ImplicitTransitionExpmFrechet(
+                state_space_shape, row, col, rate, expect)
         expm_frechet_objects.append(obj)
+
+    # Define dwell time weights that are constant across processes.
+    dwell_objects = None
+    if dwell_states is not None:
+        dwell_objects = []
+        for edge_process in range(nprocesses):
+            row = processes_row[edge_process]
+            col = processes_col[edge_process]
+            rate = processes_rate[edge_process]
+            dwell_obj = ImplicitDwellExpmFrechet(
+                    state_space_shape, row, col, rate,
+                    dwell_states, dwell_expect)
+            dwell_objects.append(dwell_obj)
+
 
     # Always store the likelihood arrays.
     # The only purpose of this function is to compute the labeled
@@ -299,9 +322,9 @@ def process_json_in(j_in, debug=False):
     for node in range(nnodes):
         assert_equal(node_to_marginal_distn[node].shape, (nstates, nsites))
 
-    # Compute expectations.
+    # Compute transition count expectations.
     if debug:
-        print('computing site expectations...', file=sys.stderr)
+        print('computing transition expectations...', file=sys.stderr)
     edge_to_site_expectations = get_edge_to_site_expectations(
             nsites, nstates,
             f, expm_frechet_objects, node_to_marginal_distn,
@@ -323,11 +346,37 @@ def process_json_in(j_in, debug=False):
         expectations_out.append(site_expectations)
     expectations_out = zip(*expectations_out)
 
+    # Compute dwell expectations if requested.
+    edge_dwell_out = None
+    if dwell_states:
+        if debug:
+            print('computing dwell expectations...', file=sys.stderr)
+        edge_to_dwell_expectations = get_edge_to_site_expectations(
+                nsites, nstates,
+                f, dwell_objects, node_to_marginal_distn,
+                node_to_subtree_array, distn,
+                T, root, edges, edge_rate_pairs, edge_process_pairs,
+                state_space_shape,
+                observable_nodes,
+                observable_axes,
+                iid_observations,
+                debug=debug)
+
+        # Map expectations back to edge indices.
+        # Note that this is per site per edge.
+        # Take the transpose of this, so that the outer index
+        # loops over sites.
+        edge_dwell_out = []
+        for edge in edges:
+            dwell_expectations = edge_to_dwell_expectations[edge]
+            edge_dwell_out.append(dwell_expectations)
+        edge_dwell_out = zip(*edge_dwell_out)
 
     # Create the output in a format that json will like.
     j_out = dict(
             status = 'success',
             feasibility = True,
-            edge_expectations = expectations_out)
+            edge_expectations = expectations_out,
+            edge_dwell = edge_dwell_out)
 
     return j_out

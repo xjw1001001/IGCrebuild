@@ -17,6 +17,7 @@ __all__ = [
         'get_observables_info',
         'get_tree_info',
         'get_prior_info',
+        'get_dwell_info',
         ]
 
 
@@ -120,6 +121,20 @@ def get_prior_info(j_in):
             np.array(j_in['prior_feasible_states']),
             np.array(j_in['prior_distribution'], dtype=float))
 
+
+def get_dwell_info(j_in):
+    """These inputs are optional.
+    """
+    states = j_in.get('dwell_states', None)
+    expect = j_in.get('dwell_expect', None)
+    none_count = sum(1 for x in (states, expect) if x is None)
+    if none_count not in (0, 2):
+        raise SimpleError('expected neither or both of dwell_states '
+                'and dwell_expect to be provided')
+    if not none_count:
+        return np.array(states), np.array(expect, dtype=float)
+    else:
+        return None, None
 
 
 def _check_tree_row_indices(row, node_count):
