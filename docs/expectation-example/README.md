@@ -15,6 +15,25 @@ of the model, specific rates associated with state transitions
 and with edges of the branching timeline, and observations
 at points on the branching timeline.
 
+    states = j_in.get('root_posterior_states', None)
+    expect = j_in.get('root_posterior_expect', None)
+    none_count = sum(1 for x in (states, expect) if x is None)
+    if none_count not in (0, 2):
+        raise SimpleError('expected neither or both of '
+                'root_posterior_states and '
+                'root_posterior_expect to be provided')
+    if not none_count:
+        return np.array(states), np.array(expect, dtype=float)
+    else:
+        return None, None
+
+
+def get_dwell_info(j_in):
+    """These inputs are optional.
+    """
+    states = j_in.get('dwell_states', None)
+    expect = j_in.get('dwell_expect', None)
+
 The top-level input json object has the following members:
  * `node_count` : The number of nodes in the branching timeline.
    These include the root node, branching points, terminal points,
@@ -37,6 +56,21 @@ The top-level input json object has the following members:
    Therefore only four of the sixteen possible joint states are feasible.
  * `prior_distribution` : An array giving a prior probability for each
    of the listed feasible states.
+ * `root_posterior_states` : Optional array requesting posterior
+   linear combinations of probabilities of these multivariate states
+   at the root node.
+   The same linear combination will be used across all sites.
+ * `root_posterior_expect` : Optional array of coefficients
+   defining the linear combination of the multivariate states
+   listed in `root_posterior_states`.
+ * `dwell_states` : Optional array requesting posterior
+   linear combinations of proportions of time spent in each
+   of these multivariate states.
+   The posterior linear combination will be reported
+   for each site and each edge.
+ * `dwell_expect` : Optional array of coefficients
+   defining the linear combination of proportions of time
+   spent in the the multivariate states listed in `root_posterior_states`.
  * `tree` : An object defining the shape of the branching timeline,
    the index of the process acting along each edge,
    and the edge-specific scaling factors of the process rates.
