@@ -395,7 +395,7 @@ def process_json_in(j_in, debug=False):
         M = node_to_marginal_distn[root]
 
         # Pick only the requested states, and include all sites.
-        M[ind, :]
+        M = M[ind, :]
 
         # Get the weighted sum of requested states for each site.
         root_values = root_posterior_expect.dot(M).tolist()

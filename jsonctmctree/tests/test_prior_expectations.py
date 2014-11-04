@@ -8,7 +8,6 @@ from itertools import permutations
 
 import numpy as np
 from numpy.testing import assert_allclose
-import scipy.linalg
 
 from jsonctmctree.expect import process_json_in
 from jsonctmctree.sampling import(
