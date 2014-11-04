@@ -51,7 +51,7 @@ The top-level input json object has the following members:
    for each site and each edge.
  * `dwell_expect` : Optional array of coefficients
    defining the linear combination of proportions of time
-   spent in the the multivariate states listed in `root_posterior_states`.
+   spent in the the multivariate states listed in `dwell_states`.
  * `tree` : An object defining the shape of the branching timeline,
    the index of the process acting along each edge,
    and the edge-specific scaling factors of the process rates.
