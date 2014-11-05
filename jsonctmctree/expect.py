@@ -183,9 +183,6 @@ def get_edge_to_site_expectations(
         obj = expm_frechet_objects[edge_process]
         PR, KR = obj.get_expm_frechet_product(edge_rate, subtree_array)
         A = head_marginal_distn * pseudo_reciprocal(PR)
-        #TODO after testing, remove the comment
-        #TODO the diag(A.T.dot(X)) can be simplified...
-        #edge_to_site_expectations[edge] = np.diag(A.T.dot(KR))
         edge_to_site_expectations[edge] = (A * KR).sum(axis=0)
 
     return edge_to_site_expectations
