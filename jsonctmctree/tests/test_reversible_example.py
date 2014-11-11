@@ -11,13 +11,7 @@ from numpy.testing import assert_allclose, assert_equal
 import scipy.linalg
 
 from jsonctmctree.expect import process_json_in
-from jsonctmctree.sampling import(
-        assert_symmetric_matrix,
-        sample_symmetric_rates,
-        sample_distn,
-        sample_time_reversible_rate_matrix,
-        sample_time_nonreversible_rate_matrix,
-        )
+from jsonctmctree.sampling import sample_time_reversible_rate_matrix
 
 
 def _process(Q, d, observable_node):
