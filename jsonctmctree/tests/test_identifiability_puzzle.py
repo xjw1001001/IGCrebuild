@@ -34,6 +34,17 @@ from jsonctmctree.sampling import(
 # and scaling rates between partitions differently than the
 # rates within states in the same partition.
 
+def _assert_square(M):
+    assert_equal(len(Q.shape), 2)
+    assert_equal(Q.shape[0], Q.shape[1])
+
+
+def _get_symmetric_scaling_mask(n):
+    S = np.random.randn(n, n)
+    S = np.exp(S + S.T)
+    S -= np.diag(np.diag(S))
+    return S
+
 
 def _gen_univariate_transitions(sa, sb):
     for a, b in zip(sa, sb):
@@ -41,7 +52,7 @@ def _gen_univariate_transitions(sa, sb):
             yield a, b
 
 
-def _geneconvify(Q_in, d_in, tau):
+def _geneconvify(Q_in, d_in, tau, scaling_mask=None):
     """
     Combine two univariate processes into a bivariate process.
 
@@ -53,6 +64,8 @@ def _geneconvify(Q_in, d_in, tau):
         equilibrium distribution
     tau : float
         extra homogenization rate
+    scaling_mask : 2d ndarray (n, n)
+        scales rates
 
     Returns
     -------
@@ -78,9 +91,10 @@ def _geneconvify(Q_in, d_in, tau):
         if len(t) == 1:
             a, b = t[0]
             rate += Q_in[a, b]
-        if sb[0] == sb[1]:
-            if sa[0] == sb[0] or sa[1] == sb[0]:
+            if sb[0] == sb[1]:
                 rate += tau
+            if scaling_mask is not None:
+                rate *= scaling_mask[a, b]
         if rate:
             i = np.ravel_multi_index(sa, state_space_shape)
             j = np.ravel_multi_index(sb, state_space_shape)
@@ -109,33 +123,36 @@ def test_identifiability():
     bivariate_states = list(product(range(n), repeat=2))
     bivariate_state_pairs = list(permutations(bivariate_states, 2))
     nrepeats = 10
-    for repeat_index in range(nrepeats):
+    #for mask in None, _get_symmetric_scaling_mask(n):
+    for mask in (None, ):
         for fn_sample in (
             sample_time_reversible_rate_matrix,
             sample_time_nonreversible_rate_matrix,
             ):
-            for scale in 0.1, 0.5, 2.0:
-                Q, d = fn_sample(n)
-                P = scipy.linalg.expm(scale * Q)
-                for tau in 0, 0.1, 2.0:
+            for repeat_index in range(nrepeats):
+                for scale in 0.1, 0.5, 2.0:
+                    Q, d = fn_sample(n)
+                    P = scipy.linalg.expm(scale * Q)
+                    for tau in 0, 0.1, 2.0:
 
-                    # Compute the bivariate process.
-                    Q_bivariate, d_bivariate = _geneconvify(Q, d, tau)
-                    P_bivariate = scipy.linalg.expm(scale * Q_bivariate)
+                        # Compute the bivariate process.
+                        Q_bivariate, d_bivariate = _geneconvify(Q, d, tau, mask)
+                        P_bivariate = scipy.linalg.expm(scale * Q_bivariate)
 
-                    # Check that for each (i, i) initial state,
-                    # the marginal transition matrix is equal
-                    # to the univariate transition matrix.
-                    P_marginal_0 = np.zeros((n, n), dtype=float)
-                    P_marginal_1 = np.zeros((n, n), dtype=float)
-                    for a in range(n):
-                        s_initial = (a, a)
-                        i = np.ravel_multi_index(s_initial, state_space_shape)
-                        for s in bivariate_states:
-                            u, v = s
-                            j = np.ravel_multi_index(s, state_space_shape)
-                            P_marginal_0[a, u] += P_bivariate[i, j]
-                            P_marginal_1[a, v] += P_bivariate[i, j]
+                        # Check that for each (i, i) initial state,
+                        # the marginal transition matrix is equal
+                        # to the univariate transition matrix.
+                        P_marginal_0 = np.zeros((n, n), dtype=float)
+                        P_marginal_1 = np.zeros((n, n), dtype=float)
+                        for a in range(n):
+                            s_initial = (a, a)
+                            i = np.ravel_multi_index(
+                                    s_initial, state_space_shape)
+                            for s in bivariate_states:
+                                u, v = s
+                                j = np.ravel_multi_index(s, state_space_shape)
+                                P_marginal_0[a, u] += P_bivariate[i, j]
+                                P_marginal_1[a, v] += P_bivariate[i, j]
 
-                    assert_allclose(P_marginal_0, P)
-                    assert_allclose(P_marginal_1, P)
+                        assert_allclose(P_marginal_0, P)
+                        assert_allclose(P_marginal_1, P)
