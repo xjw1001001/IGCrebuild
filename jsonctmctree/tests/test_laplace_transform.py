@@ -286,12 +286,6 @@ def test_empirical():
     P_F = P0[_vec(np.identity(n, dtype=bool)), :]
     assert_allclose(P_F.sum(axis=1), 1)
 
-    # FIXME
-    # The other unit test suggests that scaling rates by a factor
-    # of two will give an equivalence between the times-shared-between-branches
-    # and times-not-shared-between-branches models,
-    # but this is not reproduced here yet.
-
     print('same time scale:')
     print(P_B - P_A)
     print(d.dot(P_B) - d.dot(P_A))
