@@ -55,7 +55,7 @@ The top-level input json object has the following members:
    In particular, it requests derivatives of log-likelihood
    with respect to the logarithm of the edge-specific rate scaling
    factors associated with the given edge indices.
- * `processes` : An array of objects reprsenting processes
+ * `processes` : An array of objects representing processes
    that may act along one or more pre-specified edges of the branching timeline.
    Each object in the array is defined as follows:
     * `row` : An array of initial multivariate states for each

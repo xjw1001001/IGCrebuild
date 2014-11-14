@@ -65,7 +65,7 @@ The top-level input json object has the following members:
       for each directed edge of the branching timeline.
     * `process` : An array specifying the index of the process
       acting on each directed edge of the branching timeline.
- * `processes` : An array of objects reprsenting processes
+ * `processes` : An array of objects representing processes
    that may act along one or more pre-specified edges of the branching timeline.
    Each object in the array is defined as follows:
     * `row` : An array of initial multivariate states for each
