@@ -33,10 +33,19 @@ def _identity_like(M):
     n = M.shape[0]
     return np.identity(n, dtype=M.dtype)
 
+def _kronecker_sum_1d(a, b):
+    return _vec(a[np.newaxis, :] + b[:, np.newaxis])
 
 def _kronecker_sum(a, b):
     return np.kron(a, _identity_like(b)) + np.kron(_identity_like(a), b)
 
+
+def test_kronecker_sum_1d():
+    a = np.random.randn(3)
+    b = np.random.randn(4)
+    actual = _kronecker_sum_1d(a, b)
+    desired = np.diag(_kronecker_sum(np.diag(a), np.diag(b)))
+    assert_allclose(actual, desired)
 
 
 def _check_laplace_transform_equilibrium_solution(tau):
@@ -74,7 +83,7 @@ def _check_laplace_transform_equilibrium_solution(tau):
     R_P = np.diag(R_d)
     assert_symmetric_matrix(R_P.dot(R_Q))
     R_U = np.kron(U, U)
-    R_w = np.diag(_kronecker_sum(np.diag(w), np.diag(w)))
+    R_w = _kronecker_sum_1d(w, w)
     R_S = R_U.dot(np.diag(R_w)).dot(R_U.T)
     R_a = np.sqrt(R_d)
     R_b = np.reciprocal(R_a)
@@ -97,6 +106,12 @@ def _check_laplace_transform_equilibrium_solution(tau):
     laplace_thing = T_S * np.outer(R_b, R_a)
     T_d_clever = _vec(np.diag(d)).dot(laplace_thing)
     assert_allclose(T_d_clever, T_d_brute)
+
+    # Check separate calculations of expectations.
+    M_u = 1 / (1 - w / tau)
+    yet_another_laplace_thing = U.dot(np.diag(M_u)).dot(U.T) * np.outer(b, a)
+    T_d_yet_another = np.diag(d).dot(yet_another_laplace_thing).flatten()
+    assert_allclose(T_d_yet_another, T_d_brute)
 
 
 def test_laplace_transform_equilibrium_solution():
