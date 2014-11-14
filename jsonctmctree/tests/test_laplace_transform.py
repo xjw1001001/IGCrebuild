@@ -80,8 +80,7 @@ def _check_laplace_transform_equilibrium_solution(tau):
     R_Q = _kronecker_sum(Q, Q)
     R_d = np.kron(d, d)
     assert_allclose(R_d.sum(), 1)
-    R_P = np.diag(R_d)
-    assert_symmetric_matrix(R_P.dot(R_Q))
+    assert_symmetric_matrix(np.diag(R_d).dot(R_Q))
     R_U = np.kron(U, U)
     R_w = _kronecker_sum_1d(w, w)
     R_S = R_U.dot(np.diag(R_w)).dot(R_U.T)
@@ -112,6 +111,13 @@ def _check_laplace_transform_equilibrium_solution(tau):
     yet_another_laplace_thing = U.dot(np.diag(M_u)).dot(U.T) * np.outer(b, a)
     T_d_yet_another = np.diag(d).dot(yet_another_laplace_thing).flatten()
     assert_allclose(T_d_yet_another, T_d_brute)
+
+    # Check some transition probabilities.
+    P = U.dot(np.diag(np.exp(w))).dot(U.T) * np.outer(b, a)
+    R_P = R_U.dot(np.diag(np.exp(R_w))).dot(R_U.T) * np.outer(R_b, R_a)
+    desired = np.array([np.kron(r, r) for r in P])
+    actual = R_P[_vec(np.identity(n, dtype=bool)), :]
+    assert_allclose(actual, desired)
 
 
 def test_laplace_transform_equilibrium_solution():
