@@ -459,7 +459,7 @@ class Codon2RepeatsPhy:
                         context = s0a
                     # Set the rate according to the kind of change.
                     if context == sb:
-                        if codon_table[sa]==codon_table[sb]:
+                        if not codon_table[sa]==codon_table[sb]:
                             rate = Tao*para[4]
                         else:
                             rate = Tao
