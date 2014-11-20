@@ -2,6 +2,7 @@
 # Re-written of my previous CondonBased2Repeats class
 from operator import mul
 from itertools import product
+import os, sys
 
 import numpy as np
 import networkx as nx
@@ -11,7 +12,12 @@ import scipy.sparse
 import scipy.sparse.linalg
 
 from Bio import Phylo
-from Bio import SeqIO 
+from Bio import SeqIO
+
+
+pwd = os.getcwd()
+sys.path.insert(1, pwd + '/AlexPackage/jsonctmctree/jsonctmctree')
+import jsonctmctree.ll
 
 class CodonGeneconv:
     def __init__(self, tree_newick, alignment, paralog, nnsites = None):
@@ -22,10 +28,12 @@ class CodonGeneconv:
 
 
         # Tree topology related variable
-        self.get_tree()
+        self.SpecAfterDupli_node = 'N1'
+        self.get_tree()        
          # self.tree_phy
          # self.edge_to_blen
          # self.node_to_num
+         # self.tree : {tree_row:[], tree_col:[], tree_process:[]}
         
         bases = 'tcag'.upper()
         self.nt_to_state = {a:i for (i, a) in enumerate('ACGT')}
@@ -42,21 +50,41 @@ class CodonGeneconv:
         self.get_data()
          # self.name_to_seq (actrually name_to_codonlist)
          # self.observable_names
+         # self.observable_nodes
          # self.observable_axes
          # self.iid_observations
 
         # Rate matrix related variable
+        self.get_initial_x_process()
+        self.unpack_x_process()
+         # self.x_process
+         # self.x_rates
+         # self.x (x_process + x_rates)
          # self.pi
          # self.kappa
          # self.omega
          # self.tau
-        self.pi = [0.25, 0.25, 0.25, 0.25]
-        self.kappa = 1.2
-        self.omega = 0.9
-        self.tau = 1.4
-        self.processes = [self.get_MG94Sparse()]#, self.get_MG94Geneconv()]
+        self.processes = [self.get_MG94Sparse(), self.get_MG94Geneconv()]
+        self.get_prior() 
 
+        # guess related variable
+
+    def get_initial_x_process(self, kappa = 1.2, omega = 0.9, tau = 1.4):
+        count = np.array([0, 0, 0, 0], dtype = float) # count for A, C, G, T in all seq
+        for name in self.name_to_seq:
+            for i in range(4):
+                count[i] += ''.join(self.name_to_seq[name]).count('ACGT'[i])
+        count = count / count.sum()
         
+        # x_process[] = %AG, %A, %C, kappa, omega, tau
+        x_process = np.array([count[0] + count[2], count[0] / (count[0] + count[2]), count[1] / (count[1] + count[3]),
+                              kappa, omega, tau])
+        
+        setattr(CodonGeneconv, 'x_process', x_process)
+        x_rates = np.array([ self.edge_to_blen[edge] for edge in self.edge_to_blen.keys()])
+        setattr(CodonGeneconv, 'x_rates', x_rates)
+        x = np.concatenate((x_process, x_rates))
+        setattr(CodonGeneconv, 'x', x)
         
 
     def get_tree(self):
@@ -80,7 +108,43 @@ class CodonGeneconv:
             T.add_edge(*edge)
             edge_to_blen[edge] = blen
 
-        # Now create the edge_to_blen dictionary
+        setattr(CodonGeneconv, 'edge_to_blen', edge_to_blen)
+        leaves = set(v for v, degree in T.degree().items() if degree == 1)
+        Outgroup = list(set(leaves).difference(nx.descendants(T, self.SpecAfterDupli_node)))
+        node_names = list(T)
+        node_to_number = {n: i for i, n in enumerate(node_names)}
+        setattr(CodonGeneconv, 'node_to_num', node_to_number)
+        tree_row = [self.node_to_num[na] for na, nb in edge_to_blen.keys()]
+        tree_col = [self.node_to_num[nb] for na, nb in edge_to_blen.keys()]
+        tree_process = [0 if e == ('N0', Outgroup[0]) else 1 for e in edge_to_blen]
+        tree = dict(
+            row = tree_row,
+            col = tree_col,
+            process = tree_process,
+            rate = np.ones(len(tree_row))
+            )
+        setattr(CodonGeneconv, 'tree', tree)
+
+        
+    def unpack_x_process(self):
+        # x_process[] = %AG, %A, %C, kappa, omega, tau
+        assert(len(self.x_process) == 6)
+        x_process = self.x_process
+        pi_a = x_process[0] * x_process[1]
+        pi_c = (1 - x_process[0]) * x_process[2]
+        pi_g = x_process[0] * (1 - x_process[1])
+        pi_t = (1 - x_process[0]) * (1 - x_process[2])
+        self.pi = [pi_a, pi_c, pi_g, pi_t]
+        self.kappa = x_process[3]
+        self.omega = x_process[4]
+        self.tau = x_process[5]
+
+    def unpack_x_rates(self):
+        x_rates = self.x_rates
+        assert(len(x_rates) == len(x_rates))
+        for it in len(self.edge_to_blen):
+            edge = self.edge_to_blen.keys()[it]
+            self.edge_to_blen[edge] = x_rates[it]
         
 
     def nts_to_codons(self):
@@ -114,8 +178,10 @@ class CodonGeneconv:
         #observable_suffixes = [name[-suffix_len:] for name in observable_names]
         observable_suffixes = self.paralog
         suffix_to_axis = {n:i for (i, n) in enumerate(list(set(observable_suffixes))) }
-        observable_axes = [suffix_to_axis[s] for s in observable_suffixes]
+        observable_nodes = [self.node_to_num[n[:-suffix_len]] for n in observable_names]
+        observable_axes = [suffix_to_axis[s[-suffix_len:]] for s in observable_names]
         setattr(CodonGeneconv, 'observable_axes', observable_axes)
+        setattr(CodonGeneconv, 'observable_nodes', observable_nodes)
 
 
         iid_observations = []
@@ -142,6 +208,13 @@ class CodonGeneconv:
         distn = [ reduce(mul, [self.pi['ACGT'.index(b)]  for b in codon], 1) for codon in self.codon_nonstop ]
         distn = np.array(distn) / sum(distn)
         return Qbasic, distn
+
+    def get_prior(self):
+        prior_feasible_states = [(self.codon_to_state[codon], self.codon_to_state[codon]) for codon in self.codon_nonstop]
+        distn = [ reduce(mul, [self.pi['ACGT'.index(b)]  for b in codon], 1) for codon in self.codon_nonstop ]
+        distn = np.array(distn) / sum(distn)
+        setattr(CodonGeneconv, 'prior_feasible_states', prior_feasible_states)
+        setattr(CodonGeneconv, 'prior_distribution', distn)
 
     def get_MG94BasicRate(self, ca, cb):
         dif = [ii for ii in range(3) if ca[ii] != cb[ii]]
@@ -171,76 +244,15 @@ class CodonGeneconv:
     def isNonsynonymous(self, ca, cb):
         return (self.codon_table[ca] != self.codon_table[cb])
 
-    def get_MG94Geneconv(self):
-        # Change idea here
-        # no need to form the huge matrix but only track the non-zero entries
-        #Qbasic, distn = self.get_MG94Basic()
+    def get_MG94Geneconv_and_MG94(self):
         row = []
         col = []
-        rate = []
+        rate_geneconv = []
+        rate_basic = []
+
         for i, pair in enumerate(product(self.codon_nonstop, repeat = 2)):
-            row_sum = 0
-            # use ca, cb, cc to denote codon_a, codon_b, codon_c, where cc != ca, cc != cb
-            ca, cb = pair
-            sa = self.codon_to_state[ca]
-            sb = self.codon_to_state[cb]
-            for cc in self.codon_nonstop:
-                if cc == ca or cc == cb:
-                    continue
-                sc = self.codon_to_state[cc]
-                # (ca, cb) to (ca, cc)
-                Qbasic = self.get_MG94BasicRate(cb, cc)
-                if Qbasic != 0:
-                    row.append((sa, sb))
-                    col.append((sa, sc))
-                    rate.append(Qbasic)
-                    row_sum += Qbasic
-
-                # (ca, cb) to (cc, cb)
-                Qbasic = self.get_MG94BasicRate(ca, cc)
-                if Qbasic != 0:
-                    row.append((sa, sb))
-                    col.append((sc, sb))
-                    rate.append(Qbasic)
-                    row_sum += Qbasic
-
-                    
-            # (ca, cb) to (ca, ca)
-            row.append((sa, sb))
-            col.append((sa, sa))
-            Qbasic = self.get_MG94BasicRate(cb, ca)
-            if self.isNonsynonymous(cb, ca):
-                Tgeneconv = self.tau * self.omega
-            else:
-                Tgeneconv = self.tau
-            rate.append(Qbasic + Tgeneconv)
-            row_sum += Qbasic + Tgeneconv
-            
-            # (ca, cb) to (cb, cb)
-            row.append((sa, sb))
-            col.append((sb, sb))
-            Qbasic = self.get_MG94BasicRate(ca, cb)
-            rate.append(Qbasic + Tgeneconv)
-            row_sum += Qbasic + Tgeneconv
-
-            # Finally add the diagonal
-            # (ca, cb) to (ca, cb)
-            row.append((sa, sb))
-            col.append((sa, sb))
-            rate.append(-row_sum)
-
-        process = {'row':row,
-                   'col':col,
-                   'rate':rate}
-        return process
-
-    def get_MG94Sparse(self):
-        # Almost the same work flow with the Geneconv one because I am lazy
-        row = []
-        col = []
-        rate = []
-        for i, pair in enumerate(product(self.codon_nonstop, repeat = 2)):
-            row_sum = 0
+            rate_sum_geneconv = 0
+            rate_sum_basic = 0
             # use ca, cb, cc to denote codon_a, codon_b, codon_c, where cc != ca, cc != cb
             ca, cb = pair
             sa = self.codon_to_state[ca]
@@ -255,39 +267,50 @@ class CodonGeneconv:
                     if Qbasic != 0:
                         row.append((sa, sb))
                         col.append((sa, sc))
-                        rate.append(Qbasic)
-                        row_sum += Qbasic
+                        rate_geneconv.append(Qbasic)
+                        rate_sum_geneconv += Qbasic
+                        rate_basic.append(Qbasic)
+                        rate_sum_basic += Qbasic
 
                     # (ca, cb) to (cc, cb)
                     Qbasic = self.get_MG94BasicRate(ca, cc)
                     if Qbasic != 0:
                         row.append((sa, sb))
                         col.append((sc, sb))
-                        rate.append(Qbasic)
-                        row_sum += Qbasic
+                        rate_geneconv.append(Qbasic)
+                        rate_sum_geneconv += Qbasic
+                        rate_basic.append(Qbasic)
+                        rate_sum_basic += Qbasic
 
-                
+                        
                 # (ca, cb) to (ca, ca)
+                row.append((sa, sb))
+                col.append((sa, sa))
                 Qbasic = self.get_MG94BasicRate(cb, ca)
-                if Qbasic != 0:
-                    row.append((sa, sb))
-                    col.append((sa, sa))
-                    rate.append(Qbasic)
-                    row_sum += Qbasic
+                if self.isNonsynonymous(cb, ca):
+                    Tgeneconv = self.tau * self.omega
+                else:
+                    Tgeneconv = self.tau
+                rate_geneconv.append(Qbasic + Tgeneconv)
+                rate_sum_geneconv += Qbasic + Tgeneconv
+                rate_basic.append(Qbasic)
+                rate_sum_basic += Qbasic
                 
                 # (ca, cb) to (cb, cb)
+                row.append((sa, sb))
+                col.append((sb, sb))
                 Qbasic = self.get_MG94BasicRate(ca, cb)
-                if Qbasic != 0:
-                    row.append((sa, sb))
-                    col.append((sb, sb))
-                    rate.append(Qbasic)
-                    row_sum += Qbasic
+                rate_geneconv.append(Qbasic + Tgeneconv)
+                rate_sum_geneconv += Qbasic + Tgeneconv
+                rate_basic.append(Qbasic)
+                rate_sum_basic += Qbasic
 
                 # Finally add the diagonal
                 # (ca, cb) to (ca, cb)
                 row.append((sa, sb))
                 col.append((sa, sb))
-                rate.append(-row_sum)
+                rate_geneconv.append(-rate_sum_geneconv)
+                rate_basic.append(-rate_sum_basic)
             else:
                 for cc in self.codon_nonstop:
                     if cc == ca:
@@ -299,23 +322,56 @@ class CodonGeneconv:
                     if Qbasic != 0:
                         row.append((sa, sb))
                         col.append((sa, sc))
-                        rate.append(Qbasic)
+                        rate_geneconv.append(Qbasic)
+                        rate_basic.append(Qbasic)
                     # (ca, ca) to (cc, ca)
                         row.append((sa, sb))
                         col.append((sc, sa))
-                        rate.append(Qbasic)
-
-                        row_sum += 2 * Qbasic
+                        rate_geneconv.append(Qbasic)
+                        rate_basic.append(Qbasic)
+                        rate_sum_geneconv += 2 * Qbasic
+                        rate_sum_basic += 2 * Qbasic
+                        
+                # Finally add the diagonal
+                # (ca, cb) to (ca, cb)
                 row.append((sa, sb))
                 col.append((sa, sb))
-                rate.append(-row_sum)
-           
+                rate_geneconv.append(-rate_sum_geneconv)
+                rate_basic.append(-rate_sum_basic)
 
-        process = {'row':row,
-                   'col':col,
-                   'rate':rate}
-        return process
         
+    def loglikelihood_and_gradient(self):
+        '''
+        Edited from Alex's objective_and_gradient function in ctmcaas/adv-log-likelihoods/mle_geneconv_common.py
+        '''
+        delta = 1e-8
+
+        k = len(self.edge_to_blen)
+        self.x_process, self.x_edge = self.x[:-k], self.x[-k:]
+
+        # prepare some extra parameters for the json interface
+        requested_derivatives = list(range(k))
+        site_weights = np.ones(self.nsites)
+
+        # prepare the input for the json interface
+        data = dict(
+            site_weights = site_weights,
+            requested_derivatives = requested_derivatives,
+            node_count = len(self.edge_to_blen) + 1,
+            state_space_shape = [61, 61],
+            process_count = len(self.processes),
+            processes = self.processes,
+            tree = self.tree,
+            prior_feasible_states = self.prior_feasible_states,
+            prior_distribution = self.prior_distribution,
+            observable_nodes = self.observable_nodes,
+            observable_axes = self.observable_axes,
+            iid_observations = self.iid_observations
+            )
+        j_ll = jsonctmctree.ll.process_json_in(data)
+        return j_ll
+        #ll, edge_derivs = 
+
         
 
 
@@ -325,4 +381,6 @@ if __name__ == '__main__':
     Output_file = '/Users/xji3/Genconv/YDR502C_YLR180W/YDR502C_YLR180W_Codon'
     paralog = ['YDR502C', 'YLR180W']
     test = CodonGeneconv( newicktree, alignment_file, paralog)
+
+    test.loglikelihood_and_gradient()
             
