@@ -14,6 +14,7 @@ import networkx as nx
 __all__ = [
         'UnpackingError',
         'TopLevel',
+        'interpret_root_prior',
         'interpret_tree',
         ]
 

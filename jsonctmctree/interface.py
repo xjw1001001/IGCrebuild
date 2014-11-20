@@ -53,6 +53,7 @@ import numpy as np
 from numpy.testing import assert_equal
 
 from .expm_helpers import ActionExpm
+from .common_likelihood import get_conditional_likelihoods
 from .common_unpacking_ex import TopLevel, interpret_tree, interpret_root_prior
 from . import expect
 from . import ll
@@ -176,9 +177,9 @@ def process_json_in(j_in):
             f, store_all_likelihood_arrays,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             toplevel.scene.state_space_shape,
-            toplevel.scene.observation_data.nodes,
-            toplevel.scene.observation_data.variables,
-            toplevel.scene.observation_data.iid_observations)
+            toplevel.scene.observed_data.nodes,
+            toplevel.scene.observed_data.variables,
+            toplevel.scene.observed_data.iid_observations)
 
     # Get likelihoods at the root.
     # These are passed to the derivatives procedure,
@@ -203,57 +204,55 @@ def process_json_in(j_in):
     
     # Compute the derivative of the likelihood
     # with respect to each edge-specific rate scaling parameter.
-    ei_to_derivatives = get_edge_derivatives(
+    ei_to_derivatives = ll.get_edge_derivatives(
             f, requested_derivative_edge_indices,
             node_to_array, distn,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             toplevel.scene.state_space_shape,
-            toplevel.scene.observation_data.nodes,
-            toplevel.scene.observation_data.variables,
-            toplevel.scene.observation_data.iid_observations)
+            toplevel.scene.observed_data.nodes,
+            toplevel.scene.observed_data.variables,
+            toplevel.scene.observed_data.iid_observations)
 
     # Apply the prior distribution and take logs of the likelihoods.
     log_likelihoods = np.log(likelihoods)
 
-    # Adjust for infeasibility.
-    feasibilities = np.isfinite(log_likelihoods)
-    log_likelihoods = np.where(feasibilities, log_likelihoods, 0)
-
     # Reduce the log likelihoods according to the site weights.
-    if np.all(feasibilities):
-        feasibility = True
-        log_likelihood = np.dot(site_weights, log_likelihoods)
+    #log_likelihood = np.dot(site_weights, log_likelihoods)
 
-        # Process the derivatives.
-        # They are currently in the form of derivatives of edge rates
-        # with respect to the likelihood, but we want to convert them to
-        # derivatives of log likelihood with respect to the logs
-        # of edge-specific rate scaling factors.
-        # According to calculus we can do it as follows.
-        # Also reduce the derivative array according to the site weights.
-        edge_to_rate = dict(edge_rate_pairs)
-        ei_to_d = {}
-        for ei, derivatives in ei_to_derivatives.items():
-            edge = edges[ei]
-            edge_rate = edge_to_rate[edge]
-            d = site_weights.dot(derivatives / likelihoods)
-            ei_to_d[ei] = float(d)
+    # Process the derivatives.
+    # They are currently in the form of derivatives of edge rates
+    # with respect to the likelihood, but we want to convert them to
+    # derivatives of log likelihood with respect to the logs
+    # of edge-specific rate scaling factors.
+    # According to calculus we can do it as follows.
+    # Also reduce the derivative array according to the site weights.
+    edge_to_rate = dict(edge_rate_pairs)
+    ei_to_d = {}
+    for ei, derivatives in ei_to_derivatives.items():
+        edge = edges[ei]
+        edge_rate = edge_to_rate[edge]
+        d = site_weights.dot(derivatives / likelihoods)
+        ei_to_d[ei] = float(d)
 
-        # Map the derivatives back to a list whose entries
-        # match the requested order of the indices.
-        derivatives_out = [ei_to_d[ei] for ei in requested_derivatives]
+    # Map the derivatives back to a list whose entries
+    # match the requested order of the indices.
+    #derivatives_out = [ei_to_d[ei] for ei in requested_derivatives]
 
-    else:
-        feasibility = False
-        log_likelihood = 0
-        derivatives_out = [0] * len(requested_derivatives)
+    # Create one response for each request.
+    responses = []
+    for req in toplevel.requests:
+        prefix, suffix = req.property[:3], req.property[-4:]
+        observation_code, edge_code, state_code = prefix
+        if suffix == 'logl':
+            if observation_code == 'd':
+                response = log_likelihoods.tolist()
+            elif observation_code == 's':
+                response = np.sum(log_likelihoods)
+            elif observation_code == 'w':
+                indices = req.observation_reduction.observation_indices
+                weights = req.observation_reduction.weights
+                response = np.dot(np.take(log_likelihoods, indices), weights)
+        responses.append(response)
 
-
-    # Create the output in a format that json will like.
-    j_out = dict(
-            status = 'success',
-            feasibility = feasibility,
-            log_likelihood = log_likelihood,
-            edge_derivatives = derivatives_out)
-
-    return j_out
+    # Return the response.
+    return dict(status='feasible', responses=responses)
