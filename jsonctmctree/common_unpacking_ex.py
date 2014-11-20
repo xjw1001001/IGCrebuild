@@ -14,6 +14,7 @@ import networkx as nx
 __all__ = [
         'UnpackingError',
         'TopLevel',
+        'interpret_tree',
         ]
 
 
@@ -95,7 +96,7 @@ def _np_array_int_1d(x):
 def _np_array_int_2d(x):
     return _np_array(x, dtype=int, ndim=2)
 
-def _np_array_float_1d(x)
+def _np_array_float_1d(x):
     return _np_array(x, dtype=float, ndim=1)
 
 
@@ -117,14 +118,26 @@ class Scene(object):
 
 class RootPrior(object):
     def __init__(self, d):
-        _unpack(self, d, _np_array_int_1d, 'states')
+        _unpack(self, d, _np_array_int_2d, 'states')
         _unpack(self, d, _np_array_float_1d, 'probabilities')
+        if self.states.shape[0] != self.probabilities.shape[0]:
+            raise ShapeError('in the root prior section of the scene, '
+                    'the length of the states array does not match '
+                    'that of the probabilities array')
 
 class ProcessDefinition(object):
     def __init__(self, d):
         _unpack(self, d, _np_array_int_2d, 'row_states')
         _unpack(self, d, _np_array_int_2d, 'column_states')
         _unpack(self, d, _np_array_float_1d, 'transition_rates')
+        if self.row_states.shape != self.column_states.shape:
+            raise ShapeError('in the process definition section of the scene, '
+                    'the shape of the column_states array does not match '
+                    'that of the row_states array')
+        if self.row_states.shape[0] != self.transition_rates.shape[0]:
+            raise ShapeError('in the process definition section of the scene, '
+                    'the lengths of the states arrays do not match '
+                    'that of the transition_rates array')
 
 class Tree(object):
     def __init__(self, d):
@@ -149,7 +162,7 @@ class ObservedData(object):
     def __init__(self, d):
         _unpack(self, d, _np_array_int_1d, 'nodes')
         _unpack(self, d, _np_array_int_1d, 'variables')
-        _unpack(self, d, _np_array_float_2d, 'iid_observations')
+        _unpack(self, d, _np_array_int_2d, 'iid_observations')
         if self.nodes.shape != self.variables.shape:
             raise ShapeError('in the observed data section of the scene, '
                     'the shape of the nodes array does not match '
@@ -259,15 +272,23 @@ class TransitionReduction(object):
 
 
 def interpret_root_prior(scene):
-    pass
+    # Interpret the prior distribution by converting it to a dense array.
+    nstates = np.prod(scene.state_space_shape)
+    feas = np.ravel_multi_index(
+            scene.root_prior.states.T,
+            scene.state_space_shape)
+    distn = np.zeros(nstates, dtype=float)
+    np.put(distn, feas, scene.root_prior.probabilities)
+    return distn
+
 
 def _check_tree_row_indices(row, node_count):
     """This is just for error checking.
     """
-    nodes = set(range(node_count))
-    unexpected_row_indices = list(set(row) - nodes)
+    nodes = range(node_count)
+    unexpected_row_indices = list(set(row) - set(nodes))
     if unexpected_row_indices:
-        raise SimpleError(
+        raise ContentError(
                 'Found unexpected row indices in the tree definition. '
                 'Because the provided node count is %d, '
                 'the row indices are expected to be non-negative integers '
@@ -279,10 +300,10 @@ def _check_tree_row_indices(row, node_count):
 def _check_tree_col_indices(col, node_count):
     """This is just for error checking.
     """
-    nodes = set(range(node_count))
-    unexpected_col_indices = list(set(col) - nodes)
+    nodes = range(node_count)
+    unexpected_col_indices = list(set(col) - set(nodes))
     if unexpected_col_indices:
-        raise SimpleError(
+        raise ContentError(
                 'Found unexpected col indices in the tree definition. '
                 'Because the provided node count is %d, '
                 'the col indices are expected to be non-negative integers '
@@ -291,31 +312,30 @@ def _check_tree_col_indices(col, node_count):
                     node_count, node_count, unexpected_col_indices))
 
 def interpret_tree(scene):
-    nodes = set(range(scene.node_count))
+    nodes = range(scene.node_count)
     _check_tree_row_indices(scene.tree.row_nodes, scene.node_count)
     _check_tree_col_indices(scene.tree.column_nodes, scene.node_count)
-    negative_rates = rate[rate < 0]
-    if negative_rates:
-        raise SimpleError(
+    if np.min(scene.tree.edge_rate_scaling_factors) < 0:
+        raise ContentError(
                 'the edge-specific rate scaling factors '
                 'should be non-negative')
     T = nx.DiGraph()
-    T.add_nodes_from(range(scene.node_count))
+    T.add_nodes_from(nodes)
     edges = zip(scene.tree.row_nodes, scene.tree.column_nodes)
     T.add_edges_from(edges)
     if len(T.edges()) != len(edges):
-        raise Exception('the tree has an unexpected number of edges')
+        raise ContentError('the tree has an unexpected number of edges')
     if len(edges) + 1 != len(T):
-        raise Exception('expected the number of edges to be one more '
+        raise ContentError('expected the number of edges to be one more '
                 'than the number of nodes')
     in_degree = T.in_degree()
     roots = [n for n in nodes if in_degree[n] == 0]
     if len(roots) != 1:
-        raise Exception('expected exactly one root')
+        raise ContentError('expected exactly one root')
     for i in range(scene.node_count):
         T.in_degree()
     root = roots[0]
-    edges = zip(row, col)
+    edges = zip(scene.tree.row_nodes, scene.tree.column_nodes)
     edge_rate_pairs = zip(edges, scene.tree.edge_rate_scaling_factors)
     edge_process_pairs = zip(edges, scene.tree.edge_processes)
     return T, root, edges, edge_rate_pairs, edge_process_pairs

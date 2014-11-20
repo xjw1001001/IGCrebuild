@@ -53,15 +53,16 @@ import numpy as np
 from numpy.testing import assert_equal
 
 from .expm_helpers import ActionExpm
+from .common_unpacking_ex import TopLevel, interpret_tree, interpret_root_prior
 from . import expect
 from . import ll
 
 def process_json_in(j_in):
     """
     The part of the input that is the same across requests is as follows.
-    I'm bundling all of this stuff together and calling it a 'scenario'.
+    I'm bundling all of this stuff together and calling it a 'scene'.
 
-    'scenario' : {
+    'scene' : {
         'node_count' : 4,
         'process_count' : 2,
         'state_space_shape' : [2, 2],
@@ -139,27 +140,25 @@ def process_json_in(j_in):
                 'column_states' : ...,
                 'transition_rates' : ...}, ...],
         'observed_data' : {
+
     """
+    # Precompute the size of the state space.
+    nstates = np.prod(toplevel.scene.state_space_shape)
 
     # Interpret the prior distribution by converting it to a dense array.
-    nstates = np.prod(toplevel.scenario.state_space_shape)
-    feas = np.ravel_multi_index(
-            toplevel.scenario.root_prior.states.T,
-            toplevel.scenario.state_space_shape)
-    distn = np.zeros(nstates, dtype=float)
-    np.put(distn, feas, prior_distribution)
+    distn = interpret_root_prior(toplevel.scene)
 
-    # Unpack stuff related to the tree and its edges.
-    info = get_tree_info(j_in)
+    # Interpret stuff related to the tree and its edges.
+    info = interpret_tree(toplevel.scene)
     T, root, edges, edge_rate_pairs, edge_process_pairs = info
 
     # For each process, precompute the objects that are capable
     # of computing expm_mul and rate_mul for log likelihoods
     # and for its derivative with respect to edge-specific rates.
     f = []
-    for p in scenario.process_definitions:
+    for p in toplevel.scene.process_definitions:
         obj = ActionExpm(
-                toplevel.scenario.state_space_shape,
+                toplevel.scene.state_space_shape,
                 p.row_states,
                 p.column_states,
                 p.transition_rates)
@@ -176,10 +175,10 @@ def process_json_in(j_in):
     node_to_array = get_conditional_likelihoods(
             f, store_all_likelihood_arrays,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
-            toplevel.scenario.state_space_shape,
-            toplevel.scenario.observation_data.nodes,
-            toplevel.scenario.observation_data.variables,
-            toplevel.scenario.observation_data.iid_observations)
+            toplevel.scene.state_space_shape,
+            toplevel.scene.observation_data.nodes,
+            toplevel.scene.observation_data.variables,
+            toplevel.scene.observation_data.iid_observations)
 
     # Get likelihoods at the root.
     # These are passed to the derivatives procedure,
@@ -187,18 +186,31 @@ def process_json_in(j_in):
     # with respect to the log of the edge-specific rate scaling parameters.
     arr = node_to_array[root]
     likelihoods = distn.dot(arr)
+    assert_equal(len(likelihoods.shape), 1)
+
+    # If the likelihood at any site is zero
+    # then report infeasibility for the scene.
+    if not np.all(likelihoods):
+        return dict(
+                status = 'infeasible',
+                responses = None)
+
+    # Determine which edge derivatives are requested.
+    requested_derivative_edge_indices = set()
+    for r in toplevel.requests:
+        if r.property.endswith('deri'):
+            requested_derivative_edge_indices.update(r.edges)
     
     # Compute the derivative of the likelihood
     # with respect to each edge-specific rate scaling parameter.
-    requested_derivative_edge_indices = set(requested_derivatives)
     ei_to_derivatives = get_edge_derivatives(
             f, requested_derivative_edge_indices,
             node_to_array, distn,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
-            state_space_shape,
-            observable_nodes,
-            observable_axes,
-            iid_observations)
+            toplevel.scene.state_space_shape,
+            toplevel.scene.observation_data.nodes,
+            toplevel.scene.observation_data.variables,
+            toplevel.scene.observation_data.iid_observations)
 
     # Apply the prior distribution and take logs of the likelihoods.
     log_likelihoods = np.log(likelihoods)
