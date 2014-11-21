@@ -45,6 +45,7 @@ The interface is limited in that it does not support the following:
     * continuous observations along time intervals
     * non-axis-aligned state aggregate observations
     * noisy observations (subsumes state aggregate observations)
+    * partitions of observations within a single scene
 
 """
 from __future__ import division, print_function, absolute_import
@@ -145,6 +146,8 @@ def process_json_in(j_in):
     """
     # Precompute the size of the state space.
     nstates = np.prod(toplevel.scene.state_space_shape)
+    iid_observation_count = (
+            toplevel.scene.observed_data.iid_observations.shape[0])
 
     # Interpret the prior distribution by converting it to a dense array.
     distn = interpret_root_prior(toplevel.scene)
@@ -152,6 +155,7 @@ def process_json_in(j_in):
     # Interpret stuff related to the tree and its edges.
     info = interpret_tree(toplevel.scene)
     T, root, edges, edge_rate_pairs, edge_process_pairs = info
+    nedges = len(edges)
 
     # For each process, precompute the objects that are capable
     # of computing expm_mul and rate_mul for log likelihoods
@@ -197,10 +201,14 @@ def process_json_in(j_in):
                 responses = None)
 
     # Determine which edge derivatives are requested.
+    """
     requested_derivative_edge_indices = set()
     for r in toplevel.requests:
         if r.property.endswith('deri'):
             requested_derivative_edge_indices.update(r.edges)
+    """
+    # FIXME for now we just requre all edge indices
+    requested_derivative_edge_indices = set(range(nedges))
     
     # Compute the derivative of the likelihood
     # with respect to each edge-specific rate scaling parameter.
@@ -226,17 +234,27 @@ def process_json_in(j_in):
     # of edge-specific rate scaling factors.
     # According to calculus we can do it as follows.
     # Also reduce the derivative array according to the site weights.
-    edge_to_rate = dict(edge_rate_pairs)
-    ei_to_d = {}
-    for ei, derivatives in ei_to_derivatives.items():
-        edge = edges[ei]
-        edge_rate = edge_to_rate[edge]
-        d = site_weights.dot(derivatives / likelihoods)
-        ei_to_d[ei] = float(d)
+    #ei_to_d = {}
+    #for ei, derivatives in ei_to_derivatives.items():
+        #edge = edges[ei]
+        #d = site_weights.dot(derivatives / likelihoods)
+        #ei_to_d[ei] = float(d)
+
+    # Fill an array with unreduced derivatives.
+    derivatives = np.empty((iid_observation_count, nedges))
+    for ei, der in ei_to_derivatives.items():
+        derivatives[:, ei] = der / likelihoods
 
     # Map the derivatives back to a list whose entries
     # match the requested order of the indices.
     #derivatives_out = [ei_to_d[ei] for ei in requested_derivatives]
+
+    #{D,S,W}NNLOGL : 3
+    #{D,S,W}DNDERI : 3
+    #{D,S,W}{D,W}{D,W}DWEL : 12
+    #{D,S,W}{D,S,W}NTRAN : 9
+    #{D,S,W}N{D,W}ROOT : 6
+    #{D,S,W}N{D,W}NODE : 6
 
     # Create one response for each request.
     responses = []
@@ -244,14 +262,32 @@ def process_json_in(j_in):
         prefix, suffix = req.property[:3], req.property[-4:]
         observation_code, edge_code, state_code = prefix
         if suffix == 'logl':
-            if observation_code == 'd':
-                response = log_likelihoods.tolist()
-            elif observation_code == 's':
-                response = np.sum(log_likelihoods)
-            elif observation_code == 'w':
-                indices = req.observation_reduction.observation_indices
-                weights = req.observation_reduction.weights
-                response = np.dot(np.take(log_likelihoods, indices), weights)
+            response_per_site = log_likelihoods
+        elif suffix == 'deri':
+            response_per_site = derivatives
+        elif suffix == 'dwel':
+            #FIXME
+            response_per_site = log_likelihoods
+        elif suffix == 'tran':
+            #FIXME
+            response_per_site = log_likelihoods
+        elif suffix == 'root':
+            #FIXME
+            response_per_site = log_likelihoods
+        elif suffix == 'node':
+            #FIXME
+            response_per_site = log_likelihoods
+
+        if observation_code == 'd':
+            response = response_per_site
+        elif observation_code == 's':
+            response = np.sum(response_per_site, axis=0)
+        elif observation_code == 'w':
+            indices = req.observation_reduction.observation_indices
+            weights = req.observation_reduction.weights
+            arr = np.take(response_per_site, indices, axis=0)
+            response = np.dot(arr, weights)
+
         responses.append(response)
 
     # Return the response.
