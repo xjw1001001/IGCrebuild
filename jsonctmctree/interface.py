@@ -655,7 +655,3 @@ def process_json_in(j_in):
 
     # Return the response.
     return dict(status='feasible', responses=responses)
-
-
-
-

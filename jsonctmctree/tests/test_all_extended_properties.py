@@ -144,7 +144,15 @@ def _process_request(r):
     assert_equal(set(j_out), {'status', 'responses'})
     assert_equal(j_out['status'], 'feasible')
     assert_equal(len(j_out['responses']), 1)
-    return j_out['responses'][0]
+    out = j_out['responses'][0]
+    prefix = r['property'][:3].lower()
+    suffix = r['property'][-4:].lower()
+    if suffix == 'node':
+        assert_equal(len(np.array(out).shape), prefix.count('d') + 1)
+    else:
+        assert_equal(len(np.array(out).shape), prefix.count('d'))
+    return out
+
 
 """
     'requests' : [
