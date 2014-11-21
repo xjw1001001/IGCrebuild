@@ -2,8 +2,7 @@
 Linear combinations of labeled transition conditional expectations.
 
 These conditional expectations are computed per-edge per-site.
-Site weights are not accepted,
-because per-site information is returned anyway.
+Site weights are not accepted, because per-site information is returned anyway.
 Neither log likelihood nor its derivatives are returned.
 
 For each process, an extra vector the same size as the rate vector is required.
@@ -179,7 +178,7 @@ def get_edge_to_site_expectations(
         head_marginal_distn = node_to_marginal_distn[head_node]
         subtree_array = node_to_subtree_array[tail_node]
 
-        # Use a clever implicit schmeme for the exponential integration.
+        # Use a clever implicit scheme for the exponential integration.
         obj = expm_frechet_objects[edge_process]
         PR, KR = obj.get_expm_frechet_product(edge_rate, subtree_array)
         A = head_marginal_distn * pseudo_reciprocal(PR)

@@ -380,7 +380,7 @@ class ImplicitTransitionExpmFrechetEx(ImplicitExpmFrechetBase):
         # Initialize the upper-right sparse matrix.
         # Use sparse matrix elementwise multiplication.
         R = create_sparse_pre_rate_matrix(
-                state_space_shape, row, col, expect)
+                state_space_shape, expect_row, expect_col, expect_rate)
         Q01 = Q00.multiply(R).tocoo()
         Q01.col += nstates
         Q01.has_canonical_format = False

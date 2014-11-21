@@ -172,6 +172,40 @@ def _apply_eagerly_precomputed_dwell_objects(
     return edge_dwell_out
 
 
+def _compute_transition_expectations(
+        scene,
+        expm_objects, expm_frechet_objects, node_to_marginal_distn,
+        node_to_subtree_array, distn,
+        T, root, edges, edge_rate_pairs, edge_process_pairs,
+        ):
+    """
+
+    """
+    nprocesses = len(scene.process_definitions)
+    nsites = scene.observed_data.iid_observations.shape[0]
+    nstates = np.prod(scene.state_space_shape)
+
+    edge_to_site_expectations = expect.get_edge_to_site_expectations(
+            nsites, nstates,
+            expm_objects, expm_frechet_objects, node_to_marginal_distn,
+            node_to_subtree_array, distn,
+            T, root, edges, edge_rate_pairs, edge_process_pairs,
+            scene.state_space_shape,
+            scene.observed_data.nodes,
+            scene.observed_data.variables,
+            scene.observed_data.iid_observations,
+            debug=False)
+
+    # Map expectations back to edge indices.
+    # This will have shape (nedges, nsites).
+    expectations_out = []
+    for edge in edges:
+        site_expectations = edge_to_site_expectations[edge]
+        expectations_out.append(site_expectations)
+
+    return expectations_out
+
+
 def _process_json_in_naive(j_in, debug=False):
     """
     Eagerly computes everything and then later applies the reductions.
@@ -296,7 +330,7 @@ def _process_json_in_naive(j_in, debug=False):
     #{D,S,W}N{D,W}ROOT : 6
     #{D,S,W}N{D,W}NODE : 6
 
-    # Create one response for each request.
+    # Respond to each request, using a 'scene' common to all requests.
     responses = []
     for req in toplevel.requests:
         prefix, suffix = req.property[:3], req.property[-4:]
@@ -309,22 +343,24 @@ def _process_json_in_naive(j_in, debug=False):
         elif suffix == 'dwel':
             out = full_dwell_array
         elif suffix == 'tran':
-            #FIXME create expm transition objects specific
-            #      to the coefficients of the requested linear combination,
-            #      for each process.
             expm_transition_objects = []
-            #for p in toplevel.scene.process_definitions:
-                #obj = ImplicitTransitionExpmFrechetEx(
-                        #toplevel.scene.state_space_shape,
-                        #p.row_states,
-                        #p.column_states,
-                        #p.transition_rates,
-                        #)
-                #expm_frechet_objects.append(obj)
-            #def __init__(self, state_space_shape,
-                    #row, col, rate,
-                    #expect_row, expect_col, expect_rate):
-            out = log_likelihoods
+            for p in toplevel.scene.process_definitions:
+                obj = ImplicitTransitionExpmFrechetEx(
+                        toplevel.scene.state_space_shape,
+                        p.row_states,
+                        p.column_states,
+                        p.transition_rates,
+                        req.transition_reduction.row_states,
+                        req.transition_reduction.column_states,
+                        req.transition_reduction.weights,
+                        )
+                expm_transition_objects.append(obj)
+            arr = _compute_transition_expectations(
+                toplevel.scene,
+                expm_objects, expm_transition_objects, node_to_marginal_distn,
+                node_to_array, distn,
+                T, root, edges, edge_rate_pairs, edge_process_pairs)
+            out = np.array(arr).T
         elif suffix == 'root':
             out = full_node_array[:, :, root]
         elif suffix == 'node':
