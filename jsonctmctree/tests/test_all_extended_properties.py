@@ -133,6 +133,12 @@ def _get_scene():
                 ),
             )
 
+
+def _assert_list_shape(nested_lists, shape):
+    arr = np.array(nested_lists)
+    assert_equal(arr.shape, shape)
+
+
 def _process_request(r):
     j_out = interface.process_json_in(dict(scene=_get_scene(), requests=[r]))
     assert_equal(set(j_out), {'status', 'responses'})
@@ -170,49 +176,49 @@ def _process_request(r):
         ]
 """
 
+# hard-code some request info
+_sites = [0, 1, 2, 4, 3, 2]
+_site_weights = [0.1, 0.1, 0.2, 0.3, 0.5, 0.8]
+
 def test_logl():
     # {D,S,W}NNLOGL : 3
     observation_count = 5
-    sites = [0, 1, 2, 1]
-    weights = [0.1, 0.1, 0.2, 0.3]
     dnn = _process_request(dict(property='dnnlogl'))
     snn = _process_request(dict(property='snnlogl'))
     wnn = _process_request(dict(property='wnnlogl',
         observation_reduction = dict(
-            observation_indices=sites,
-            weights=weights,
+            observation_indices=_sites,
+            weights=_site_weights,
             ),
         ))
-    assert_equal(dnn.shape, (observation_count, ))
+    _assert_list_shape(dnn, (observation_count, ))
     assert_allclose(np.sum(dnn, axis=0), snn)
-    assert_allclose(np.dot(weights, np.take(dnn, sites)), wnn)
+    assert_allclose(interface._sparse_reduction(
+        dnn, _sites, _site_weights, 0), wnn)
 
 def test_deri():
     # {D,S,W}DNDERI : 3
     observation_count = 5
     edge_count = 4
-    sites = [0, 1, 2, 1]
-    weights = [0.1, 0.1, 0.2, 0.3]
     ddn = _process_request(dict(property='ddnderi'))
     sdn = _process_request(dict(property='sdnderi'))
     wdn = _process_request(dict(property='wdnderi',
         observation_reduction = dict(
-            observation_indices=sites,
-            weights=weights,
-            ),
+            observation_indices=_sites,
+            weights=_site_weights),
         ))
-    assert_equal(ddn.shape, (observation_count, edge_count))
-    assert_equal(sdn.shape, (edge_count, ))
-    assert_equal(wdn.shape, (edge_count, ))
+    _assert_list_shape(ddn, (observation_count, edge_count))
+    _assert_list_shape(sdn, (edge_count, ))
+    _assert_list_shape(wdn, (edge_count, ))
     assert_allclose(np.sum(ddn, axis=0), sdn)
-    arr = np.take(ddn, sites, axis=0)
-    assert_allclose(np.dot(arr, weights), wdn)
+    assert_allclose(interface._sparse_reduction(
+        ddn, _sites, _site_weights, 0), wdn)
 
 def test_dwel():
     # {D,S,W}{D,W}{D,W}DWEL : 12
     observation_reduction = dict(
-            observation_indices=[0, 1, 2, 1],
-            weights=[0.1, 0.1, 0.2, 0.3])
+            observation_indices=_sites,
+            weights=_site_weights)
     edge_reduction = dict(
             edges=[0, 3, 2],
             weights=[0.4, 0.5, 2.0])
@@ -251,8 +257,8 @@ def test_dwel():
 def test_tran():
     # {D,S,W}{D,S,W}NTRAN : 9
     observation_reduction = dict(
-            observation_indices=[0, 1, 2, 1],
-            weights=[0.1, 0.1, 0.2, 0.3])
+            observation_indices=_sites,
+            weights=_site_weights)
     edge_reduction = dict(
             edges=[0, 3, 2],
             weights=[0.4, 0.5, 2.0])
@@ -288,8 +294,8 @@ def test_tran():
 def test_root():
     # {D,S,W}N{D,W}ROOT : 6
     observation_reduction = dict(
-            observation_indices=[0, 1, 2, 1],
-            weights=[0.1, 0.1, 0.2, 0.3])
+            observation_indices=_sites,
+            weights=_site_weights)
     state_reduction = dict(
             states=[[0, 0], [0, 1], [1, 0]],
             weights=[3, 3, 3])
@@ -308,8 +314,8 @@ def test_root():
 def test_node():
     # {D,S,W}N{D,W}NODE : 6
     observation_reduction = dict(
-            observation_indices=[0, 1, 2, 1],
-            weights=[0.1, 0.1, 0.2, 0.3])
+            observation_indices=_sites,
+            weights=_site_weights)
     state_reduction = dict(
             states=[[0, 0], [0, 1], [1, 0]],
             weights=[3, 3, 3])

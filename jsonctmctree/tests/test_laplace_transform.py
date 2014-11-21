@@ -208,7 +208,7 @@ def test_laplace_transform_equilibrium_solution():
 
 
 def test_empirical():
-    nsamples = 10000
+    nsamples = 100
     n = 3
     I_univariate = np.identity(n)
 

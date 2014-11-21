@@ -53,11 +53,43 @@ from __future__ import division, print_function, absolute_import
 import numpy as np
 from numpy.testing import assert_equal
 
-from .expm_helpers import ActionExpm
+from .expm_helpers import (
+        ActionExpm,
+        ImplicitDwellExpmFrechet,
+        ImplicitTransitionExpmFrechetEx,
+        )
 from .common_likelihood import get_conditional_likelihoods
 from .common_unpacking_ex import TopLevel, interpret_tree, interpret_root_prior
 from . import expect
 from . import ll
+
+
+def _sparse_reduction(A, indices, weights, axis):
+    """
+    A weighted sum along an axis.
+
+    Parameters
+    ----------
+    A : ndarray
+        the ndarray to reduce
+    indices : 1d ndarray
+        the indices to be used in the reduction along the axis of interest
+    weights : 1d ndarray
+        the array of weights to be used in the reduction
+    axis : int
+        the axis along which to reduce the input ndarray
+
+    """
+    A = np.asarray(A)
+    indices = np.asarray(indices)
+    weights = np.asarray(weights)
+    assert_equal(indices.ndim, 1)
+    assert_equal(weights.ndim, 1)
+    assert_equal(indices.shape, weights.shape)
+    return np.tensordot(
+            np.take(A, indices, axis=axis),
+            weights,
+            axes=([axis], [0]))
 
 
 def _eagerly_precompute_dwell_objects(scene):
@@ -108,12 +140,12 @@ def _apply_eagerly_precomputed_dwell_objects(
     """
 
     """
-    assert_equal(len(dwell_objects), nprocesses)
-    nprocesses = scene.process_definitions.shape[0]
+    nprocesses = len(scene.process_definitions)
     nsites = scene.observed_data.iid_observations.shape[0]
     nstates = np.prod(scene.state_space_shape)
+    assert_equal(len(dwell_objects), nprocesses)
 
-    edge_to_dwell_expectations = get_edge_to_site_expectations(
+    edge_to_dwell_expectations = expect.get_edge_to_site_expectations(
             nsites, nstates,
             expm_objects, dwell_objects, node_to_marginal_distn,
             node_to_subtree_array, distn,
@@ -140,7 +172,7 @@ def _apply_eagerly_precomputed_dwell_objects(
     return edge_dwell_out
 
 
-def _process_json_in_naive(j_in):
+def _process_json_in_naive(j_in, debug=False):
     """
     Eagerly computes everything and then later applies the reductions.
 
@@ -179,7 +211,7 @@ def _process_json_in_naive(j_in):
     # In this naive implementation, always store all intermediate arrays.
     store_all_likelihood_arrays = True
     node_to_array = get_conditional_likelihoods(
-            f, store_all_likelihood_arrays,
+            expm_objects, store_all_likelihood_arrays,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             toplevel.scene.state_space_shape,
             toplevel.scene.observed_data.nodes,
@@ -209,7 +241,7 @@ def _process_json_in_naive(j_in):
     # In this naive implementation compute all edge derivatives.
     requested_derivative_edge_indices = set(range(nedges))
     ei_to_derivatives = ll.get_edge_derivatives(
-            f, requested_derivative_edge_indices,
+            expm_objects, requested_derivative_edge_indices,
             node_to_array, distn,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             toplevel.scene.state_space_shape,
@@ -222,7 +254,23 @@ def _process_json_in_naive(j_in):
     for ei, der in ei_to_derivatives.items():
         derivatives[:, ei] = der / likelihoods
 
-    # TODO precompute posterior marginal state distributions at nodes
+    # Compute the marginal distributions.
+    # The full node array will have shape (nsites, nstatates, nnodes).
+    if debug:
+        print('computing marginal distributions...', file=sys.stderr)
+    node_to_marginal_distn = expect.get_node_to_marginal_distn(
+            expm_objects,
+            node_to_array, distn,
+            T, root, edges, edge_rate_pairs, edge_process_pairs,
+            toplevel.scene.state_space_shape,
+            toplevel.scene.observed_data.nodes,
+            toplevel.scene.observed_data.variables,
+            toplevel.scene.observed_data.iid_observations,
+            debug=debug)
+    arr = []
+    for i in range(toplevel.scene.node_count):
+        arr.append(node_to_marginal_distn[i])
+    full_node_array = np.array(arr).T
 
     # Precompute dwell objects without regard to the requests.
     # This will obviously be changed for the less naive implementation.
@@ -235,9 +283,9 @@ def _process_json_in_naive(j_in):
     for dwell_state_index in range(nstates):
         dwell_objects = all_dwell_objects[dwell_state_index]
         arr.append(_apply_eagerly_precomputed_dwell_objects(
-                scene,
+                toplevel.scene,
                 expm_objects, dwell_objects, node_to_marginal_distn,
-                node_to_subtree_array, distn,
+                node_to_array, distn,
                 T, root, edges, edge_rate_pairs, edge_process_pairs))
     full_dwell_array = np.array(arr).T
 
@@ -255,11 +303,11 @@ def _process_json_in_naive(j_in):
         observation_code, edge_code, state_code = prefix
 
         if suffix == 'logl':
-            response = log_likelihoods
+            out = log_likelihoods
         elif suffix == 'deri':
-            response = derivatives
+            out = derivatives
         elif suffix == 'dwel':
-            response = full_dwell_array
+            out = full_dwell_array
         elif suffix == 'tran':
             #FIXME create expm transition objects specific
             #      to the coefficients of the requested linear combination,
@@ -276,45 +324,61 @@ def _process_json_in_naive(j_in):
             #def __init__(self, state_space_shape,
                     #row, col, rate,
                     #expect_row, expect_col, expect_rate):
-            response = log_likelihoods
+            out = log_likelihoods
         elif suffix == 'root':
-            #FIXME
-            response = log_likelihoods
+            out = full_node_array[:, :, root]
         elif suffix == 'node':
-            #FIXME
-            response = log_likelihoods
+            out = full_node_array
 
-        """
-        # Apply the state reduction if any.
-        if observation_code == 's':
-            response = np.sum(response, axis=0)
-        elif observation_code == 'w':
-            indices = req.observation_reduction.observation_indices
-            weights = req.observation_reduction.weights
-            arr = np.take(response, indices, axis=0)
-            response = np.dot(arr, weights)
-
-        # Apply the edge reduction if any.
-        if observation_code == 's':
-            response = np.sum(response, axis=0)
-        elif observation_code == 'w':
-            indices = req.observation_reduction.observation_indices
-            weights = req.observation_reduction.weights
-            arr = np.take(response, indices, axis=0)
-            response = np.dot(arr, weights)
-        """
+        # Prepare to apply the reductions.
+        reduction_axis = 0
 
         # Apply the observation reduction if any.
-        if observation_code == 's':
-            response = np.sum(response, axis=0)
+        if observation_code == 'd':
+            reduction_axis += 1
+        elif observation_code == 's':
+            out = np.sum(out, axis=reduction_axis)
         elif observation_code == 'w':
             indices = req.observation_reduction.observation_indices
             weights = req.observation_reduction.weights
-            arr = np.take(response, indices, axis=0)
-            response = np.dot(arr, weights)
+            out = _sparse_reduction(out, indices, weights, reduction_axis)
+
+        # Apply the edge reduction if any.
+        if edge_code == 'd':
+            reduction_axis += 1
+        elif edge_code == 's':
+            out = np.sum(out, axis=reduction_axis)
+        elif edge_code == 'w':
+            indices = req.edge_reduction.edges
+            weights = req.edge_reduction.weights
+            out = _sparse_reduction(out, indices, weights, reduction_axis)
+
+        # Apply the state reduction if any.
+        if state_code == 'd':
+            reduction_axis += 1
+        elif state_code == 's':
+            out = np.sum(out, axis=reduction_axis)
+        elif state_code == 'w':
+            indices = np.ravel_multi_index(
+                    req.state_reduction.states.T,
+                    toplevel.scene.state_space_shape)
+            weights = req.state_reduction.weights
+            out = _sparse_reduction(out, indices, weights, reduction_axis)
+
+        # Convert the ndarray to a list.
+        # If the response is a zero ndim ndarray, then this will
+        # convert to a single number.
+        # Otherwise if the response is not an ndarray
+        # (for example if it is a Python float),
+        # then an AttributeError will be raised and the response
+        # will be unchanged.
+        try:
+            out = out.tolist()
+        except AttributeError as e:
+            pass
 
         # Append the response.
-        responses.append(response)
+        responses.append(out)
 
     # Return the response.
     return dict(status='feasible', responses=responses)
@@ -385,6 +449,8 @@ def process_json_in(j_in):
         ]
 
     """
+    return _process_json_in_naive(j_in, debug=False)
+
     # Convert the parsed json input into something that looks
     # more like an object, with some input validation and some type converion.
     toplevel = TopLevel(j_in)
