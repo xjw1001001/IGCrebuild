@@ -18,7 +18,7 @@ Each requested reduction may be defined by either simple summation
 or by a user-specified weighted sum over a user-specified sequence of indices.
 
 The transition base property request always requires an additional
-weighted reduction (tran_reduction) that is defined on multivariate
+weighted reduction (transition_reduction) that is defined on multivariate
 state pairs.
 
 For each property request,
@@ -58,6 +58,267 @@ from .common_likelihood import get_conditional_likelihoods
 from .common_unpacking_ex import TopLevel, interpret_tree, interpret_root_prior
 from . import expect
 from . import ll
+
+
+def _eagerly_precompute_dwell_objects(scene):
+    """
+    Precompute dwell times for each state on each edge at each site.
+
+    This will be done more cleverly in the less naive implementation later.
+    Predefine the dwell objects for each process for each site.
+
+    Returns a nested list so that arr[i][j] is the dwell object
+    for integer state i and associated with process j.
+
+    """
+    nstates = np.prod(scene.state_space_shape)
+
+    dwell_objects = []
+    for dwell_state_index in range(nstates):
+
+        # The linear combination of states is not very interesting.
+        arr = []
+        dwell_state = np.array(np.unravel_index(
+                dwell_state_index, scene.state_space_shape))
+        dwell_states = np.array([dwell_state])
+        dwell_weights = np.ones(1)
+
+        # For this dwell state index track one object per unique process.
+        for p in scene.process_definitions:
+            obj = ImplicitDwellExpmFrechet(
+                    scene.state_space_shape,
+                    p.row_states,
+                    p.column_states,
+                    p.transition_rates,
+                    dwell_states,
+                    dwell_weights,
+                    )
+            arr.append(obj)
+        dwell_objects.append(arr)
+
+    return dwell_objects
+
+
+def _apply_eagerly_precomputed_dwell_objects(
+        scene,
+        expm_objects, dwell_objects, node_to_marginal_distn,
+        node_to_subtree_array, distn,
+        T, root, edges, edge_rate_pairs, edge_process_pairs,
+        ):
+    """
+
+    """
+    assert_equal(len(dwell_objects), nprocesses)
+    nprocesses = scene.process_definitions.shape[0]
+    nsites = scene.observed_data.iid_observations.shape[0]
+    nstates = np.prod(scene.state_space_shape)
+
+    edge_to_dwell_expectations = get_edge_to_site_expectations(
+            nsites, nstates,
+            expm_objects, dwell_objects, node_to_marginal_distn,
+            node_to_subtree_array, distn,
+            T, root, edges, edge_rate_pairs, edge_process_pairs,
+            scene.state_space_shape,
+            scene.observed_data.nodes,
+            scene.observed_data.variables,
+            scene.observed_data.iid_observations,
+            debug=False)
+
+    # These dwell times will be scaled by the edge-specific scaling factor.
+    # We want to remove that effect.
+    for edge, edge_rate in edge_rate_pairs:
+        if edge_rate:
+            edge_to_dwell_expectations[edge] /= edge_rate
+
+    # Map expectations back to edge indices.
+    # The output will be like (nedges, nsites).
+    edge_dwell_out = []
+    for edge in edges:
+        dwell_expectations = edge_to_dwell_expectations[edge]
+        edge_dwell_out.append(dwell_expectations)
+
+    return edge_dwell_out
+
+
+def _process_json_in_naive(j_in):
+    """
+    Eagerly computes everything and then later applies the reductions.
+
+    A less naive method would avoid precomputed unnecessary things
+    and would possibly move some reductions inside the computations.
+
+    """
+    toplevel = TopLevel(j_in)
+
+    # Precompute the size of the state space.
+    nstates = np.prod(toplevel.scene.state_space_shape)
+    iid_observation_count = (
+            toplevel.scene.observed_data.iid_observations.shape[0])
+
+    # Interpret the prior distribution by converting it to a dense array.
+    distn = interpret_root_prior(toplevel.scene)
+
+    # Interpret stuff related to the tree and its edges.
+    info = interpret_tree(toplevel.scene)
+    T, root, edges, edge_rate_pairs, edge_process_pairs = info
+    nedges = len(edges)
+
+    # For each process, precompute the objects that are capable
+    # of computing expm_mul and rate_mul for log likelihoods
+    # and for its derivative with respect to edge-specific rates.
+    expm_objects = []
+    for p in toplevel.scene.process_definitions:
+        obj = ActionExpm(
+                toplevel.scene.state_space_shape,
+                p.row_states,
+                p.column_states,
+                p.transition_rates)
+        expm_objects.append(obj)
+
+    # Precompute conditional likelihood arrays per node.
+    # In this naive implementation, always store all intermediate arrays.
+    store_all_likelihood_arrays = True
+    node_to_array = get_conditional_likelihoods(
+            f, store_all_likelihood_arrays,
+            T, root, edges, edge_rate_pairs, edge_process_pairs,
+            toplevel.scene.state_space_shape,
+            toplevel.scene.observed_data.nodes,
+            toplevel.scene.observed_data.variables,
+            toplevel.scene.observed_data.iid_observations)
+
+    # Get likelihoods at the root.
+    # These are passed to the derivatives procedure,
+    # to help compute the per-site derivatives of the log likelihoods
+    # with respect to the log of the edge-specific rate scaling parameters.
+    arr = node_to_array[root]
+    likelihoods = distn.dot(arr)
+    assert_equal(len(likelihoods.shape), 1)
+
+    # If the likelihood at any site is zero
+    # then report infeasibility for the scene.
+    if not np.all(likelihoods):
+        return dict(
+                status = 'infeasible',
+                responses = None)
+
+    # Apply the prior distribution and take logs of the likelihoods.
+    log_likelihoods = np.log(likelihoods)
+
+    # Compute the derivative of the likelihood
+    # with respect to each edge-specific rate scaling parameter.
+    # In this naive implementation compute all edge derivatives.
+    requested_derivative_edge_indices = set(range(nedges))
+    ei_to_derivatives = ll.get_edge_derivatives(
+            f, requested_derivative_edge_indices,
+            node_to_array, distn,
+            T, root, edges, edge_rate_pairs, edge_process_pairs,
+            toplevel.scene.state_space_shape,
+            toplevel.scene.observed_data.nodes,
+            toplevel.scene.observed_data.variables,
+            toplevel.scene.observed_data.iid_observations)
+
+    # Fill an array with all unreduced derivatives.
+    derivatives = np.empty((iid_observation_count, nedges))
+    for ei, der in ei_to_derivatives.items():
+        derivatives[:, ei] = der / likelihoods
+
+    # TODO precompute posterior marginal state distributions at nodes
+
+    # Precompute dwell objects without regard to the requests.
+    # This will obviously be changed for the less naive implementation.
+    all_dwell_objects = _eagerly_precompute_dwell_objects(toplevel.scene)
+
+    # Eagerly apply the eagerly computed dwell objects,
+    # creating an array like (nsites, nedges, nstates) after the transposition.
+    # A less naive implementation would compute this less eagerly.
+    arr = []
+    for dwell_state_index in range(nstates):
+        dwell_objects = all_dwell_objects[dwell_state_index]
+        arr.append(_apply_eagerly_precomputed_dwell_objects(
+                scene,
+                expm_objects, dwell_objects, node_to_marginal_distn,
+                node_to_subtree_array, distn,
+                T, root, edges, edge_rate_pairs, edge_process_pairs))
+    full_dwell_array = np.array(arr).T
+
+    #{D,S,W}NNLOGL : 3
+    #{D,S,W}DNDERI : 3
+    #{D,S,W}{D,W}{D,W}DWEL : 12
+    #{D,S,W}{D,S,W}NTRAN : 9
+    #{D,S,W}N{D,W}ROOT : 6
+    #{D,S,W}N{D,W}NODE : 6
+
+    # Create one response for each request.
+    responses = []
+    for req in toplevel.requests:
+        prefix, suffix = req.property[:3], req.property[-4:]
+        observation_code, edge_code, state_code = prefix
+
+        if suffix == 'logl':
+            response = log_likelihoods
+        elif suffix == 'deri':
+            response = derivatives
+        elif suffix == 'dwel':
+            response = full_dwell_array
+        elif suffix == 'tran':
+            #FIXME create expm transition objects specific
+            #      to the coefficients of the requested linear combination,
+            #      for each process.
+            expm_transition_objects = []
+            #for p in toplevel.scene.process_definitions:
+                #obj = ImplicitTransitionExpmFrechetEx(
+                        #toplevel.scene.state_space_shape,
+                        #p.row_states,
+                        #p.column_states,
+                        #p.transition_rates,
+                        #)
+                #expm_frechet_objects.append(obj)
+            #def __init__(self, state_space_shape,
+                    #row, col, rate,
+                    #expect_row, expect_col, expect_rate):
+            response = log_likelihoods
+        elif suffix == 'root':
+            #FIXME
+            response = log_likelihoods
+        elif suffix == 'node':
+            #FIXME
+            response = log_likelihoods
+
+        """
+        # Apply the state reduction if any.
+        if observation_code == 's':
+            response = np.sum(response, axis=0)
+        elif observation_code == 'w':
+            indices = req.observation_reduction.observation_indices
+            weights = req.observation_reduction.weights
+            arr = np.take(response, indices, axis=0)
+            response = np.dot(arr, weights)
+
+        # Apply the edge reduction if any.
+        if observation_code == 's':
+            response = np.sum(response, axis=0)
+        elif observation_code == 'w':
+            indices = req.observation_reduction.observation_indices
+            weights = req.observation_reduction.weights
+            arr = np.take(response, indices, axis=0)
+            response = np.dot(arr, weights)
+        """
+
+        # Apply the observation reduction if any.
+        if observation_code == 's':
+            response = np.sum(response, axis=0)
+        elif observation_code == 'w':
+            indices = req.observation_reduction.observation_indices
+            weights = req.observation_reduction.weights
+            arr = np.take(response, indices, axis=0)
+            response = np.dot(arr, weights)
+
+        # Append the response.
+        responses.append(response)
+
+    # Return the response.
+    return dict(status='feasible', responses=responses)
+
 
 def process_json_in(j_in):
     """
@@ -292,3 +553,7 @@ def process_json_in(j_in):
 
     # Return the response.
     return dict(status='feasible', responses=responses)
+
+
+
+
