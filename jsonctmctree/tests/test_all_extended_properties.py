@@ -250,22 +250,77 @@ def test_dwel():
 
 def test_tran():
     # {D,S,W}{D,S,W}NTRAN : 9
+    observation_reduction = dict(
+            observation_indices=[0, 1, 2, 1],
+            weights=[0.1, 0.1, 0.2, 0.3])
+    edge_reduction = dict(
+            edges=[0, 3, 2],
+            weights=[0.4, 0.5, 2.0])
     transition_reduction = dict(
         row_states = [[0, 0], [0, 1], [1, 0]],
         column_states = [[1, 1], [1, 1], [0, 1]],
-        weights = [1, 2, 3],
-        )
-    r = _process_request(dict(
-        property = 'ddntran',
+        weights = [1, 2, 3])
+    ddn = _process_request(dict(property='ddntran',
+        transition_reduction = transition_reduction))
+    sdn = _process_request(dict(property='sdntran',
+        transition_reduction = transition_reduction))
+    wdn = _process_request(dict(property='wdntran',
         transition_reduction = transition_reduction,
-        ))
+        observation_reduction = observation_reduction))
+    dsn = _process_request(dict(property='dsntran',
+        transition_reduction = transition_reduction))
+    ssn = _process_request(dict(property='ssntran',
+        transition_reduction = transition_reduction))
+    wsn = _process_request(dict(property='wsntran',
+        transition_reduction = transition_reduction,
+        observation_reduction = observation_reduction))
+    dwn = _process_request(dict(property='dwntran',
+        transition_reduction = transition_reduction,
+        edge_reduction = edge_reduction))
+    swn = _process_request(dict(property='swntran',
+        transition_reduction = transition_reduction,
+        edge_reduction = edge_reduction))
+    wwn = _process_request(dict(property='wwntran',
+        transition_reduction = transition_reduction,
+        edge_reduction = edge_reduction,
+        observation_reduction = observation_reduction))
 
 def test_root():
     # {D,S,W}N{D,W}ROOT : 6
-    r = _process_request(dict(property='dndroot',
-        ))
+    observation_reduction = dict(
+            observation_indices=[0, 1, 2, 1],
+            weights=[0.1, 0.1, 0.2, 0.3])
+    state_reduction = dict(
+            states=[[0, 0], [0, 1], [1, 0]],
+            weights=[3, 3, 3])
+    dnd = _process_request(dict(property='dndroot'))
+    snd = _process_request(dict(property='sndroot'))
+    wnd = _process_request(dict(property='wndroot',
+        observation_reduction = observation_reduction))
+    dnw = _process_request(dict(property='dnwroot',
+        state_reduction = state_reduction))
+    snw = _process_request(dict(property='snwroot',
+        state_reduction = state_reduction))
+    wnw = _process_request(dict(property='wnwroot',
+        state_reduction = state_reduction,
+        observation_reduction = observation_reduction))
 
 def test_node():
     # {D,S,W}N{D,W}NODE : 6
-    r = _process_request(dict(property='dndnode',
-        ))
+    observation_reduction = dict(
+            observation_indices=[0, 1, 2, 1],
+            weights=[0.1, 0.1, 0.2, 0.3])
+    state_reduction = dict(
+            states=[[0, 0], [0, 1], [1, 0]],
+            weights=[3, 3, 3])
+    dnd = _process_request(dict(property='dndnode'))
+    snd = _process_request(dict(property='sndnode'))
+    wnd = _process_request(dict(property='wndnode',
+        observation_reduction = observation_reduction))
+    dnw = _process_request(dict(property='dnwnode',
+        state_reduction = state_reduction))
+    snw = _process_request(dict(property='snwnode',
+        state_reduction = state_reduction))
+    wnw = _process_request(dict(property='wnwnode',
+        state_reduction = state_reduction,
+        observation_reduction = observation_reduction))
