@@ -8,6 +8,8 @@ linear combinations of labeled transitions on edges.
 """
 from __future__ import division, print_function, absolute_import
 
+import sys
+
 import numpy as np
 from numpy.testing import assert_equal
 
