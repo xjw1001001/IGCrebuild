@@ -13,6 +13,12 @@ from numpy.testing import assert_equal
 
 from .node_ordering import get_node_evaluation_order
 
+__all__ = [
+        'create_indicator_array',
+        'get_conditional_likelihoods',
+        'get_subtree_likelihoods',
+        ]
+
 
 def create_indicator_array(
         node,

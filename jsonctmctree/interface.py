@@ -50,6 +50,8 @@ The interface is limited in that it does not support the following:
 """
 from __future__ import division, print_function, absolute_import
 
+import sys
+
 import numpy as np
 from numpy.testing import assert_equal
 
@@ -58,7 +60,8 @@ from .expm_helpers import (
         ImplicitDwellExpmFrechet,
         ImplicitTransitionExpmFrechetEx,
         )
-from .common_likelihood import get_conditional_likelihoods
+from .common_likelihood import (
+        get_conditional_likelihoods, get_subtree_likelihoods)
 from .common_unpacking_ex import TopLevel, interpret_tree, interpret_root_prior
 from . import expect
 from . import ll
@@ -134,7 +137,7 @@ def _eagerly_precompute_dwell_objects(scene):
 def _apply_eagerly_precomputed_dwell_objects(
         scene,
         expm_objects, dwell_objects, node_to_marginal_distn,
-        node_to_subtree_array, distn,
+        node_to_subtree_likelihoods, prior_distn,
         T, root, edges, edge_rate_pairs, edge_process_pairs,
         ):
     """
@@ -148,7 +151,7 @@ def _apply_eagerly_precomputed_dwell_objects(
     edge_to_dwell_expectations = expect.get_edge_to_site_expectations(
             nsites, nstates,
             expm_objects, dwell_objects, node_to_marginal_distn,
-            node_to_subtree_array, distn,
+            node_to_subtree_likelihoods, prior_distn,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             scene.state_space_shape,
             scene.observed_data.nodes,
@@ -175,8 +178,9 @@ def _apply_eagerly_precomputed_dwell_objects(
 def _compute_transition_expectations(
         scene,
         expm_objects, expm_frechet_objects, node_to_marginal_distn,
-        node_to_subtree_array, distn,
+        node_to_subtree_likelihoods, prior_distn,
         T, root, edges, edge_rate_pairs, edge_process_pairs,
+        debug=False,
         ):
     """
 
@@ -188,13 +192,13 @@ def _compute_transition_expectations(
     edge_to_site_expectations = expect.get_edge_to_site_expectations(
             nsites, nstates,
             expm_objects, expm_frechet_objects, node_to_marginal_distn,
-            node_to_subtree_array, distn,
+            node_to_subtree_likelihoods, prior_distn,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             scene.state_space_shape,
             scene.observed_data.nodes,
             scene.observed_data.variables,
             scene.observed_data.iid_observations,
-            debug=False)
+            debug=debug)
 
     # Map expectations back to edge indices.
     # This will have shape (nedges, nsites).
@@ -222,7 +226,8 @@ def _process_json_in_naive(j_in, debug=False):
             toplevel.scene.observed_data.iid_observations.shape[0])
 
     # Interpret the prior distribution by converting it to a dense array.
-    distn = interpret_root_prior(toplevel.scene)
+    prior_distn = interpret_root_prior(toplevel.scene)
+    #print('new interpreted distribution:', prior_distn)
 
     # Interpret stuff related to the tree and its edges.
     info = interpret_tree(toplevel.scene)
@@ -241,24 +246,38 @@ def _process_json_in_naive(j_in, debug=False):
                 p.transition_rates)
         expm_objects.append(obj)
 
-    # Precompute conditional likelihood arrays per node.
     # In this naive implementation, always store all intermediate arrays.
-    store_all_likelihood_arrays = True
-    node_to_array = get_conditional_likelihoods(
-            expm_objects, store_all_likelihood_arrays,
+    store_all = True
+    node_to_subtree_likelihoods = get_subtree_likelihoods(
+            expm_objects,
+            store_all,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             toplevel.scene.state_space_shape,
             toplevel.scene.observed_data.nodes,
             toplevel.scene.observed_data.variables,
-            toplevel.scene.observed_data.iid_observations)
+            toplevel.scene.observed_data.iid_observations,
+            )
+
+    # In this naive implementation, always store all intermediate arrays.
+    store_all = True
+    node_to_conditional_likelihoods = get_conditional_likelihoods(
+            expm_objects,
+            store_all,
+            T, root, edges, edge_rate_pairs, edge_process_pairs,
+            toplevel.scene.state_space_shape,
+            toplevel.scene.observed_data.nodes,
+            toplevel.scene.observed_data.variables,
+            toplevel.scene.observed_data.iid_observations,
+            )
 
     # Get likelihoods at the root.
     # These are passed to the derivatives procedure,
     # to help compute the per-site derivatives of the log likelihoods
     # with respect to the log of the edge-specific rate scaling parameters.
-    arr = node_to_array[root]
-    likelihoods = distn.dot(arr)
+    arr = node_to_conditional_likelihoods[root]
+    likelihoods = prior_distn.dot(arr)
     assert_equal(len(likelihoods.shape), 1)
+    print('new likelihoods:', likelihoods)
 
     # If the likelihood at any site is zero
     # then report infeasibility for the scene.
@@ -270,31 +289,13 @@ def _process_json_in_naive(j_in, debug=False):
     # Apply the prior distribution and take logs of the likelihoods.
     log_likelihoods = np.log(likelihoods)
 
-    # Compute the derivative of the likelihood
-    # with respect to each edge-specific rate scaling parameter.
-    # In this naive implementation compute all edge derivatives.
-    requested_derivative_edge_indices = set(range(nedges))
-    ei_to_derivatives = ll.get_edge_derivatives(
-            expm_objects, requested_derivative_edge_indices,
-            node_to_array, distn,
-            T, root, edges, edge_rate_pairs, edge_process_pairs,
-            toplevel.scene.state_space_shape,
-            toplevel.scene.observed_data.nodes,
-            toplevel.scene.observed_data.variables,
-            toplevel.scene.observed_data.iid_observations)
-
-    # Fill an array with all unreduced derivatives.
-    derivatives = np.empty((iid_observation_count, nedges))
-    for ei, der in ei_to_derivatives.items():
-        derivatives[:, ei] = der / likelihoods
-
     # Compute the marginal distributions.
     # The full node array will have shape (nsites, nstatates, nnodes).
     if debug:
         print('computing marginal distributions...', file=sys.stderr)
     node_to_marginal_distn = expect.get_node_to_marginal_distn(
             expm_objects,
-            node_to_array, distn,
+            node_to_subtree_likelihoods, prior_distn,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             toplevel.scene.state_space_shape,
             toplevel.scene.observed_data.nodes,
@@ -305,6 +306,32 @@ def _process_json_in_naive(j_in, debug=False):
     for i in range(toplevel.scene.node_count):
         arr.append(node_to_marginal_distn[i])
     full_node_array = np.array(arr).T
+
+    """
+    print('new marginal distributions:')
+    for node in range(toplevel.scene.node_count):
+        print('node', node)
+        print(node_to_marginal_distn[node])
+    print()
+    """
+
+    # Compute the derivative of the likelihood
+    # with respect to each edge-specific rate scaling parameter.
+    # In this naive implementation compute all edge derivatives.
+    requested_derivative_edge_indices = set(range(nedges))
+    ei_to_derivatives = ll.get_edge_derivatives(
+            expm_objects, requested_derivative_edge_indices,
+            node_to_conditional_likelihoods, prior_distn,
+            T, root, edges, edge_rate_pairs, edge_process_pairs,
+            toplevel.scene.state_space_shape,
+            toplevel.scene.observed_data.nodes,
+            toplevel.scene.observed_data.variables,
+            toplevel.scene.observed_data.iid_observations)
+
+    # Fill an array with all unreduced derivatives.
+    derivatives = np.empty((iid_observation_count, nedges))
+    for ei, der in ei_to_derivatives.items():
+        derivatives[:, ei] = der / likelihoods
 
     # Precompute dwell objects without regard to the requests.
     # This will obviously be changed for the less naive implementation.
@@ -319,7 +346,7 @@ def _process_json_in_naive(j_in, debug=False):
         arr.append(_apply_eagerly_precomputed_dwell_objects(
                 toplevel.scene,
                 expm_objects, dwell_objects, node_to_marginal_distn,
-                node_to_array, distn,
+                node_to_subtree_likelihoods, prior_distn,
                 T, root, edges, edge_rate_pairs, edge_process_pairs))
     full_dwell_array = np.array(arr).T
 
@@ -358,8 +385,9 @@ def _process_json_in_naive(j_in, debug=False):
             arr = _compute_transition_expectations(
                 toplevel.scene,
                 expm_objects, expm_transition_objects, node_to_marginal_distn,
-                node_to_array, distn,
-                T, root, edges, edge_rate_pairs, edge_process_pairs)
+                node_to_subtree_likelihoods, prior_distn,
+                T, root, edges, edge_rate_pairs, edge_process_pairs,
+                debug=debug)
             out = np.array(arr).T
         elif suffix == 'root':
             out = full_node_array[:, :, root]
@@ -420,7 +448,7 @@ def _process_json_in_naive(j_in, debug=False):
     return dict(status='feasible', responses=responses)
 
 
-def process_json_in(j_in):
+def process_json_in(j_in, debug=False):
     """
     The part of the input that is the same across requests is as follows.
     I'm bundling all of this stuff together and calling it a 'scene'.
@@ -485,7 +513,7 @@ def process_json_in(j_in):
         ]
 
     """
-    return _process_json_in_naive(j_in, debug=False)
+    return _process_json_in_naive(j_in, debug=debug)
 
     # Convert the parsed json input into something that looks
     # more like an object, with some input validation and some type converion.
@@ -513,7 +541,7 @@ def process_json_in(j_in):
             toplevel.scene.observed_data.iid_observations.shape[0])
 
     # Interpret the prior distribution by converting it to a dense array.
-    distn = interpret_root_prior(toplevel.scene)
+    prior_distn = interpret_root_prior(toplevel.scene)
 
     # Interpret stuff related to the tree and its edges.
     info = interpret_tree(toplevel.scene)
@@ -553,7 +581,7 @@ def process_json_in(j_in):
     # to help compute the per-site derivatives of the log likelihoods
     # with respect to the log of the edge-specific rate scaling parameters.
     arr = node_to_array[root]
-    likelihoods = distn.dot(arr)
+    likelihoods = prior_distn.dot(arr)
     assert_equal(len(likelihoods.shape), 1)
 
     # If the likelihood at any site is zero
@@ -577,7 +605,7 @@ def process_json_in(j_in):
     # with respect to each edge-specific rate scaling parameter.
     ei_to_derivatives = ll.get_edge_derivatives(
             f, requested_derivative_edge_indices,
-            node_to_array, distn,
+            node_to_array, prior_distn,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             toplevel.scene.state_space_shape,
             toplevel.scene.observed_data.nodes,

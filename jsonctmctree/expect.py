@@ -275,13 +275,23 @@ def process_json_in(j_in, debug=False):
     # Precompute conditional likelihood arrays per node.
     if debug:
         print('computing subtree likelihoods...', file=sys.stderr)
-    node_to_subtree_array = get_subtree_likelihoods(
-            f, store_all_likelihood_arrays,
+    print('old info dump:')
+    print(
+            store_all_likelihood_arrays,
             T, root, edges, edge_rate_pairs, edge_process_pairs,
             state_space_shape,
             observable_nodes,
             observable_axes,
-            iid_observations)
+            iid_observations,)
+    node_to_subtree_array = get_subtree_likelihoods(
+            f,
+            store_all_likelihood_arrays,
+            T, root, edges, edge_rate_pairs, edge_process_pairs,
+            state_space_shape,
+            observable_nodes,
+            observable_axes,
+            iid_observations,
+            )
 
     # Check the shape of the array.
     # Avoid copying a lot of huge arrays.
@@ -322,6 +332,12 @@ def process_json_in(j_in, debug=False):
     # Avoid copying a lot of huge arrays.
     for node in range(nnodes):
         assert_equal(node_to_marginal_distn[node].shape, (nstates, nsites))
+
+    print('old marginal distributions:')
+    for node in range(nnodes):
+        print('node', node)
+        print(node_to_marginal_distn[node])
+    print()
 
     # Compute transition count expectations.
     if debug:

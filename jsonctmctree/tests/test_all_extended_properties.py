@@ -154,36 +154,6 @@ def _process_request(r):
     return out
 
 
-"""
-    'requests' : [
-        {
-            'property' : 'snnlogl'
-        },
-        {
-            'property' : 'wwwdwel',
-            'observation_reduction' : {
-                'observation_indices' : [1, 1, 1],
-                'weights' : [1, 1, 1]},
-            'edge_reduction' : {
-                'edges' : [1, 1, 1],
-                'weights' : [1, 1, 1]},
-            'state_reduction' : {
-                'states' : [[0, 0], [0, 1], [0, 2]],
-                'weights' : [1, 1, 1]}
-        },
-        {
-            'property' : 'wsntran',
-            'observation_reduction' : {
-                'observation_indices' : [1, 1, 1],
-                'weights' : [1, 1, 1]},
-            'transition_reduction' : {
-                'row_states' : [[0, 0], [0, 1], [0, 2]],
-                'column_states' : [[0, 1], [0, 2], [0, 0]],
-                'weights' : [1, 1, 1]}
-        }
-        ]
-"""
-
 # hard-code some request info
 _sites = [0, 1, 2, 4, 3, 2]
 _site_weights = [0.1, 0.1, 0.2, 0.3, 0.5, 0.8]
