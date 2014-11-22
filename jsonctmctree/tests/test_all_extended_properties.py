@@ -76,6 +76,7 @@ import numpy as np
 from numpy.testing import assert_allclose, assert_equal
 
 from jsonctmctree import interface
+from jsonctmctree.util import sparse_reduction
 
 def _get_scene():
     a = 0.2
@@ -171,8 +172,7 @@ def test_logl():
         ))
     _assert_list_shape(dnn, (observation_count, ))
     assert_allclose(np.sum(dnn, axis=0), snn)
-    assert_allclose(interface._sparse_reduction(
-        dnn, _sites, _site_weights, 0), wnn)
+    assert_allclose(sparse_reduction(dnn, _sites, _site_weights, 0), wnn)
 
 def test_deri():
     # {D,S,W}DNDERI : 3
@@ -189,8 +189,7 @@ def test_deri():
     _assert_list_shape(sdn, (edge_count, ))
     _assert_list_shape(wdn, (edge_count, ))
     assert_allclose(np.sum(ddn, axis=0), sdn)
-    assert_allclose(interface._sparse_reduction(
-        ddn, _sites, _site_weights, 0), wdn)
+    assert_allclose(sparse_reduction(ddn, _sites, _site_weights, 0), wdn)
 
 def test_dwel():
     # {D,S,W}{D,W}{D,W}DWEL : 12
