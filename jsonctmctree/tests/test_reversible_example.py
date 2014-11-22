@@ -190,18 +190,13 @@ def test_time_reversible_invariants():
     for site in range(nsites):
         assert_allclose(e0_dwell[site], list(reversed(e1_dwell[site])))
 
-    # Now compare to the advanced interface.
+    # Compare to the more advanced interface.
 
     j0_ex = _process_ex(Q, d, nodes[0])
     j1_ex = _process_ex(Q, d, nodes[-1])
 
     e0_ex_dwell, e0_ex_trans = j0_ex['responses']
     e1_ex_dwell, e1_ex_trans = j1_ex['responses']
-
-    #print(e0_ex_dwell)
-    #print(e0_ex_trans)
-    #print(e1_ex_dwell)
-    #print(e1_ex_trans)
 
     for site in range(nsites):
         assert_allclose(e0_ex_trans[site], list(reversed(e1_ex_trans[site])))

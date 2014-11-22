@@ -227,7 +227,6 @@ def _process_json_in_naive(j_in, debug=False):
 
     # Interpret the prior distribution by converting it to a dense array.
     prior_distn = interpret_root_prior(toplevel.scene)
-    #print('new interpreted distribution:', prior_distn)
 
     # Interpret stuff related to the tree and its edges.
     info = interpret_tree(toplevel.scene)
@@ -277,7 +276,6 @@ def _process_json_in_naive(j_in, debug=False):
     arr = node_to_conditional_likelihoods[root]
     likelihoods = prior_distn.dot(arr)
     assert_equal(len(likelihoods.shape), 1)
-    print('new likelihoods:', likelihoods)
 
     # If the likelihood at any site is zero
     # then report infeasibility for the scene.
@@ -306,14 +304,6 @@ def _process_json_in_naive(j_in, debug=False):
     for i in range(toplevel.scene.node_count):
         arr.append(node_to_marginal_distn[i])
     full_node_array = np.array(arr).T
-
-    """
-    print('new marginal distributions:')
-    for node in range(toplevel.scene.node_count):
-        print('node', node)
-        print(node_to_marginal_distn[node])
-    print()
-    """
 
     # Compute the derivative of the likelihood
     # with respect to each edge-specific rate scaling parameter.
