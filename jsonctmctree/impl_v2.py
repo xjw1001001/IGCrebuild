@@ -20,7 +20,7 @@ from .expm_helpers import (
 from .common_likelihood import (
         get_conditional_likelihoods, get_subtree_likelihoods)
 from .common_unpacking_ex import TopLevel, interpret_tree, interpret_root_prior
-from .common_reduction import apply_reductions
+from .common_reduction import apply_prefixed_reductions, apply_reductions
 from .util import sparse_reduction
 from . import expect
 from . import ll
@@ -408,11 +408,137 @@ class Reactor(object):
                 responses[i] = out.tolist()
         return True
 
-    #FIXME
     def _respond_to_dwel(self, unmet_core_requests, requests, responses):
         if 'dwel' not in unmet_core_requests:
             return False
-        raise NotImplementedError
+        if self.node_to_subtree_likelihoods is None:
+            return False
+        if self.node_to_marginal_distn is None:
+            return False
+
+        # Precompute some counts.
+        nsites = self.scene.observed_data.iid_observations.shape[0]
+        nstates = np.prod(self.scene.state_space_shape)
+
+        # If any dwell request does not reduce the 'state' axis,
+        # or if the number of states is less than the number
+        # of 'dwel' requests, then precompute all dwell objects up front
+        # and use reduction to meet each request.
+        # Otherwise create request-specific dwell objects.
+        precompute_per_state = False
+        unmet_dwel_request_count = 0
+        for request, response in zip(requests, responses):
+            if response is not None:
+                continue
+            suffix = request.property[-4:]
+            if suffix != 'dwel':
+                continue
+            prefix = request.property[:3]
+            if prefix[2] == 'd':
+                precompute_per_state = True
+            unmet_dwel_request_count += 1
+        if nstates <= unmet_dwel_request_count:
+            precompute_per_state = True
+
+        if precompute_per_state:
+            # Apply the precomputed dwell objects, creating
+            # an array like (nsites, nedges, nstates) after the transposition.
+            all_dwell_objects = _eagerly_precompute_dwell_objects(self.scene)
+            arr = []
+            for dwell_state_index in range(nstates):
+                dwell_objects = all_dwell_objects[dwell_state_index]
+                arr.append(_apply_eagerly_precomputed_dwell_objects(
+                        self.scene,
+                        self.expm_objects,
+                        dwell_objects,
+                        self.node_to_marginal_distn,
+                        self.node_to_subtree_likelihoods,
+                        self.prior_distn,
+                        self.T,
+                        self.root,
+                        self.edges,
+                        self.edge_rate_pairs,
+                        self.edge_process_pairs))
+            full_dwell_array = np.array(arr).T
+            # Use the full dwell array to meet the requests.
+            for i, request in enumerate(requests):
+                prefix = request.property[:3]
+                suffix = request.property[-4:]
+                if suffix == 'dwel':
+                    s = self.scene.state_space_shape
+                    out = apply_reductions(s, request, full_dwell_array)
+                    responses[i] = out.tolist()
+        else:
+            # Compute each reduction separately.
+            for i, request in enumerate(requests):
+                prefix = request.property[:3]
+                suffix = request.property[-4:]
+                if suffix != 'dwel':
+                    continue
+
+                # Compute the dwell object per process for the request.
+                dwell_objects = []
+                for p in self.scene.process_definitions:
+                    obj = ImplicitDwellExpmFrechet(
+                            self.scene.state_space_shape,
+                            p.row_states,
+                            p.column_states,
+                            p.transition_rates,
+                            request.state_reduction.states,
+                            request.state_reduction.weights,
+                            )
+                    dwell_objects.append(obj)
+
+                # Use the dwell object to compute the reduction.
+                edge_to_dwell = expect.get_edge_to_site_expectations(
+                        nsites, nstates,
+                        self.expm_objects,
+                        dwell_objects,
+                        self.node_to_marginal_distn,
+                        self.node_to_subtree_likelihoods,
+                        self.prior_distn,
+                        self.T,
+                        self.root,
+                        self.edges,
+                        self.edge_rate_pairs,
+                        self.edge_process_pairs,
+                        self.scene.state_space_shape,
+                        self.scene.observed_data.nodes,
+                        self.scene.observed_data.variables,
+                        self.scene.observed_data.iid_observations,
+                        debug=False)
+
+                # These dwell times will have been scaled
+                # by the edge-specific scaling factor.
+                # We want to remove that effect.
+                for edge, edge_rate in self.edge_rate_pairs:
+                    if edge_rate:
+                        edge_to_dwell[edge] /= edge_rate
+
+                # Map expectations back to edge indices.
+                # The output will be like (nedges, nsites).
+                edge_dwell_out = []
+                for edge in self.edges:
+                    dwell_expectations = edge_to_dwell[edge]
+                    edge_dwell_out.append(dwell_expectations)
+
+                # Transpose to (nsites, nedges).
+                dwell_array = np.array(edge_dwell_out).T
+
+                # Create a custom prefix indicating that the 'state' axis
+                # reduction has already been performed.
+                custom_prefix = list(request.property[:3])
+                custom_prefix[2] = 'x'
+                custom_prefix = ''.join(custom_prefix)
+
+                # Compute the requested reduction using the custom prefix.
+                out = apply_prefixed_reductions(
+                    self.scene.state_space_shape,
+                    custom_prefix,
+                    request,
+                    dwell_array)
+                responses[i] = out.tolist()
+
         return True
 
     #FIXME

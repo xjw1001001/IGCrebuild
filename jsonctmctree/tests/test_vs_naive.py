@@ -98,7 +98,7 @@ def test_all_properties():
     # loop over all possible reductions
     #TODO implement all properties
     #core_properties = ('logl', 'deri', 'dwel', 'tran', 'root', 'node')
-    core_properties = ('logl', 'deri', 'root', 'node')
+    core_properties = ('logl', 'deri', 'root', 'dwel', 'node')
     for components in product('dswn', 'dswn', 'dswn', core_properties):
 
         # Define the corresponding extended property.

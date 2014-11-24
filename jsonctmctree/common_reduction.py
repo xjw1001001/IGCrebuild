@@ -6,7 +6,11 @@ import numpy as np
 from numpy.testing import assert_equal
 
 
-__all__ = ['sparse_reduction', 'apply_reductions']
+__all__ = [
+        'sparse_reduction',
+        'apply_prefixed_reductions',
+        'apply_reductions',
+        ]
 
 
 def sparse_reduction(A, indices, weights, axis):
@@ -37,11 +41,18 @@ def sparse_reduction(A, indices, weights, axis):
             axes=([axis], [0]))
 
 
-def apply_reductions(state_space_shape, req, out):
+def apply_prefixed_reductions(state_space_shape, custom_prefix, req, out):
+    """
+    Apply reductions using a custom prefix.
 
-    # Unpack the prefix that defines the reduction axes.
-    prefix = req.property[:3]
-    observation_code, edge_code, state_code = prefix
+    For example, if a reduction along one of the axes has already
+    been performed using a more sophisticated method,
+    then this function could be called with some letter other than
+    {'d', 'n', 's', 'w'} at that position.
+
+    """
+    # Define the reduction codes.
+    observation_code, edge_code, state_code = custom_prefix
 
     # Initialize the reduction axis.
     reduction_axis = 0
@@ -85,3 +96,13 @@ def apply_reductions(state_space_shape, req, out):
         out = sparse_reduction(out, indices, weights, reduction_axis)
 
     return out
+
+
+def apply_reductions(state_space_shape, req, out):
+    """
+    Apply reductions using the prefix defined by the request object.
+
+    """
+    # Unpack the prefix that defines the reduction axes.
+    prefix = req.property[:3]
+    return apply_prefixed_reductions(state_space_shape, prefix, req, out)
