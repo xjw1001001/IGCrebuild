@@ -95,10 +95,9 @@ def test_all_properties():
         column_states = [[1, 1], [1, 1], [0, 1]],
         weights = [1, 2, 3])
 
-    # loop over all possible reductions
-    #TODO implement all properties
-    #core_properties = ('logl', 'deri', 'dwel', 'tran', 'root', 'node')
-    core_properties = ('logl', 'deri', 'root', 'dwel', 'node')
+    # test every extended property
+    extended_properties = []
+    core_properties = ('logl', 'deri', 'dwel', 'tran', 'root', 'node')
     for components in product('dswn', 'dswn', 'dswn', core_properties):
 
         # Define the corresponding extended property.
@@ -148,3 +147,7 @@ def test_all_properties():
             assert_allclose(response_naive, response_v2)
 
         print()
+
+        extended_properties.append(extended_property)
+
+    print('number of extended properties:', len(extended_properties))

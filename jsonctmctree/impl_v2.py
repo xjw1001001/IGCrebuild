@@ -27,6 +27,7 @@ from . import ll
 from .impl_naive import (
         _eagerly_precompute_dwell_objects,
         _apply_eagerly_precomputed_dwell_objects,
+        _compute_transition_expectations,
         )
 
 
@@ -558,11 +559,52 @@ class Reactor(object):
 
         return True
 
-    #FIXME
     def _respond_to_tran(self, unmet_core_requests, requests, responses):
         if 'tran' not in unmet_core_requests:
             return False
-        raise NotImplementedError
+        if self.node_to_subtree_likelihoods is None:
+            return False
+        if self.node_to_marginal_distn is None:
+            return False
+        for i, request in enumerate(requests):
+            prefix = request.property[:3]
+            suffix = request.property[-4:]
+            if suffix != 'tran':
+                continue
+
+            # Create the request-specific expm transition objects.
+            expm_transition_objects = []
+            for p in self.scene.process_definitions:
+                obj = ImplicitTransitionExpmFrechetEx(
+                        self.scene.state_space_shape,
+                        p.row_states,
+                        p.column_states,
+                        p.transition_rates,
+                        request.transition_reduction.row_states,
+                        request.transition_reduction.column_states,
+                        request.transition_reduction.weights,
+                        )
+                expm_transition_objects.append(obj)
+            arr = _compute_transition_expectations(
+                self.scene,
+                self.expm_objects,
+                expm_transition_objects,
+                self.node_to_marginal_distn,
+                self.node_to_subtree_likelihoods,
+                self.prior_distn,
+                self.T,
+                self.root,
+                self.edges,
+                self.edge_rate_pairs,
+                self.edge_process_pairs,
+                debug=False)
+            out = np.array(arr).T
+
+            # Apply further reductions.
+            s = self.scene.state_space_shape
+            out = apply_reductions(s, request, out)
+            responses[i] = out.tolist()
+
         return True
 
 
