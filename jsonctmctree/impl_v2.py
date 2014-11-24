@@ -76,8 +76,8 @@ class Reactor(object):
         self.likelihoods = None
         self.log_likelihoods = None
         self.node_to_subtree_likelihoods = None
+        self.node_to_conditional_likelihoods = None
         self.node_to_marginal_distn = None
-        self.full_node_array = None
 
         # For each process, precompute the objects that are capable
         # of computing expm_mul and rate_mul for log likelihoods
@@ -90,6 +90,105 @@ class Reactor(object):
                     p.column_states,
                     p.transition_rates)
             self.expm_objects.append(obj)
+
+
+    def _delete_likelihoods(self, unmet_core_requests):
+        if self.likelihoods is None:
+            return False
+        if not self.checked_feasibility:
+            return False
+        if unmet_core_requests & {'logl', 'root'}:
+            return False
+        self.likelihoods = None
+        return True
+
+    def _delete_log_likelihoods(self, unmet_core_requests):
+        if self.log_likelihoods is None:
+            return False
+        if unmet_core_requests & {'logl'}:
+            return False
+        self.log_likelihoods = None
+        return True
+
+    def _delete_node_to_subtree_likelihoods(self, unmet_core_requests):
+        if self.node_to_subtree_likelihoods is None:
+            return False
+        if unmet_core_requests & {'dwel', 'tran', 'root', 'node'}:
+            return False
+        self.node_to_subtree_likelihoods = None
+        return True
+
+    def _delete_node_to_conditional_likelihoods(self, unmet_core_requests):
+        if self.node_to_conditional_likelihoods is None:
+            return False
+        if unmet_core_requests & {'logl', 'deri', 'root'}:
+            return False
+        self.node_to_conditional_likelihoods = None
+        return True
+
+    def _delete_node_to_marginal_distn(self, unmet_core_requests):
+        if self.node_to_marginal_distn is None:
+            return False
+        if unmet_core_requests & {'dwel', 'tran', 'node'}:
+            return False
+        self.node_to_marginal_distn = None
+        return True
+
+
+    def _check_feasibility(self):
+        if self.checked_feasibility:
+            return False
+        if self.likelihoods is None:
+            return False
+        self.checked_feasibility = True
+        if not np.all(self.likelihoods):
+            raise InfeasibilityError
+        return True
+
+
+    def _create_log_likelihoods(self, unmet_core_requests):
+        # Return True if an action was taken.
+        if self.likelihoods is None:
+            return False
+        if 'logl' not in unmet_core_requests:
+            return False
+        self.log_likelihoods = np.log(self.likelihoods)
+        return True
+
+    #FIXME
+
+    def _respond_to_root(self, unmet_core_requests, requests, responses):
+        if 'root' not in unmet_core_requests:
+            return False
+        if self.likelihoods is None:
+            return False
+        return True
+
+    def _respond_to_logl(self, unmet_core_requests, requests, responses):
+        if 'logl' not in unmet_core_requests:
+            return False
+        return True
+
+    def _respond_to_deri(self, unmet_core_requests, requests, responses):
+        if 'deri' not in unmet_core_requests:
+            return False
+        return True
+
+    def _respond_to_node(self, unmet_core_requests, requests, responses):
+        if 'node' not in unmet_core_requests:
+            return False
+        return True
+
+    def _respond_to_dwel(self, unmet_core_requests, requests, responses):
+        if 'dwel' not in unmet_core_requests:
+            return False
+        return True
+
+    def _respond_to_tran(self, unmet_core_requests, requests, responses):
+        if 'tran' not in unmet_core_requests:
+            return False
+        return True
+
 
     def react(self, requests, responses):
         """
@@ -105,8 +204,68 @@ class Reactor(object):
             if response is None:
                 unmet_core_requests.add(request.propery[-4:])
 
-        # Attempt to check feasibility.
-        if not self.checked_feasibility and self.likelihoods is not None:
+        # Delete stuff.
+        if self._gc_likelihoods(unmet_core_requests):
+            return
+        if self._gc_log_likelihoods(unmet_core_requests):
+            return
+        if self._gc_node_to_subtree_likelihoods(unmet_core_requests):
+            return
+        if self._gc_node_to_conditional_likelihoods(unmet_core_requests):
+            return
+        if self._gc_node_to_marginal_distn(unmet_core_requests):
+            return
+
+        # Check feasibility.
+        if self._check_feasibility():
+            return
+
+        # Create intermediate arrays.
+
+        # Respond to requests.
+        if self._respond_to_root(unmet_core_requests, requests, responses):
+            return
+        if self._respond_to_logl(unmet_core_requests, requests, responses):
+            return
+        if self._respond_to_deri(unmet_core_requests, requests, responses):
+            return
+        if self._respond_to_node(unmet_core_requests, requests, responses):
+            return
+        if self._respond_to_dwel(unmet_core_requests, requests, responses):
+            return
+        if self._respond_to_tran(unmet_core_requests, requests, responses):
+            return
+
+        # Respond to log likelihoods requests.
+
+
+        # Create the likelihoods array
+        # from the node_to_subtree_likelihoods map.
+        if self.node_to_subtree_likelihoods is not None:
+            if self.likelihoods is None:
+                if ('logl' in unmet_core_requests or
+                        not self.checked_feasibility):
+                    arr = self.node_to_subtree_likelihoods[self.root]
+                    self.likelihoods = self.prior_distn.dot(arr)
+                    assert_equal(len(self.likelihoods.shape), 1)
+                    return
+
+        # Create the likelihoods array
+        # from the node_to_conditional_likelihoods map.
+        if self.node_to_conditional_likelihoods is not None:
+            if self.likelihoods is None:
+                if ('logl' in unmet_core_requests or
+                        not self.checked_feasibility):
+                    arr = self.node_to_conditional_likelihoods[self.root]
+                    self.likelihoods = self.prior_distn.dot(arr)
+                    assert_equal(len(self.likelihoods.shape), 1)
+                    return
+
+        # Create the node_to_conditional_likelihoods map.
+        if 
+
+        if (not self.checked_feasibility and
+
 
             if self.likelihoods is None:
                 if self.node_to_subtree_likelihoods is not None:
@@ -117,7 +276,6 @@ class Reactor(object):
                 if self.node_to_conditional_likelihoods is not None:
                     arr = self.node_to_conditional_likelihoods[self.root]
                     self.likelihoods = self.prior_distn.dot(arr)
-                    assert_equal(len(self.likelihoods.shape), 1)
                     return
 
                 if not np.all(self.likelihoods):
