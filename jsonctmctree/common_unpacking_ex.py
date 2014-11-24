@@ -6,6 +6,7 @@ This should eventually replace common_unpacking.py.
 """
 from __future__ import division, print_function, absolute_import
 
+from itertools import product
 import re
 
 import numpy as np
@@ -17,6 +18,7 @@ __all__ = [
         'interpret_root_prior',
         'interpret_tree',
         'request_regex',
+        'gen_valid_extended_properties',
         ]
 
 
@@ -37,6 +39,18 @@ class ShapeError(UnpackingError):
 
 class ContentError(UnpackingError):
     pass
+
+
+def gen_valid_extended_properties():
+    """
+    Use the regex to generate all of the valid extended properties.
+
+    """
+    core_properties = ('logl', 'deri', 'dwel', 'tran', 'root', 'node')
+    for components in product('dswn', 'dswn', 'dswn', core_properties):
+        extended_property = ''.join(components)
+        if re.match(request_regex, extended_property):
+            yield extended_property
 
 
 def _unpack(obj, d, f, name):

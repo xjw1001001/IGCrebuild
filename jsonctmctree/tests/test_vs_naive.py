@@ -7,14 +7,13 @@ about the scenario being tested.
 """
 from __future__ import division, print_function, absolute_import
 
-from itertools import product
-import re
+import time
 
 import numpy as np
 from numpy.testing import assert_allclose, assert_equal
 
 from jsonctmctree import impl_naive, impl_v2
-from jsonctmctree import common_unpacking_ex
+from jsonctmctree.common_unpacking_ex import gen_valid_extended_properties
 
 
 #TODO share this across test files, in particular test_all_extended_properties
@@ -96,18 +95,14 @@ def test_all_properties():
         weights = [1, 2, 3])
 
     # test every extended property
-    extended_properties = []
-    core_properties = ('logl', 'deri', 'dwel', 'tran', 'root', 'node')
-    for components in product('dswn', 'dswn', 'dswn', core_properties):
+    elapsed_naive = 0
+    elapsed_v2 = 0
+    for extended_property in gen_valid_extended_properties():
 
-        # Define the corresponding extended property.
-        # Require that the extended property matches the regular expression.
-        observation_code, edge_code, state_code, core_property = components
-        extended_property = ''.join(components)
-        if not re.match(common_unpacking_ex.request_regex, extended_property):
-            continue
-
-        print('requesting "%s"...' % extended_property)
+        # Interpret the extended property.
+        prefix = extended_property[:3]
+        core_property = extended_property[-4:]
+        observation_code, edge_code, state_code = prefix
 
         # Define the keyword arguments according to the extended property.
         # The 'tran' core property will always include
@@ -131,9 +126,15 @@ def test_all_properties():
                 scene=scene_dict,
                 requests=[request_dict])
 
-        # Compute the outputs using the two implementations.
+        # Compute outputs using the naive implementation.
+        tm = time.time()
         j_out_naive = impl_naive.process_json_in(j_in)
-        j_out_v2 = impl_v2.process_json_in(j_in, debug=True)
+        elapsed_naive += (time.time() - tm)
+
+        # Compute outputs using the less naive implementation.
+        tm = time.time()
+        j_out_v2 = impl_v2.process_json_in(j_in)
+        elapsed_v2 += (time.time() - tm)
 
         # Check some basic properties of the outputs.
         for j_out in j_out_naive, j_out_v2:
@@ -145,9 +146,3 @@ def test_all_properties():
         response_pairs = zip(j_out_naive['responses'], j_out_v2['responses'])
         for (response_naive, response_v2) in response_pairs:
             assert_allclose(response_naive, response_v2)
-
-        print()
-
-        extended_properties.append(extended_property)
-
-    print('number of extended properties:', len(extended_properties))
