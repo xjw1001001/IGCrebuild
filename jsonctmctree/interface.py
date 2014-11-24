@@ -50,23 +50,7 @@ The interface is limited in that it does not support the following:
 """
 from __future__ import division, print_function, absolute_import
 
-import sys
-
-import numpy as np
-from numpy.testing import assert_equal
-
-from .expm_helpers import (
-        ActionExpm,
-        ImplicitDwellExpmFrechet,
-        ImplicitTransitionExpmFrechetEx,
-        )
-from .common_likelihood import (
-        get_conditional_likelihoods, get_subtree_likelihoods)
-from .common_unpacking_ex import TopLevel, interpret_tree, interpret_root_prior
-from . import expect
-from . import ll
 from . import impl_naive
-
 
 def process_json_in(j_in, debug=False):
     """
