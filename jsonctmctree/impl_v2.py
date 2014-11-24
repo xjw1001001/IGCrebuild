@@ -113,13 +113,26 @@ class Reactor(object):
             self.expm_objects.append(obj)
 
 
+    def _delete_root_conditional_likelihoods(self, unmet_core_requests):
+        if self.root_conditional_likelihoods is None:
+            return False
+        if not self.checked_feasibility:
+            return False
+        if unmet_core_requests & {'logl', 'deri', 'root'}:
+            return False
+        self.root_conditional_likelihoods = None
+        return True
+
     def _delete_likelihoods(self, unmet_core_requests):
         if self.likelihoods is None:
             return False
         if not self.checked_feasibility:
             return False
-        if unmet_core_requests & {'logl', 'deri'}:
+        if unmet_core_requests & {'deri'}:
             return False
+        if unmet_core_requests & {'logl'}:
+            if self.log_likelihoods is None:
+                return False
         self.likelihoods = None
         return True
 
@@ -181,6 +194,8 @@ class Reactor(object):
         if self.checked_feasibility:
             if not (unmet_core_requests & {'logl', 'deri'}):
                 return False
+        if self.root_conditional_likelihoods is not None:
+            arr = self.root_conditional_likelihoods
         if self.node_to_subtree_likelihoods is not None:
             arr = node_to_subtree_likelihoods[self.root]
         elif self.node_to_conditional_likelihoods is not None:
@@ -234,6 +249,39 @@ class Reactor(object):
         self.derivatives = np.empty((iid_observation_count, nedges))
         for ei, der in ei_to_derivatives.items():
             self.derivatives[:, ei] = der / self.likelihoods
+        return True
+
+    def _create_root_conditional_likelihoods(self, unmet_core_requests):
+        if self.node_to_subtree_likelihoods is not None:
+            return False
+        if self.node_to_conditional_likelihoods is not None:
+            return False
+        if self.root_conditional_likelihoods is not None:
+            return False
+        if unmet_core_requests & {'deri'}:
+            # in this case we need all conditional likelihoods not just root
+            return False
+        if unmet_core_requests & {'dwel', 'trans', 'node'}:
+            # in these cases we need all subtree likelihoods not just root
+            return False
+        if self.checked_feasibility:
+            if not (unmet_core_requests & {'logl', 'root'}):
+                return False
+        store_all = False
+        d = get_conditional_likelihoods(
+                self.expm_objects,
+                store_all,
+                self.T,
+                self.root,
+                self.edges,
+                self.edge_rate_pairs,
+                self.edge_process_pairs,
+                self.scene.state_space_shape,
+                self.scene.observed_data.nodes,
+                self.scene.observed_data.variables,
+                self.scene.observed_data.iid_observations,
+                )
+        self.root_conditional_likelihoods = d[self.root]
         return True
 
     def _create_node_to_conditional_likelihoods(self, unmet_core_requests):

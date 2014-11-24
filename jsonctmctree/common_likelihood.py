@@ -140,7 +140,7 @@ def get_subtree_likelihoods(
 
 
 def get_conditional_likelihoods(
-        f,
+        expm_objects,
         store_all,
         T, root, edges, edge_rate_pairs, edge_process_pairs,
         state_space_shape,
@@ -159,10 +159,15 @@ def get_conditional_likelihoods(
 
     Parameters
     ----------
-    f : sequence of functions indexed by process (TODO rename this...)
+    expm_objects : sequence of functions indexed by process
         These functions compute expm_mul and rate_mul.
     store_all : bool
         Indicates whether all edge arrays should be stored.
+
+    Returns
+    -------
+    node_to_conditional_likelihoods : dict
+        Maps nodes to ndarrays of shape (nstates, nsites).
 
     Notes
     -----
@@ -174,6 +179,9 @@ def get_conditional_likelihoods(
     at each node, accounting for the observation data at that node.
 
     """
+    nstates = np.prod(state_space_shape)
+    nsites = iid_observations.shape[0]
+
     child_to_edge = dict((tail, (head, tail)) for head, tail in edges)
     edge_to_rate = dict(edge_rate_pairs)
     edge_to_process = dict(edge_process_pairs)
@@ -215,9 +223,10 @@ def get_conditional_likelihoods(
             edge = child_to_edge[node]
             edge_rate = edge_to_rate[edge]
             edge_process = edge_to_process[edge]
-            arr = f[edge_process].expm_mul(edge_rate, arr)
+            arr = expm_objects[edge_process].expm_mul(edge_rate, arr)
 
         # Associate the array with the current node.
+        assert_equal(arr.shape, (nstates, nsites))
         node_to_array[node] = arr
 
     # If we had been deleting arrays as they become unnecessary for
