@@ -31,9 +31,13 @@ def create_indicator_array(
     """
     Create the initial array indicating observations.
 
-    The shape of each output array is (nstates, nsites).
+    Returns
+    -------
+    obs : 2d ndarray of shape (nstates, nsites)
+        Observation indicator array.
 
     """
+    nstates = np.prod(state_space_shape)
     nsites, nobservables = iid_observations.shape
     state_space_ndim = len(state_space_shape)
     state_space_axes = range(state_space_ndim)
@@ -63,6 +67,7 @@ def create_indicator_array(
     obs = obs.reshape((nsites, np.prod(state_space_shape))).T
 
     # Return the observation indicator array.
+    assert_equal(obs.shape, (nstates, nsites))
     return obs
 
 
@@ -180,7 +185,7 @@ def get_conditional_likelihoods(
 
     """
     nstates = np.prod(state_space_shape)
-    nsites = iid_observations.shape[0]
+    nsites, nobservables = iid_observations.shape
 
     child_to_edge = dict((tail, (head, tail)) for head, tail in edges)
     edge_to_rate = dict(edge_rate_pairs)
