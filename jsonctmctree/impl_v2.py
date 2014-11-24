@@ -29,6 +29,7 @@ class InfeasibilityError(Exception):
     pass
 
 
+#TODO the naive implementation should share this code
 def apply_reductions(code, req, out):
 
     # Unpack the code.
@@ -88,11 +89,16 @@ class Reactor(object):
                 self.edge_process_pairs,
                 ) = interpret_tree(scene)
         self.checked_feasibility = False
-        self.likelihoods = None
-        self.log_likelihoods = None
         self.node_to_subtree_likelihoods = None
         self.node_to_conditional_likelihoods = None
         self.node_to_marginal_distn = None
+        self.likelihoods = None
+        self.log_likelihoods = None
+        # If only the likelihoods and log likelihoods are required,
+        # for example to check feasibility or to return log likelihoods
+        # or to compute the posterior distribution at the root,
+        # then only the root conditional likelihoods are required.
+        self.root_conditional_likelihoods = None
 
         # For each process, precompute the objects that are capable
         # of computing expm_mul and rate_mul for log likelihoods
