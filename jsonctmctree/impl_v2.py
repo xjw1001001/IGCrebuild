@@ -10,7 +10,7 @@ from __future__ import division, print_function, absolute_import
 import sys
 
 import numpy as np
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_
 
 from .expm_helpers import (
         ActionExpm,
@@ -64,6 +64,10 @@ class Reactor(object):
         # or to compute the posterior distribution at the root,
         # then only the root conditional likelihoods are required.
         self.root_conditional_likelihoods = None
+        # The root marginal distribution can be computed using
+        # the root conditional likelihoods or node_to_subtree_likelihoods
+        # or node_to_conditional_likelihoods.
+        self.root_marginal_distn = None
 
         # For each process, precompute the objects that are capable
         # of computing expm_mul and rate_mul for log likelihoods
@@ -81,6 +85,14 @@ class Reactor(object):
     def _note(self, msg):
         if self.debug:
             print(msg, file=sys.stderr)
+
+    def _delete_root_marginal_distn(self, unmet_core_requests):
+        if self.root_marginal_distn is None:
+            return False
+        if unmet_core_requests & {'root'}:
+            return False
+        self.root_marginal_distn = None
+        return True
 
     def _delete_root_conditional_likelihoods(self, unmet_core_requests):
         if self.root_conditional_likelihoods is None:
@@ -157,12 +169,33 @@ class Reactor(object):
         return True
 
 
+    def _create_root_marginal_distn(self, unmet_core_requests):
+        if self.root_marginal_distn is not None:
+            return False
+        if not (unmet_core_requests & {'root'}):
+            return False
+        if self.node_to_marginal_distn is not None:
+            self.root_marginal_distn = self.node_to_marginal_distn[self.root]
+            return True
+        elif self.root_conditional_likelihoods is not None:
+            root_arr = self.root_conditional_likelihoods
+        elif self.node_to_subtree_likelihoods is not None:
+            root_arr = self.node_to_subtree_likelihoods[self.root]
+        elif self.node_to_conditional_likelihoods is not None:
+            root_arr = self.node_to_conditional_likelihoods[self.root]
+        else:
+            return False
+        full_array = root_arr * self.prior_distn[:, np.newaxis]
+        col_sums_recip = expect.pseudo_reciprocal(full_array.sum(axis=0))
+        self.root_marginal_distn = full_array * col_sums_recip
+        return True
+
     def _create_likelihoods(self, unmet_core_requests):
         if self.likelihoods is not None:
             return False
         if self.checked_feasibility:
-            if not (unmet_core_requests & {'logl', 'deri'}):
-                return False
+            # likelihoods are required for feasibility checking...
+            return False
         if self.root_conditional_likelihoods is not None:
             arr = self.root_conditional_likelihoods
         elif self.node_to_subtree_likelihoods is not None:
@@ -334,25 +367,9 @@ class Reactor(object):
     def _respond_to_root(self, unmet_core_requests, requests, responses):
         if 'root' not in unmet_core_requests:
             return False
-        if self.node_to_marginal_distn is not None:
-            full_array = self.node_to_marginal_distn[self.root].T
-        elif self.root_conditional_likelihoods is not None:
-            lk = self.root_conditional_likelihoods
-            full_array = lk * self.prior_distn[:, np.newaxis]
-            col_sums_recip = expect.pseudo_reciprocal(full_array.sum(axis=0))
-            full_array = (full_array * col_sums_recip).T
-        elif self.node_to_conditional_likelihoods is not None:
-            lk = self.node_to_conditional_likelihoods[self.root]
-            full_array = lk * self.prior_distn[:, np.newaxis]
-            col_sums_recip = expect.pseudo_reciprocal(full_array.sum(axis=0))
-            full_array = (full_array * col_sums_recip).T
-        elif self.node_to_subtree_likelihoods is not None:
-            lk = self.node_to_subtree_likelihoods[self.root]
-            full_array = lk * self.prior_distn[:, np.newaxis]
-            col_sums_recip = expect.pseudo_reciprocal(full_array.sum(axis=0))
-            full_array = (full_array * col_sums_recip).T
-        else:
+        if self.root_marginal_distn is None:
             return False
+        full_array = self.root_marginal_distn.T
         for i, request in enumerate(requests):
             prefix = request.property[:3]
             suffix = request.property[-4:]
@@ -564,6 +581,8 @@ class Reactor(object):
                 unmet_core_requests.add(request.property[-4:])
 
         # Delete intermediate arrays.
+        if self._delete_root_marginal_distn(unmet_core_requests):
+            return self._note('delete root marginal distn')
         if self._delete_derivatives(unmet_core_requests):
             return self._note('delete derivatives')
         if self._delete_root_conditional_likelihoods(unmet_core_requests):
@@ -610,6 +629,8 @@ class Reactor(object):
             return self._note('create derivatives')
         if self._create_root_conditional_likelihoods(unmet_core_requests):
             return self._note('create root conditional likelihoods')
+        if self._create_root_marginal_distn(unmet_core_requests):
+            return self._note('create root marginal distn')
         if self._create_node_to_marginal_distn(unmet_core_requests):
             return self._note('create node to marginal distn')
 
@@ -620,7 +641,7 @@ class Reactor(object):
     def main(self, requests):
         responses = [None] * len(requests)
         try:
-            while None in responses:
+            while None in responses or not self.checked_feasibility:
                 self.react(requests, responses)
             j_out = dict(
                     status = 'feasible',
@@ -629,6 +650,8 @@ class Reactor(object):
             j_out = dict(
                     status = 'infeasible',
                     responses = None)
+        # require that feasibility has been checked
+        assert_(self.checked_feasibility)
         return j_out
 
 
