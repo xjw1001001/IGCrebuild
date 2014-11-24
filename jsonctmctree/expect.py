@@ -67,6 +67,11 @@ def get_node_to_marginal_distn(
         debug=False):
     """
 
+    Returns
+    -------
+    node_to_marginal_distn : dict
+        A map from nodes to arrays of shape (nstates, nsites).
+
     """
     # Deduce counts.
     assert_equal(len(distn.shape), 1)
@@ -121,6 +126,7 @@ def get_node_to_marginal_distn(
             B = f[edge_process].expm_rmul(edge_rate, A.T)
             next_distn = B.T * subtree_array
 
+        assert_equal(next_distn.shape, (nstates, nsites))
         node_to_marginal_distn[tail_node] = next_distn
 
     return node_to_marginal_distn

@@ -156,12 +156,25 @@ class Reactor(object):
         return True
 
     #FIXME
+    # site, edge, state
+    #{D,S,W}NNLOGL : 3
+    #{D,S,W}DNDERI : 3
+    #{D,S,W}{D,W}{D,W}DWEL : 12
+    #{D,S,W}{D,S,W}NTRAN : 9
+    #{D,S,W}N{D,W}ROOT : 6
+    #{D,S,W}N{D,W}NODE : 6
 
     def _respond_to_root(self, unmet_core_requests, requests, responses):
         if 'root' not in unmet_core_requests:
             return False
+        if self.node_to_marginal_distn is not None:
         if self.likelihoods is None:
             return False
+        self.self.root
+
+        for i, request in enumerate(requests):
+            if request.endswith('root'):
+
         return True
 
     def _respond_to_logl(self, unmet_core_requests, requests, responses):
