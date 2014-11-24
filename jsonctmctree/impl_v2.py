@@ -24,7 +24,7 @@ from .common_reduction import apply_reductions
 from .util import sparse_reduction
 from . import expect
 from . import ll
-from .naive_impl import (
+from .impl_naive import (
         _eagerly_precompute_dwell_objects,
         _apply_eagerly_precomputed_dwell_objects,
         )
@@ -39,8 +39,10 @@ class Reactor(object):
     This is like a state machine.
 
     """
-    def __init__(self, scene):
+    def __init__(self, scene, debug=False):
         self.scene = scene
+        self.debug = debug
+        # interpret some stuff
         self.prior_distn = interpret_root_prior(scene)
         (
                 self.T,
@@ -49,12 +51,14 @@ class Reactor(object):
                 self.edge_rate_pairs,
                 self.edge_process_pairs,
                 ) = interpret_tree(scene)
+        # init arrays
         self.checked_feasibility = False
         self.node_to_subtree_likelihoods = None
         self.node_to_conditional_likelihoods = None
         self.node_to_marginal_distn = None
         self.likelihoods = None
         self.log_likelihoods = None
+        self.derivatives = None
         # If only the likelihoods and log likelihoods are required,
         # for example to check feasibility or to return log likelihoods
         # or to compute the posterior distribution at the root,
@@ -72,7 +76,11 @@ class Reactor(object):
                     p.column_states,
                     p.transition_rates)
             self.expm_objects.append(obj)
+        self._note('reactor is initialized')
 
+    def _note(self, msg):
+        if self.debug:
+            print(msg, file=sys.stderr)
 
     def _delete_root_conditional_likelihoods(self, unmet_core_requests):
         if self.root_conditional_likelihoods is None:
@@ -158,9 +166,9 @@ class Reactor(object):
         if self.root_conditional_likelihoods is not None:
             arr = self.root_conditional_likelihoods
         if self.node_to_subtree_likelihoods is not None:
-            arr = node_to_subtree_likelihoods[self.root]
+            arr = self.node_to_subtree_likelihoods[self.root]
         elif self.node_to_conditional_likelihoods is not None:
-            arr = node_to_conditional_likelihoods[self.root]
+            arr = self.node_to_conditional_likelihoods[self.root]
         else:
             return False
         self.likelihoods = self.prior_distn.dot(arr)
@@ -213,11 +221,11 @@ class Reactor(object):
         return True
 
     def _create_root_conditional_likelihoods(self, unmet_core_requests):
+        if self.root_conditional_likelihoods is not None:
+            return False
         if self.node_to_subtree_likelihoods is not None:
             return False
         if self.node_to_conditional_likelihoods is not None:
-            return False
-        if self.root_conditional_likelihoods is not None:
             return False
         if unmet_core_requests & {'deri'}:
             # in this case we need all conditional likelihoods not just root
@@ -419,58 +427,65 @@ class Reactor(object):
         unmet_core_requests = set()
         for request, response in zip(requests, responses):
             if response is None:
-                unmet_core_requests.add(request.propery[-4:])
+                unmet_core_requests.add(request.property[-4:])
 
-        # Delete stuff.
-        if self._gc_likelihoods(unmet_core_requests):
-            return
-        if self._gc_log_likelihoods(unmet_core_requests):
-            return
-        if self._gc_node_to_conditional_likelihoods(unmet_core_requests):
-            return
-        if self._gc_node_to_subtree_likelihoods(unmet_core_requests):
-            return
-        if self._gc_node_to_marginal_distn(unmet_core_requests):
-            return
+        # Delete intermediate arrays.
+        if self._delete_derivatives(unmet_core_requests):
+            return self._note('delete derivatives')
+        if self._delete_root_conditional_likelihoods(unmet_core_requests):
+            return self._note('delete root conditional likelihoods')
+        if self._delete_likelihoods(unmet_core_requests):
+            return self._note('delete likelihoods')
+        if self._delete_log_likelihoods(unmet_core_requests):
+            return self._note('delete log likelihoods')
+        if self._delete_node_to_conditional_likelihoods(unmet_core_requests):
+            return self._note('delete node to conditional likelihoods')
+        if self._delete_node_to_subtree_likelihoods(unmet_core_requests):
+            return self._note('delete node to subtree likelihoods')
+        if self._delete_node_to_marginal_distn(unmet_core_requests):
+            return self._note('delete node to marginal distn')
 
         # Check feasibility.
         if self._check_feasibility():
-            return
+            return self._note('check feasibility')
 
         # Respond to requests.
         if self._respond_to_root(unmet_core_requests, requests, responses):
-            return
+            return self._note('respond to "root" request')
         if self._respond_to_logl(unmet_core_requests, requests, responses):
-            return
+            return self._note('respond to "logl" request')
         if self._respond_to_deri(unmet_core_requests, requests, responses):
-            return
+            return self._note('respond to "deri" request')
         if self._respond_to_node(unmet_core_requests, requests, responses):
-            return
+            return self._note('respond to "node" request')
         if self._respond_to_dwel(unmet_core_requests, requests, responses):
-            return
+            return self._note('respond to "dwel" request')
         if self._respond_to_tran(unmet_core_requests, requests, responses):
-            return
+            return self._note('respond to "tran" request')
 
         # Create intermediate arrays.
         if self._create_likelihoods(unmet_core_requests):
-            return
+            return self._note('create likelihoods')
         if self._create_log_likelihoods(unmet_core_requests):
-            return
-        if self._create_conditional_likelihoods(unmet_core_requests):
-            return
-        if self._create_subtree_likelihoods(unmet_core_requests):
-            return
+            return self._note('create log likelihoods')
+        if self._create_node_to_conditional_likelihoods(unmet_core_requests):
+            return self._note('create node to conditional likelihoods')
+        if self._create_node_to_subtree_likelihoods(unmet_core_requests):
+            return self._note('create node to subtree likelihoods')
         if self._create_derivatives(unmet_core_requests):
-            return
+            return self._note('create derivatives')
         if self._create_root_conditional_likelihoods(unmet_core_requests):
-            return
+            return self._note('create root conditional likelihoods')
+
+        # No progress was made towards an unfulfilled request.
+        raise Exception(dir(self))
 
 
     def main(self, requests):
         responses = [None] * len(requests)
         try:
             while None in responses:
-                self.react(requests, reponses)
+                self.react(requests, responses)
             j_out = dict(
                     status = 'feasible',
                     responses = responses)
@@ -483,4 +498,4 @@ class Reactor(object):
 
 def process_json_in(j_in, debug=False):
     toplevel = TopLevel(j_in)
-    return Reactor(toplevel.scene).main(toplevel.requests)
+    return Reactor(toplevel.scene, debug=debug).main(toplevel.requests)

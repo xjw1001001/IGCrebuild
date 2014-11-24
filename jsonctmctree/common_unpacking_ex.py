@@ -16,7 +16,17 @@ __all__ = [
         'TopLevel',
         'interpret_root_prior',
         'interpret_tree',
+        'request_regex',
         ]
+
+
+request_regex = '|'.join((
+    '[dsw]nnlogl',
+    '[dsw]dnderi',
+    '[dsw][dw][dw]dwel',
+    '[dsw][dsw]ntran',
+    '[dsw]n[dw]root',
+    '[dsw]n[dw]node'))
 
 
 class UnpackingError(Exception):
@@ -189,14 +199,7 @@ class Request(object):
                     'expected the first three letters of the requested '
                     'property code "%s" to each belong to {d, s, w, n}' % (
                         self.property))
-        pattern = '|'.join((
-            '[dsw]nnlogl',
-            '[dsw]dnderi',
-            '[dsw][dw][dw]dwel',
-            '[dsw][dsw]ntran',
-            '[dsw]n[dw]root',
-            '[dsw]n[dw]node'))
-        if not re.match(pattern, self.property):
+        if not re.match(request_regex, self.property):
             raise ContentError(
                     'the requested property code "%s" '
                     'is correctly formatted but does not correspond '
