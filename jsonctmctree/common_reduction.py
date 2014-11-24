@@ -72,9 +72,15 @@ def apply_reductions(state_space_shape, req, out):
     elif state_code == 's':
         out = np.sum(out, axis=reduction_axis)
     elif state_code == 'w':
-        indices = np.ravel_multi_index(
+        try:
+            indices = np.ravel_multi_index(
+                    req.state_reduction.states.T,
+                    state_space_shape)
+        except TypeError as e:
+            raise Exception("%s; %s; %s" % (
                 req.state_reduction.states.T,
-                state_space_shape)
+                state_space_shape,
+                e))
         weights = req.state_reduction.weights
         out = sparse_reduction(out, indices, weights, reduction_axis)
 

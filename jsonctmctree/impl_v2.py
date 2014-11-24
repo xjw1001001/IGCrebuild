@@ -124,7 +124,7 @@ class Reactor(object):
     def _delete_node_to_conditional_likelihoods(self, unmet_core_requests):
         if self.node_to_conditional_likelihoods is None:
             return False
-        if unmet_core_requests & {'logl', 'deri'}:
+        if unmet_core_requests & {'logl', 'deri', 'root'}:
             return False
         self.node_to_conditional_likelihoods = None
         return True
@@ -165,7 +165,7 @@ class Reactor(object):
                 return False
         if self.root_conditional_likelihoods is not None:
             arr = self.root_conditional_likelihoods
-        if self.node_to_subtree_likelihoods is not None:
+        elif self.node_to_subtree_likelihoods is not None:
             arr = self.node_to_subtree_likelihoods[self.root]
         elif self.node_to_conditional_likelihoods is not None:
             arr = self.node_to_conditional_likelihoods[self.root]
@@ -256,10 +256,9 @@ class Reactor(object):
     def _create_node_to_conditional_likelihoods(self, unmet_core_requests):
         if self.node_to_conditional_likelihoods is not None:
             return False
-        if self.checked_feasibility:
-            if not (unmet_core_requests & {'logl', 'deri'}):
-                return False
-        #TODO restrict the requested number of arrays
+        if not (unmet_core_requests & {'deri'}):
+            # other likelihood objects can be used for non-deri applications
+            return False
         store_all = True
         self.node_to_conditional_likelihoods = get_conditional_likelihoods(
                 self.expm_objects,
@@ -279,9 +278,9 @@ class Reactor(object):
     def _create_node_to_subtree_likelihoods(self, unmet_core_requests):
         if self.node_to_subtree_likelihoods is not None:
             return False
-        if self.checked_feasibility:
-            if not (unmet_core_requests & {'dwel', 'tran', 'root', 'node'}):
-                return False
+        if not (unmet_core_requests & {'dwel', 'tran', 'node'}):
+            # other likelihood objects can take over for other applications
+            return False
         #TODO restrict the requested number of arrays
         store_all = True
         self.node_to_subtree_likelihoods = get_subtree_likelihoods(
@@ -302,9 +301,9 @@ class Reactor(object):
     def _create_node_to_marginal_distn(self, unmet_core_requests):
         if self.node_to_marginal_distn is not None:
             return False
-        if not (unmet_core_requests & {'dwel', 'tran', 'root', 'node'}):
+        if not (unmet_core_requests & {'dwel', 'tran', 'node'}):
             return False
-        if node_to_subtree_likelihoods is None:
+        if self.node_to_subtree_likelihoods is None:
             return False
         debug = False
         self.node_to_marginal_distn = expect.get_node_to_marginal_distn(
@@ -338,11 +337,20 @@ class Reactor(object):
         if self.node_to_marginal_distn is not None:
             full_array = self.node_to_marginal_distn[self.root].T
         elif self.root_conditional_likelihoods is not None:
-            full_array = (
-                    self.root_conditional_likelihoods *
-                    self.prior_distn[:, np.newaxis])
+            lk = self.root_conditional_likelihoods
+            full_array = lk * self.prior_distn[:, np.newaxis]
             col_sums_recip = expect.pseudo_reciprocal(full_array.sum(axis=0))
-            full_array = full_array * col_sums_recip
+            full_array = (full_array * col_sums_recip).T
+        elif self.node_to_conditional_likelihoods is not None:
+            lk = self.node_to_conditional_likelihoods[self.root]
+            full_array = lk * self.prior_distn[:, np.newaxis]
+            col_sums_recip = expect.pseudo_reciprocal(full_array.sum(axis=0))
+            full_array = (full_array * col_sums_recip).T
+        elif self.node_to_subtree_likelihoods is not None:
+            lk = self.node_to_subtree_likelihoods[self.root]
+            full_array = lk * self.prior_distn[:, np.newaxis]
+            col_sums_recip = expect.pseudo_reciprocal(full_array.sum(axis=0))
+            full_array = (full_array * col_sums_recip).T
         else:
             return False
         for i, request in enumerate(requests):
@@ -395,7 +403,7 @@ class Reactor(object):
             prefix = request.property[:3]
             suffix = request.property[-4:]
             if suffix == 'node':
-                s = self.scene.state_space_shape,
+                s = self.scene.state_space_shape
                 out = apply_reductions(s, request, full_node_array)
                 responses[i] = out.tolist()
         return True
@@ -451,17 +459,17 @@ class Reactor(object):
 
         # Respond to requests.
         if self._respond_to_root(unmet_core_requests, requests, responses):
-            return self._note('respond to "root" request')
+            return self._note('respond to a "root" request')
         if self._respond_to_logl(unmet_core_requests, requests, responses):
-            return self._note('respond to "logl" request')
+            return self._note('respond to a "logl" request')
         if self._respond_to_deri(unmet_core_requests, requests, responses):
-            return self._note('respond to "deri" request')
+            return self._note('respond to a "deri" request')
         if self._respond_to_node(unmet_core_requests, requests, responses):
-            return self._note('respond to "node" request')
+            return self._note('respond to a "node" request')
         if self._respond_to_dwel(unmet_core_requests, requests, responses):
-            return self._note('respond to "dwel" request')
+            return self._note('respond to a "dwel" request')
         if self._respond_to_tran(unmet_core_requests, requests, responses):
-            return self._note('respond to "tran" request')
+            return self._note('respond to a "tran" request')
 
         # Create intermediate arrays.
         if self._create_likelihoods(unmet_core_requests):
@@ -476,6 +484,8 @@ class Reactor(object):
             return self._note('create derivatives')
         if self._create_root_conditional_likelihoods(unmet_core_requests):
             return self._note('create root conditional likelihoods')
+        if self._create_node_to_marginal_distn(unmet_core_requests):
+            return self._note('create node to marginal distn')
 
         # No progress was made towards an unfulfilled request.
         raise Exception(dir(self))

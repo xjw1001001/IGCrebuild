@@ -75,7 +75,7 @@ def _get_scene():
             )
 
 
-def test_v2_implementation_vs_naive_implementation():
+def test_all_properties():
 
     # Initialize the scene dictionary.
     scene_dict = _get_scene()
@@ -107,6 +107,8 @@ def test_v2_implementation_vs_naive_implementation():
         extended_property = ''.join(components)
         if not re.match(common_unpacking_ex.request_regex, extended_property):
             continue
+
+        print('requesting "%s"...' % extended_property)
 
         # Define the keyword arguments according to the extended property.
         # The 'tran' core property will always include
@@ -144,3 +146,5 @@ def test_v2_implementation_vs_naive_implementation():
         response_pairs = zip(j_out_naive['responses'], j_out_v2['responses'])
         for (response_naive, response_v2) in response_pairs:
             assert_allclose(response_naive, response_v2)
+
+        print()
