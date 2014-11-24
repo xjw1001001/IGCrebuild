@@ -20,57 +20,18 @@ from .expm_helpers import (
 from .common_likelihood import (
         get_conditional_likelihoods, get_subtree_likelihoods)
 from .common_unpacking_ex import TopLevel, interpret_tree, interpret_root_prior
+from .common_reduction import apply_reductions
 from .util import sparse_reduction
 from . import expect
 from . import ll
+from .naive_impl import (
+        _eagerly_precompute_dwell_objects,
+        _apply_eagerly_precomputed_dwell_objects,
+        )
 
 
 class InfeasibilityError(Exception):
     pass
-
-
-#TODO the naive implementation should share this code
-def apply_reductions(code, req, out):
-
-    # Unpack the code.
-    observation_code, edge_code, state_code = req
-
-    # Initialize the reduction axis.
-    reduction_axis = 0
-
-    # Apply the observation reduction if any.
-    if observation_code == 'd':
-        reduction_axis += 1
-    elif observation_code == 's':
-        out = np.sum(out, axis=reduction_axis)
-    elif observation_code == 'w':
-        indices = req.observation_reduction.observation_indices
-        weights = req.observation_reduction.weights
-        out = sparse_reduction(out, indices, weights, reduction_axis)
-
-    # Apply the edge reduction if any.
-    if edge_code == 'd':
-        reduction_axis += 1
-    elif edge_code == 's':
-        out = np.sum(out, axis=reduction_axis)
-    elif edge_code == 'w':
-        indices = req.edge_reduction.edges
-        weights = req.edge_reduction.weights
-        out = sparse_reduction(out, indices, weights, reduction_axis)
-
-    # Apply the state reduction if any.
-    if state_code == 'd':
-        reduction_axis += 1
-    elif state_code == 's':
-        out = np.sum(out, axis=reduction_axis)
-    elif state_code == 'w':
-        indices = np.ravel_multi_index(
-                req.state_reduction.states.T,
-                toplevel.scene.state_space_shape)
-        weights = req.state_reduction.weights
-        out = sparse_reduction(out, indices, weights, reduction_axis)
-
-    return out
 
 
 class Reactor(object):
@@ -366,14 +327,22 @@ class Reactor(object):
     def _respond_to_root(self, unmet_core_requests, requests, responses):
         if 'root' not in unmet_core_requests:
             return False
-        if self.node_to_marginal_distn is None:
+        if self.node_to_marginal_distn is not None:
+            full_array = self.node_to_marginal_distn[self.root].T
+        elif self.root_conditional_likelihoods is not None:
+            full_array = (
+                    self.root_conditional_likelihoods *
+                    self.prior_distn[:, np.newaxis])
+            col_sums_recip = expect.pseudo_reciprocal(full_array.sum(axis=0))
+            full_array = full_array * col_sums_recip
+        else:
             return False
-        full_array = self.node_to_marginal_distn[self.root].T
         for i, request in enumerate(requests):
             prefix = request.property[:3]
             suffix = request.property[-4:]
             if suffix == 'root':
-                out = apply_reductions(prefix, request, full_array)
+                s = self.scene.state_space_shape
+                out = apply_reductions(s, request, full_array)
                 responses[i] = out.tolist()
         return True
 
@@ -386,7 +355,8 @@ class Reactor(object):
             prefix = request.property[:3]
             suffix = request.property[-4:]
             if suffix == 'logl':
-                out = apply_reductions(prefix, request, self.log_likelihoods)
+                s = self.scene.state_space_shape
+                out = apply_reductions(s, request, self.log_likelihoods)
                 responses[i] = out.tolist()
         return True
 
@@ -399,7 +369,8 @@ class Reactor(object):
             prefix = request.property[:3]
             suffix = request.property[-4:]
             if suffix == 'deri':
-                out = apply_reductions(prefix, request, self.derivatives)
+                s = self.scene.state_space_shape
+                out = apply_reductions(s, request, self.derivatives)
                 responses[i] = out.tolist()
         return True
 
@@ -416,7 +387,8 @@ class Reactor(object):
             prefix = request.property[:3]
             suffix = request.property[-4:]
             if suffix == 'node':
-                out = apply_reductions(prefix, request, full_node_array)
+                s = self.scene.state_space_shape,
+                out = apply_reductions(s, request, full_node_array)
                 responses[i] = out.tolist()
         return True
 
@@ -489,6 +461,8 @@ class Reactor(object):
         if self._create_subtree_likelihoods(unmet_core_requests):
             return
         if self._create_derivatives(unmet_core_requests):
+            return
+        if self._create_root_conditional_likelihoods(unmet_core_requests):
             return
 
 

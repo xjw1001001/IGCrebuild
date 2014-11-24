@@ -24,7 +24,7 @@ from .expm_helpers import (
 from .common_likelihood import (
         get_conditional_likelihoods, get_subtree_likelihoods)
 from .common_unpacking_ex import TopLevel, interpret_tree, interpret_root_prior
-from .util import sparse_reduction
+from .common_reduction import apply_reductions
 from . import expect
 from . import ll
 
@@ -311,40 +311,8 @@ def process_json_in(j_in, debug=False):
         elif suffix == 'node':
             out = full_node_array
 
-        # Prepare to apply the reductions.
-        reduction_axis = 0
-
-        # Apply the observation reduction if any.
-        if observation_code == 'd':
-            reduction_axis += 1
-        elif observation_code == 's':
-            out = np.sum(out, axis=reduction_axis)
-        elif observation_code == 'w':
-            indices = req.observation_reduction.observation_indices
-            weights = req.observation_reduction.weights
-            out = sparse_reduction(out, indices, weights, reduction_axis)
-
-        # Apply the edge reduction if any.
-        if edge_code == 'd':
-            reduction_axis += 1
-        elif edge_code == 's':
-            out = np.sum(out, axis=reduction_axis)
-        elif edge_code == 'w':
-            indices = req.edge_reduction.edges
-            weights = req.edge_reduction.weights
-            out = sparse_reduction(out, indices, weights, reduction_axis)
-
-        # Apply the state reduction if any.
-        if state_code == 'd':
-            reduction_axis += 1
-        elif state_code == 's':
-            out = np.sum(out, axis=reduction_axis)
-        elif state_code == 'w':
-            indices = np.ravel_multi_index(
-                    req.state_reduction.states.T,
-                    toplevel.scene.state_space_shape)
-            weights = req.state_reduction.weights
-            out = sparse_reduction(out, indices, weights, reduction_axis)
+        # Apply reductions along axes according to the request.
+        out = apply_reductions(toplevel.scene.state_space_shape, req, out)
 
         # Convert the ndarray to a list.
         # If the response is a zero ndim ndarray, then this will
