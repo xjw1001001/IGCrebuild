@@ -23,7 +23,7 @@ def create_j_in(n):
 
     # Edge rate scaling factors.
     # In some contexts, these should be treated as times.
-    edge_rates = [10, 5, 5, 5]
+    edge_rates = [5, 10, 5, 5]
 
     # Define the process.
     speciation_triples = list(gen_speciation_triples(lam, n))
