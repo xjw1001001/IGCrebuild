@@ -71,7 +71,6 @@ def create_j_in(n):
         ))
 
     # Unweighted sum over observations, and weighted sum over states.
-    # The weighted sum over states consists of the 
     # TODO implement node reduction in jsonctmctree?
     extant_request = dict(
         property='snwnode',
