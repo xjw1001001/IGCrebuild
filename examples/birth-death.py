@@ -126,6 +126,8 @@ def main():
     wrap_likelihood = exp(logl)
     print('likelihood:', wrap_likelihood)
     print('upper bound likelihood for unbounded population:', absorb_likelihood)
+    print('unconditional probability of exceeding the population cap:',
+            absorb_likelihood - wrap_likelihood)
     print('expected number of extinctions:', extinction)
     print('expected number of extant lineages at each node:')
     for i, x in enumerate(extant):
