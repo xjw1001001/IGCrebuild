@@ -2,24 +2,22 @@
 """
 from __future__ import print_function, division
 
+from math import exp, expm1
+import argparse
+
 from jsonctmctree.interface import process_json_in
 
 def gen_speciation_triples(lam, n):
     for i in range(1, n-1):
         yield [1, i], [1, i+1], i*lam
+    yield [1, n-1], [0, 0], (n-1)*lam
 
 def gen_extinction_triples(mu, n):
     yield [1, 1], [0, 0], mu
     for i in range(2, n):
         yield [1, i], [1, i-1], i*mu
 
-def create_j_in(n):
-
-    # speciation rate
-    lam = 0.5
-
-    # extinction rate
-    mu = 0.3
+def create_j_in(mu, lam, n):
 
     # Edge rate scaling factors.
     # In some contexts, these should be treated as times.
@@ -59,6 +57,9 @@ def create_j_in(n):
                 )
             )
 
+    # Log likelihood.
+    logl_request = dict(property='snnlogl')
+
     # Unweighted sum over observations and over edges,
     # and weighted sum over transitions consisting of the unweighted sum
     # over transitions corresponding to extinction events.
@@ -90,28 +91,31 @@ def create_j_in(n):
             states = [[1, i] for i in range(n)],
             weights = range(n)))
 
-    # This is an upper bound
-    # on the probability to have exceeded the population cap.
-    misspecification_request = dict(
-            property='ssntran',
-            transition_reduction = dict(
-                row_states = [[1, n-2]],
-                column_states = [[1, n-1]],
-                weights = [1]))
-
     j_in = dict(
             scene=scene,
             requests=[
+                logl_request,
                 extinction_request,
                 extant_request,
                 dwell_request,
-                misspecification_request,
                 ])
 
     return j_in
 
 def main():
-    j_in = create_j_in(1000)
-    print(process_json_in(j_in))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--n', type=int, default=100, help='population size')
+    parser.add_argument('--mu', type=float, default=0.3, help='extinction')
+    parser.add_argument('--lam', type=float, default=0.5, help='speciation')
+    args = parser.parse_args()
+    j_in = create_j_in(args.mu, args.lam, args.n)
+    j_out = process_json_in(j_in)
+    logl, extinction, extant, dwell = j_out['responses']
+    print('likelihood:', exp(logl))
+    print('expected number of extinctions:', extinction)
+    print('expected number of extant lineages at each node:')
+    for i, x in enumerate(extant):
+        print(i, ':', x)
+    print('expected total size of the gene tree:', dwell)
 
 main()
