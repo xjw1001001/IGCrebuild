@@ -11,6 +11,8 @@ of a json interface for querying properties of a continuous-time
 finite-multivariate-state Markov chain on a branching timeline
 with incomplete observations.
 
+Here's a cryptic table for you to puzzle over.
+
 +------+---------------+---------------+---------------+
 |      |  observations |     edges     |    states     |
 +------+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -30,21 +32,12 @@ with incomplete observations.
 +------+---+---+---+---+---+---+---+---+---+---+---+---+
 
 
-Contents:
+user documentation
+------------------
 
 .. toctree::
    :maxdepth: 2
 
-   tutorial_0.rst
+   tut00/main.rst
    tutorial_1.rst
    about_the_docs.rst
-
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
