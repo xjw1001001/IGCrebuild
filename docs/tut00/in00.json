@@ -19,9 +19,9 @@
 			"transition_rates" : [1]
 		}],
 		"observed_data" : {
-			"nodes" : [0, 1],
-			"variables" : [0, 0],
-			"iid_observations" : [[1, 1]]
+			"nodes" : [1],
+			"variables" : [0],
+			"iid_observations" : [[1]]
 		}
 	},
 	"requests" : [{"property" : "SNNLOGL"}]
