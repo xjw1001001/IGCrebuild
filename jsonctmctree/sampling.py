@@ -74,9 +74,9 @@ def _geneconvify(Q_in, d_in, tau, scaling_mask=None):
     d_in : 1d ndarray (n, )
         equilibrium distribution
     tau : float
-        extra homogenization rate
+        Additive homogenization rate.
     scaling_mask : 2d ndarray (n, n)
-        scales rates
+        Scales homogenization rates after having added tau.
 
     Returns
     -------
