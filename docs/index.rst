@@ -3,17 +3,41 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to jsonctmctree's documentation!
-========================================
+jsonctmctree overview
+=====================
+
+jsonctmctree will be among other things a specification
+of a json interface for querying properties of a continuous-time
+finite-multivariate-state Markov chain on a branching timeline
+with incomplete observations.
+
++------+---------------+---------------+---------------+
+|      |  observations |     edges     |    states     |
++------+---------------+---------------+---------------+
+|      | d | s | w | n | d | s | w | n | d | s | w | n | 
++======================================================+
+| LOGL |   |   |   |   |   |   |   |   |   |   |   |   |
++------+---+---+---+---+---+---+---+---+---+---+---+---+
+| DERI |   |   |   |   |   |   |   |   |   |   |   |   |
++------+---+---+---+---+---+---+---+---+---+---+---+---+
+| DWEL |   |   |   |   |   |   |   |   |   |   |   |   |
++------+---+---+---+---+---+---+---+---+---+---+---+---+
+| TRAN |   |   |   |   |   |   |   |   |   |   |   |   |
++------+---+---+---+---+---+---+---+---+---+---+---+---+
+| NODE |   |   |   |   |   |   |   |   |   |   |   |   |
++------+---+---+---+---+---+---+---+---+---+---+---+---+
+| ROOT |   |   |   |   |   |   |   |   |   |   |   |   |
++------+---+---+---+---+---+---+---+---+---+---+---+---+
+
 
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
-   about_the_docs.rst
    tutorial_0.rst
    tutorial_1.rst
+   about_the_docs.rst
 
 
 
