@@ -11,6 +11,10 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   about_the_docs.rst
+   tutorial_0.rst
+   tutorial_1.rst
+
 
 
 Indices and tables
