@@ -46,6 +46,10 @@ The interface is limited in that it does not support the following:
     * non-axis-aligned state aggregate observations
     * noisy observations (subsumes state aggregate observations)
     * partitions of observations within a single scene
+    * second derivatives and cross derivatives
+    * uncertainty in the branching structure of the timeline
+    * random effects
+    * inference and hypothesis testing are not performed automatically
 
 """
 from __future__ import division, print_function, absolute_import
