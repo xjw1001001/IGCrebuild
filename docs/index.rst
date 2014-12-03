@@ -39,5 +39,6 @@ user documentation
    :maxdepth: 2
 
    tut00/main.rst
+   tut01/main.rst
    tutorial_1.rst
    about_the_docs.rst

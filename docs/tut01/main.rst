@@ -1,5 +1,5 @@
-first tutorial
---------------
+second tutorial
+---------------
 
 In this tutorial we look at a univariate binary continuous-time
 Markov process defined by instantaneous rates

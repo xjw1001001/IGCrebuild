@@ -10,18 +10,18 @@
 			"edge_processes" : [0]
 		},
 		"root_prior" : {
-			"states" : [[0]],
+			"states" : [[1]],
 			"probabilities" : [1]
 		},
 		"process_definitions" : [{
-			"row_states" : [[0]],
-			"column_states" : [[1]],
+			"row_states" : [[1]],
+			"column_states" : [[0]],
 			"transition_rates" : [1]
 		}],
 		"observed_data" : {
 			"nodes" : [0, 1],
 			"variables" : [0, 0],
-			"iid_observations" : [[0, 0]]
+			"iid_observations" : [[1, 1]]
 		}
 	},
 	"requests" : [{"property" : "SNNLOGL"}]
