@@ -27,24 +27,57 @@ input
    :language: json
    :linenos:
 
-The input is in the json meta-format.
+This input in the json meta-format formally defines
+the scenario described in the introduction,
+including a request for the logarithm of the probability
+of no transition having occurred over the interval.
 
-    scene : object
-        A formal definition of the background against which 
-        various properties can be requested.
+In the next few sections we will explain
+the various parts of this unnecessarily complicated construction.
+
+
+input shapes and sizes
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. literalinclude:: in00.json
+   :language: json
+   :emphasize-lines: 3-5
+   :linenos:
+
+This section defines some shapes and sizes of parts of the scenario.
 
     scene.node_count : integer
         Number of nodes in the branching timeline.
 
         In our example we have one node at each endpoint of the interval.
 
+    scene.process_count : integer
+        Number of distinct stochastic processes in the model.
+
+        In our example we have only a single edge.
+        Because each edge is associated with only one stochastic process,
+        the process count in our example is 1.
+
     scene.state_space_shape : 1d array of integers
         The sizes of the state space space of each variable
         in the multivariate process.
 
         Our multivariate process has only a single variable
-        (so it is really a univariate process).
+        so it is really a univariate process.
         This variable is binary so the size of its state space is 2.
+
+
+input branching structure
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. literalinclude:: in00.json
+   :language: json
+   :emphasize-lines: 6-11
+   :linenos:
+
+This section defines the branching structure,
+including edge-specific rates and indicating which
+processes act along which edges.
 
     scene.tree : object
         The definition of the branching structure of the timeline.
@@ -88,6 +121,18 @@ The input is in the json meta-format.
         Because we use 0-based indexing, this array contains
         only a single entry which is 0.
 
+
+input process definitions
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. literalinclude:: in00.json
+   :language: json
+   :emphasize-lines: 16-20
+   :linenos:
+
+This section defines the stochastic processes
+which may act along one or more edges of the branching process.
+
     scene.process_definitions : 1d array of process objects
         Each object defines a stochastic process along one or more edges.
 
@@ -120,6 +165,18 @@ The input is in the json meta-format.
         In our example we have only a single allowed transition
         and its instantaneous rate is 1.
 
+
+input observed data
+^^^^^^^^^^^^^^^^^^^
+
+.. literalinclude:: in00.json
+   :language: json
+   :emphasize-lines: 21-25
+   :linenos:
+
+This section defines partial or complete observations
+of the multivariate states at nodes of the branching structure.
+
     scene.observed_data : object
         Indicates which variables of the multivariate process
         are observable at which nodes, and provides multiple
@@ -149,6 +206,17 @@ The input is in the json meta-format.
         consisting of only a single variable observed at a single node.
         The observed value is 1 representing an observed absence
         of having transitioned to state 0 from state 1.
+
+
+input requests
+^^^^^^^^^^^^^^
+
+.. literalinclude:: in00.json
+   :language: json
+   :emphasize-lines: 27
+   :linenos:
+
+This section defines the requested properties of the scenario.
 
     requests : 1d array of request objects
         Array of requested reductions of requested properties
