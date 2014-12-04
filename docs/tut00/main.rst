@@ -36,8 +36,8 @@ In the next few sections we will explain
 the various parts of this unnecessarily complicated construction.
 
 
-input shapes and sizes
-^^^^^^^^^^^^^^^^^^^^^^
+shapes and sizes
+^^^^^^^^^^^^^^^^
 
 .. literalinclude:: in00.json
    :language: json
@@ -47,28 +47,32 @@ input shapes and sizes
 This section defines some shapes and sizes of parts of the scenario.
 
     scene.node_count : integer
-        Number of nodes in the branching timeline.
+        The number of nodes in the branching timeline.
 
-        In our example we have one node at each endpoint of the interval.
+        In our example we don't really have a branching timeline.
+        Instead we have an interval with two endpoints.
 
     scene.process_count : integer
-        Number of distinct stochastic processes in the model.
+        The number of distinct stochastic processes in the model.
 
-        In our example we have only a single edge.
-        Because each edge is associated with only one stochastic process,
-        the process count in our example is 1.
+        The continuous-time Markov process in our example is homogeneous,
+        so we don't need to define more than one process.
 
     scene.state_space_shape : 1d array of integers
         The sizes of the state space space of each variable
         in the multivariate process.
 
         Our multivariate process has only a single variable
-        so it is really a univariate process.
-        This variable is binary so the size of its state space is 2.
+        with has state space {0, 1} so the size of its state space is 2.
+
+        Note that using jsonctmctree's multivariate notation for states,
+        the two states in our process are written as [0] and [1].
+        These seemingly redundant square brackets are awkward-looking
+        because jsonctmctree was designed for multivariate processes.
 
 
-input branching structure
-^^^^^^^^^^^^^^^^^^^^^^^^^
+branching structure
+^^^^^^^^^^^^^^^^^^^
 
 .. literalinclude:: in00.json
    :language: json
@@ -122,8 +126,42 @@ processes act along which edges.
         only a single entry which is 0.
 
 
-input process definitions
-^^^^^^^^^^^^^^^^^^^^^^^^^
+root prior
+^^^^^^^^^^
+
+.. literalinclude:: in00.json
+   :language: json
+   :emphasize-lines: 12-15
+   :linenos:
+
+This section defines the prior state distribution
+at the root of the branching structure.
+
+Because the branching structure in our example
+consists of only a single edge,
+for our example
+'the root of the tree' should be read as
+'the initial endpoint of the interval.'
+
+    scene.root_prior.states : 2d array of integers
+        An array of multivariate states with nonzero
+        probability at the root.
+
+        In our example, only state 1
+        (which is represented in multivariate notation as [1])
+        has nonzero probability.
+
+    scene.root_prior.probabilities : 1d array of numbers
+        The distribution over multivariate states
+        that have nonzero probability.
+
+        In our example we only have one state with nonzero
+        prior probability at the root, so its prior probability
+        is 1.
+
+
+process definitions
+^^^^^^^^^^^^^^^^^^^
 
 .. literalinclude:: in00.json
    :language: json
@@ -166,8 +204,8 @@ which may act along one or more edges of the branching process.
         and its instantaneous rate is 1.
 
 
-input observed data
-^^^^^^^^^^^^^^^^^^^
+observed data
+^^^^^^^^^^^^^
 
 .. literalinclude:: in00.json
    :language: json
@@ -208,8 +246,8 @@ of the multivariate states at nodes of the branching structure.
         of having transitioned to state 0 from state 1.
 
 
-input requests
-^^^^^^^^^^^^^^
+requests
+^^^^^^^^
 
 .. literalinclude:: in00.json
    :language: json
