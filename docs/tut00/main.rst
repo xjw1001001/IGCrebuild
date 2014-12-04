@@ -31,7 +31,30 @@ input
 explanation of the input
 ------------------------
 
-TODO
+The input is in the json meta-format.
+
+    scene : object
+        A formal definition of the background against which 
+        various properties can be requested.
+
+    scene.node_count : integer
+        Number of nodes in the branching timeline.
+
+        In our example we have one node at each endpoint of the interval.
+
+    scene.state_space_shape : 1d array of integers
+        The sizes of the state space space of each variable
+        in the multivariate process.
+
+        Our multivariate process has only a single variable
+        (so it is really a univariate process).
+        This variable is binary so the size of its state space is 2.
+
+    scene.tree : object
+        The definition of the branching structure of the timeline.
+
+    scene.tree.row_nodes : 1d array of integers
+        x
 
 
 output
