@@ -1,24 +1,20 @@
-first tutorial
-==============
+example 1
+=========
 
-In this tutorial we look at a simple continuous-time process
-in which a binary variable begins in state 1 at
-one end of an interval of length 1, 
-and which stochastically evolves with instantaneous rate 1 towards
-absorbing state 0.
-This particular process is also morbidly known as a "pure-death" process
-(as opposed to a "pure-birth" or "birth-death" process).
+This example looks at the simple process in which a binary variable
+begins in state 1 at one end of an interval of length 1, 
+and stochastically evolves with instantaneous rate 1 towards absorbing state 0.
+This particular process is also morbidly known as a "pure-death" process.
 
-If we are interested in the probability to stay
-in the initial state 1, we can see that this is simply the probability
+If we are interested in the probability of surviving in the initial state 1
+over the entire interval, we see that this is simply the probability
 of zero transitions within the interval during which 1 transition is expected.
 According to the Poisson distribution,
-this probability of no change is :math:`\frac{1}{e}`,
-whose logarithm is -1.
+this probability of no change is :math:`\frac{1}{e}`, whose logarithm is -1.
 
 This model is simple enough that using jsonctmctree to compute
-this probability logarithm is somewhat awkward and unnecessary,
-but because this is a jsonctmctree tutorial, we will do it anyway!
+this probability logarithm is awkward and unnecessary,
+but because this is a jsonctmctree example we will do it anyway!
 
 input
 -----
@@ -79,17 +75,17 @@ branching structure
    :emphasize-lines: 6-11
    :linenos:
 
-This section defines the branching structure,
+This section defines the branching structure of the timeline,
 including edge-specific rates and indicating which
 processes act along which edges.
 
-    scene.tree : object
-        The definition of the branching structure of the timeline.
-
-        In our example we have only an interval, but we can think of this
-        interval as the only edge in a not very interesting rooted tree
-        whose root is node 0 and whose node at the opposite endpoint
-        of the interval is 1.
+Because the time interval in our example does not branch,
+we define the 'branching structure' to consist of only a single edge,
+so for our example
+'the root of the tree' should be read as
+'the initial endpoint of the interval.'
+This initial endpoint will be labeled as node 0 in our example,
+and the point at the other end of the interval will be called node 1.
 
     scene.tree.row_nodes : 1d array of integers
         This array has one element for each edge of the tree,
@@ -137,11 +133,8 @@ root prior
 This section defines the prior state distribution
 at the root of the branching structure.
 
-Because the branching structure in our example
-consists of only a single edge,
-for our example
-'the root of the tree' should be read as
-'the initial endpoint of the interval.'
+As mentioned in the previous section the branching structure in our example
+consists of only a single edge, with the initial endpoint as the root.
 
     scene.root_prior.states : 2d array of integers
         An array of multivariate states with nonzero
@@ -213,12 +206,10 @@ observed data
    :linenos:
 
 This section defines partial or complete observations
-of the multivariate states at nodes of the branching structure.
-
-    scene.observed_data : object
-        Indicates which variables of the multivariate process
-        are observable at which nodes, and provides multiple
-        such independent and identically distributed joint observations.
+of the multivariate states at nodes of the branching structure,
+by indicating which variables of the multivariate process
+are observable at which nodes and providing multiple
+such independent and identically distributed joint observations.
 
     scene.observed_data.nodes : 1d array of integers
         Indices of observable nodes.
@@ -286,7 +277,7 @@ output
    :language: json
    :linenos:
 
-The output is also in the json meta-format.
+This output is in the json meta-format.
 
     status : string
         Indicates feasibility or error status.
@@ -300,4 +291,4 @@ The output is also in the json meta-format.
         for the logarithm of the probability of no transition
         to state 0, so this array has only a single entry.
         The logarithm of the probability was correctly computed
-        as -1 with some small numerical error.
+        as -1 with small numerical error.
