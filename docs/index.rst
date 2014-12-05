@@ -11,26 +11,6 @@ of a json interface for querying properties of a continuous-time
 finite-multivariate-state Markov chain on a branching timeline
 with incomplete observations.
 
-Here's a cryptic table for you to puzzle over.
-
-+------+---------------+---------------+---------------+
-|      |  observations |     edges     |    states     |
-+------+---+---+---+---+---+---+---+---+---+---+---+---+
-|      | D | S | W | N | D | S | W | N | D | S | W | N | 
-+======+===+===+===+===+===+===+===+===+===+===+===+===+
-| LOGL | Y | Y | Y | . | . | . | . | Y | . | . | . | Y |
-+------+---+---+---+---+---+---+---+---+---+---+---+---+
-| DERI | Y | Y | Y | . | Y | . | . | . | . | . | . | Y |
-+------+---+---+---+---+---+---+---+---+---+---+---+---+
-| DWEL | Y | Y | Y | . | Y | . | Y | . | Y | . | Y | . |
-+------+---+---+---+---+---+---+---+---+---+---+---+---+
-| TRAN | Y | Y | Y | . | Y | Y | . | . | . | . | . | Y |
-+------+---+---+---+---+---+---+---+---+---+---+---+---+
-| ROOT | Y | Y | Y | . | . | . | . | Y | Y | . | Y | . |
-+------+---+---+---+---+---+---+---+---+---+---+---+---+
-| NODE | Y | Y | Y | . | . | . | . | Y | Y | . | Y | . |
-+------+---+---+---+---+---+---+---+---+---+---+---+---+
-
 
 user documentation
 ------------------
@@ -40,4 +20,5 @@ user documentation
 
    tut00/main.rst
    tut01/main.rst
+   property_table.rst
    about_the_docs.rst
