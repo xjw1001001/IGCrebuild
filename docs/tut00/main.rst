@@ -1,10 +1,14 @@
 example 1
 =========
 
-This example looks at the simple process in which a binary variable
+This example computes a log likelihood for a simple process.
+
+In particular, it looks at the simple process in which a binary variable
 begins in state 1 at one end of an interval of length 1, 
 and stochastically evolves with instantaneous rate 1 towards absorbing state 0.
-This particular process is also morbidly known as a "pure-death" process.
+Chosen for its simplicity,
+this particular process belongs to a class of processes
+morbidly known as "pure-death" processes.
 
 If we are interested in the probability of surviving in the initial state 1
 over the entire interval, we see that this is simply the probability
@@ -14,7 +18,7 @@ this probability of no change is :math:`\frac{1}{e}`, whose logarithm is -1.
 
 This model is simple enough that using jsonctmctree to compute
 this probability logarithm is awkward and unnecessary,
-but because this is a jsonctmctree example we will do it anyway!
+but because this is a jsonctmctree example we will not let this deter us!
 
 input
 -----
