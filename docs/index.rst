@@ -15,5 +15,6 @@ user documentation
 
    tut00/main.rst
    tut01/main.rst
+   tut02/main.rst
    property_table.rst
    about_the_docs.rst
