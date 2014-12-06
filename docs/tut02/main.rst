@@ -35,17 +35,33 @@ output
 estimating parameters
 ---------------------
 
-input
-^^^^^
+EM iteration 1 input
+^^^^^^^^^^^^^^^^^^^^
 
 .. literalinclude:: in01.json
    :language: json
    :linenos:
 
 
-output
-^^^^^^
+EM iteration 1 output
+^^^^^^^^^^^^^^^^^^^^^
 
 .. literalinclude:: out01.json
+   :language: json
+   :linenos:
+
+
+EM iteration 2 input
+^^^^^^^^^^^^^^^^^^^^
+
+.. literalinclude:: in02.json
+   :language: json
+   :linenos:
+
+
+EM iteration 2 output
+^^^^^^^^^^^^^^^^^^^^
+
+.. literalinclude:: out02.json
    :language: json
    :linenos:
