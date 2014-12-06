@@ -28,7 +28,7 @@ The core properties have the following meanings:
         log likelihood
 
     DERI
-        log derivatives of edge rate log scaling factors
+        derivatives of edge rate log scaling factors
 
     DWEL
         state occupancy distributions along edges
