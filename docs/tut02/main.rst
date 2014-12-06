@@ -209,3 +209,9 @@ in the sense that
    \dfrac{\mid x_{k+1} - L \mid}{\mid x_k - L \mid}
 
 is a constant between 0 and 1 exclusive.
+
+Of course if you wanted to do this for real,
+you would write a program to do it instead of doing it by hand.
+My hope is that this would not be such a formidable task,
+because json readers and writers should be available
+for most programming languages.
