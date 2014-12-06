@@ -93,7 +93,7 @@ input scene
 
 .. literalinclude:: in01.json
    :language: json
-   :emphasize-lines: 19, 22-28
+   :emphasize-lines: 19, 21-29
    :linenos:
 
 To begin estimating parameters,
