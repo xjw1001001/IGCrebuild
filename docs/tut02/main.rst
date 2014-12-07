@@ -155,6 +155,15 @@ are expected to have occurred conditional on the data,
 and that about 0.04 transitions from state 1 to state 0
 are expected to have occurred.
 
+In fact for this particular model,
+these conditional expectations do not depend on the parameter values,
+given the probability distribution over states at the final endpoint.
+So these requests are redundant.
+We can see that the conditionally expected number of transitions from
+state 2 to state 1 is equal to the probability of not ending up in
+state 2, and the conditionally expected number of transitions from
+state 1 to state 0 is equal to the probability of ending up in state 0.
+
 Using these conditional transition count expectations together with the
 conditional dwell time expectations, we can complete one
 iteration of EM, updating our estimate
