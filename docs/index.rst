@@ -1,14 +1,26 @@
 jsonctmctree overview
 =====================
 
-Query properties of a continuous-time multivariate finite-state
+The purpose of this project is to provide a relatively easy way to query
+properties of a continuous-time multivariate finite-state
 Markov chain on a branching timeline with incomplete observations.
 
-The project specifies a json interface and includes a reference implementation.
+json
 
 
-user documentation
-------------------
+reference
+---------
+
+.. toctree::
+   :maxdepth: 2
+
+   property_table.rst
+   reductions.rst
+   about_the_docs.rst
+
+
+examples
+--------
 
 .. toctree::
    :maxdepth: 2
@@ -16,6 +28,3 @@ user documentation
    tut00/main.rst
    tut01/main.rst
    tut02/main.rst
-   reductions.rst
-   property_table.rst
-   about_the_docs.rst
