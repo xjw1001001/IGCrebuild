@@ -122,7 +122,8 @@ amount of opportunity to have made such a transition.
 This section highlights the jsonctmctree request and response
 related to the denominators of these estimates.
 
-Notice that the request specifies a reduction over observations
+Notice that the request specifies
+an :ref:`observation_reduction`
 using weights corresponding to the distribution
 over states at the final endpoint of the interval.
 

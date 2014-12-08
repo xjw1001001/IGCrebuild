@@ -1,10 +1,10 @@
 jsonctmctree overview
 =====================
 
-jsonctmctree will be among other things a specification
-of a json interface for querying properties of a continuous-time
-finite-multivariate-state Markov chain on a branching timeline
-with incomplete observations.
+Query properties of a continuous-time multivariate finite-state
+Markov chain on a branching timeline with incomplete observations.
+
+The project specifies a json interface and includes a reference implementation.
 
 
 user documentation
@@ -16,5 +16,6 @@ user documentation
    tut00/main.rst
    tut01/main.rst
    tut02/main.rst
+   reductions.rst
    property_table.rst
    about_the_docs.rst

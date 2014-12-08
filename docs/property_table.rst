@@ -53,7 +53,7 @@ The reduction codes have the following meanings:
         unweighted (S)ummation
 
     W
-        (W)eighted summation
+        (W)eighted linear combination
 
     N
         (N)ot applicable
