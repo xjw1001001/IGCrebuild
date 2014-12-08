@@ -224,7 +224,7 @@ such independent and identically distributed joint observations.
         In our example, we only care about observations at the
         node corresponding to the final endpoint of the interval.
 
-    scene.observed_indices.variables : 1d array of integers
+    scene.observed_data.variables : 1d array of integers
         Indices of components of the multivariate process
         observable at the nodes indicated in the above array.
 
@@ -232,7 +232,7 @@ such independent and identically distributed joint observations.
         component -- component 0 -- and we only care about observations
         at one of the two endpoint nodes.
 
-    scene.observed_indices.iid_observations : 2d array of integers
+    scene.observed_data.iid_observations : 2d array of integers
         Observed component states of the multivariate process.
 
         In our example we care only about a single observation,

@@ -5,8 +5,6 @@ The purpose of this project is to provide a relatively easy way to query
 properties of a continuous-time multivariate finite-state
 Markov chain on a branching timeline with incomplete observations.
 
-json
-
 
 reference
 ---------
@@ -14,8 +12,9 @@ reference
 .. toctree::
    :maxdepth: 2
 
-   property_table.rst
+   scene.rst
    reductions.rst
+   property_table.rst
    about_the_docs.rst
 
 
