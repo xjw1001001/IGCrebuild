@@ -21,3 +21,13 @@ with some help from
 http://matplotlib.org/sampledoc/getting_started.html
 which unfortunately seems a little bit outdated.
 As you can tell from these urls, I'm indeed just "getting started."
+
+I am trying to follow
+http://stackoverflow.com/questions/4259105
+to make the json highlighting work.
+Sphinx will already correctly highlight literal inclusions of
+entire .json files, but it is not highlighting code-block json.
+*Update*:
+So it turns out that I was just giving it an invalid json
+block that looked kind of like ``{1:2}`` whereas only strings
+are allowed as keys.

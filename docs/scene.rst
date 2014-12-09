@@ -1,8 +1,26 @@
+
+
 .. _scene:
 
 scene
 -----
 
+This object is one of the two attributes of the
+jsonctmctree input,
+the other being the array of :ref:`requests`.
+
+The relatively simple scene below
+has been taken from :ref:`example_1`
+and is followed by detailed explanations of the
+types and meanings of its components.
+
+.. literalinclude:: tut00/in00.json
+   :language: json
+   :emphasize-lines: 2-26
+   :linenos:
+
+
+.. _shapes_and_sizes:
 
 shapes and sizes
 ^^^^^^^^^^^^^^^^
@@ -19,6 +37,8 @@ This section defines some shapes and sizes of parts of the scenario.
         The sizes of the state space space of each variable
         in the multivariate process.
 
+
+.. _tree:
 
 branching structure
 ^^^^^^^^^^^^^^^^^^^
@@ -49,6 +69,8 @@ processes act along which edges.
         assigned to each edge.
 
 
+.. _root_prior:
+
 root prior
 ^^^^^^^^^^
 
@@ -63,6 +85,8 @@ at the root of the branching structure.
         The distribution over multivariate states
         that have nonzero probability.
 
+
+.. _process_definitions:
 
 process definitions
 ^^^^^^^^^^^^^^^^^^^
@@ -89,6 +113,8 @@ which may act along one or more edges of the branching process.
         For each of the allowed transitions,
         this array contains the instantaneous rate of the transition.
 
+
+.. _observed_data:
 
 observed data
 ^^^^^^^^^^^^^
