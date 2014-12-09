@@ -47,8 +47,8 @@ def gen_valid_extended_properties():
 
     """
     core_properties = ('logl', 'deri', 'dwel', 'tran', 'root', 'node')
-    for components in product('dswn', 'dswn', 'dswn', core_properties):
-        extended_property = ''.join(components)
+    for components in product(core_properties, 'dswn', 'dswn', 'dswn'):
+        extended_property = ''.join(reversed(components))
         if re.match(request_regex, extended_property):
             yield extended_property
 
