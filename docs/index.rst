@@ -57,14 +57,4 @@ reference
    reductions.rst
    property_table.rst
    about_the_docs.rst
-
-
-.. _extended_properties:
-
-extended properties
--------------------
-
-.. toctree::
-   :maxdepth: 2
-
    properties.rst
