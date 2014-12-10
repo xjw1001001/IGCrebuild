@@ -52,5 +52,6 @@ reference
    scene.rst
    reductions.rst
    property_table.rst
+   warts.rst
    about_the_docs.rst
    properties.rst
