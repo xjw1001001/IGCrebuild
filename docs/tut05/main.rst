@@ -26,8 +26,8 @@ and computes the log likelihood.
 
 
 Here is the json input that
-reduces the input by considering only multiplicties of distinct patterns
-of equality of inequality among amino acids at alignment columns.
+reduces the input by considering only multiplicities of distinct patterns
+of equality or inequality among amino acids at alignment columns.
 
 .. literalinclude:: in01.json
    :language: json
