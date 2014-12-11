@@ -37,4 +37,3 @@ of equality or inequality among amino acids at alignment columns.
    :language: json
    :linenos:
 
-
