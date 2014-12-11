@@ -9,9 +9,8 @@ by Ziheng Yang, 2014, Oxford University Press.
 
 __ http://abacus.gene.ucl.ac.uk/MESA/
 
-It computes the log likelihood for a poisson model of molecular evolution
-for an evolutionary tree of primates,
-using the empirical MTMAM model.
+It computes the log likelihood for the empirical MTMAM
+model of molecular evolution for an evolutionary tree of primates.
 
 The conditional expected number of transitions per edge 
 divided by the conditional expected exit rate from each state
