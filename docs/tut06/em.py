@@ -105,8 +105,8 @@ def main():
     columns = [list(x) for x in zip(*sequences)]
     nsites = len(columns)
     scene['observed_data'] = {
-			"nodes" : [0, 1, 2, 3, 4, 5, 6],
-			"variables" : [0, 0, 0, 0, 0, 0, 0],
+            "nodes" : [0, 1, 2, 3, 4, 5, 6],
+            "variables" : [0, 0, 0, 0, 0, 0, 0],
             "iid_observations" : columns
             }
 
