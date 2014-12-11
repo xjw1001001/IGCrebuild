@@ -41,6 +41,7 @@ examples
    tut03/main.rst
    tut04/main.rst
    tut05/main.rst
+   tut06/main.rst
 
 
 .. _reference:
