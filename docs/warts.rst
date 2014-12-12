@@ -81,3 +81,22 @@ as a todo-list, a bug list, or a list of 'issues' or a FAQ.
 * Mixture models are not treated specially,
   but they could be emulated using block diagonal rate matrices.
 * The extra structure of time-reversible rate matrices is not used.
+* A 'node_reduction' that sums or otherwise combines
+  summaries across nodes is not exposed through the interface.
+* Although the multivariate state notation is used to index
+  states throughout most of the interface,
+  the 'state_reduction' interface uses a different notation
+  which requires the index to be "raveled"
+  in the sense of numpy.multi_ravel_index.
+  Besides being inconsistent with the rest of the state indexing notation,
+  this has the additional problem of not being extensible
+  to combinatorially large spaces for which only a
+  small fraction of states are actually in use.
+* Similarly the dwell times expectation response includes a "raveled" array
+  if it is not reduced by state.
+* For consistency with the rest of the interface you might think that
+  the transition count expectation calculation should return
+  each transition count expectation for each possible state transition
+  if 'transition_reduction' is not provided.
+  But this flexibility is not provided by the interface
+  and instead a transition reduction is required.
