@@ -71,7 +71,7 @@ dwell proportions
 This is a request for "SDDDWEL" which is parsed as
 the (S)ummation across observations,
 for (D)istinct edges and (D)istinct states,
-of the (DWEL)l proportions.
+of the (DWEL)L proportions.
 In this example, the value of ``responses[0][i][j]`` indicates
 the proportion of time on edge i spent in state j.
 
