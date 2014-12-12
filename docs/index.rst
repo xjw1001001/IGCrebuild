@@ -7,7 +7,7 @@ Markov chain on a branching timeline with incomplete observations.
 
 Some of these properties could include
 the log likelihood,
-the derivatives of logs of edge-specific rate scaling factors,
+its derivative with respect to logs of edge-specific rate scaling factors,
 the expected proportions of time spent in subsets of states
 along certain edges,
 linear combinations of transition count expectations,
