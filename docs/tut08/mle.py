@@ -97,8 +97,6 @@ def main():
             rows.append(row)
     columns = [list(x) for x in zip(*rows)]
 
-    # This is a partial scene, missing the root distribution,
-    # the process definition, and the observed data.
     distn = [0.25, 0.25, 0.25, 0.25]
     rates = [1, 1, 1, 1, 1, 1, 1, 1]
     scene = {
