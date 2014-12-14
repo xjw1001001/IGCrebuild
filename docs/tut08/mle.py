@@ -68,7 +68,6 @@ def objective(scene, X):
     j_out = jsonctmctree.interface.process_json_in(j_in)
     log_likelihood = j_out['responses'][0]
     cost = -log_likelihood + unpacking_cost
-    print(cost)
     return cost
 
 def main():
@@ -126,8 +125,16 @@ def main():
     X = pack(distn, 2.0, 3.0, rates)
     f = functools.partial(objective, scene)
     result = minimize(f, X, method='L-BFGS-B')
-    print(result)
-    print(unpack(result.x))
+    print('final value of objective function:', result.fun)
+    distn, kappa, tau, rates, unpacking_cost = unpack(result.x)
+    print('nucleotide distribution:')
+    for nt, p in zip('ACGT', distn):
+        print('  ', nt, ':', p)
+    print('kappa:', kappa)
+    print('tau:', tau)
+    print('edge rate scaling factors:')
+    for r in rates:
+        print('  ', r)
 
 main()
 
