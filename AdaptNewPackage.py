@@ -341,7 +341,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--ll_url')
     parser.add_argument('--newicktree', default = newicktree)
-    parser.add_argument('--nsites', type=int,
+    parser.add_argument('--nsites', type=int, default = 3,
             help='upper limit on the number of sites to be used')
     parser.add_argument('--fasta', default = fasta_file,
             help='fasta file with paralog alignment of selected paralog pairs')
