@@ -97,19 +97,19 @@ which may act along one or more edges of the branching process.
     scene.process_definitions : 1d array of process objects
         Each object defines a stochastic process along one or more edges.
 
-    scene.process_definitions[0].row_states : 2d array of integers
+    scene.process_definitions[i].row_states : 2d array of integers
         Each entry of the array is a multivariate state.
         If the instantaneous transition rates were represented
         in matrix form, each entry would be the row index of a rate
         that is allowed to be nonzero.
 
-    scene.process_definitions[0].column_states : 2d array of integers
+    scene.process_definitions[i].column_states : 2d array of integers
         Each entry of the array is a multivariate state.
         If the instantaneous transition rates were represented
         in matrix form, each entry would be the column index of a rate
         that is allowed to be nonzero.
 
-    scene.process_definitions[0].transition_rates : 1d array of numbers
+    scene.process_definitions[i].transition_rates : 1d array of numbers
         For each of the allowed transitions,
         this array contains the instantaneous rate of the transition.
 
