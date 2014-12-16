@@ -5,7 +5,8 @@ example 12
 
 [under construction...]
 
-Compute log likelihood for a strange multivariate model.
+Compute log likelihood and posterior transition
+expectations for a strange multivariate model.
 
 .. literalinclude:: in00.json
    :language: json
@@ -14,3 +15,14 @@ Compute log likelihood for a strange multivariate model.
 .. literalinclude:: out00.json
    :language: json
    :linenos:
+
+In the output,
+the first response is the log likelihood.
+The second response is the number of expected
+synonymous transitions per edge.
+The third response is the number of expected
+non-synonymous transitions per edge.
+The fourth response is the number of expected
+tolerance gains per edge.
+The fifth response is the number of expected
+tolerance losses per edge.
