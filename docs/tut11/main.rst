@@ -3,8 +3,6 @@
 example 12
 ==========
 
-[under construction...]
-
 Compute log likelihood and posterior transition
 expectations for a strange multivariate model.
 
