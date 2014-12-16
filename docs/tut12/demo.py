@@ -5,17 +5,19 @@ import matplotlib.pyplot as plt
 
 from jsonctmctree.interface import process_json_in
 
-def get_distn(t):
+def main():
+    ts = np.linspace(1e-5, 30, 100)
+    n = len(ts)
     j_in = {
         "scene" : {
-            "node_count" : 2,
+            "node_count" : n+1,
             "process_count" : 1,
             "state_space_shape" : [4],
             "tree" : {
-                "row_nodes" : [0],
-                "column_nodes" : [1],
-                "edge_rate_scaling_factors" : [0.5 * t],
-                "edge_processes" : [0]
+                "row_nodes" : [n]*n,
+                "column_nodes" : range(n),
+                "edge_rate_scaling_factors" : (0.5 * ts).tolist(),
+                "edge_processes" : [0]*n
             },
             "root_prior" : {
                 "states" : [[0]],
@@ -35,12 +37,7 @@ def get_distn(t):
         "requests" : [{"property" : "SDDDWEL"}]
     }
     j_out = process_json_in(j_in)
-    return j_out['responses'][0][0]
-
-def main():
-    ts = np.linspace(1e-5, 30, 100)
-    distributions = [get_distn(t) for t in ts]
-    a, b, c, d = zip(*distributions)
+    a, b, c, d = zip(*j_out['responses'][0])
     lines = plt.plot(
             ts, a, 'blue',
             ts, b, 'green',
