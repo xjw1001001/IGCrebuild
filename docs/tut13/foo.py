@@ -48,6 +48,7 @@ Macaca_thibetana          AACAGGCTTG GTCCTGGCCT TTCTATTAGC TCTTAGCAAG ATTACACATG
 Macaca_fascicularis       AATAGGCTTG GTCCTGGCCT TTCTATTAGC TCTTAGCAGG ATTACACATG CAAGCATCCC CGCTCCGGTG AAGACGCCCT ATAAATCA-T CATGACCAAG AGGAGCAAGC ATCAAGCACG CA--CA-CGC AGCTCAAAAC GCTTTGCCTA GCCACACCCC CACGGGAGAC AGCAGTGACA AGTATTTAGC AATAAACGAA AGTTCAACTA AGCCATGCT- ATATTTAGGG TTGGTCAATT TCGTGCCAGC CACCGCGGTT ACACGATTAA CCCCAGCTAA TAGGGATCGG CGTAGAGGGT GTTTAAGATC ------TAAC ATAA-TAAAG CTAAACTCCA CCTAAACTGT --AAAACCCT AGCTAATGTA AAATAAACTA CGAAAGTGGC TTTAAAGCTT CTGAACACAC AATAGCCAAG ACCCAAACTG GGATTAGACA CCCCCACTAT GCTTGGCCCT AAACCTCAGT AGTT--AGAT AACAAAACTA CTCGCCAGAA TACTACAAGC AACAGCTTAA AACTCAAAGG ACTTGACGGT GCTTTACATC CCCCTAGAGG AGCCTGTTCC GTAATCGATA AACCCCGATC CACCCTACCC TCTCTTG--C TCAGCCTATA TACCGCCATC TTCAGCAAAC CCTAATGAGG GCC-ACAAAG TGAGCGCAAA CGCCGT-CGC CGCGAATACG TTAGGTCAAG GTGTAGCCCA TGAGACGGTA AAAAATGGGC TACATTTTCT ATTTCAGAAA A-CCCACGAA AACCCTTATG AAACTTAGG- GGTCCAAGGA GGATTTAGCA GTAAATTAAG AATAGAGTGC TTAATTGAA- CCAGGCCATA AAGCGCGCAC ACACCGCCCG TCACTCCTCT CAAATATATT T-AAGGAATA TCCTAAC--- TA--AACGCC CTA-ATATTT ATATAGAGAG GATAAGTCGT AACATGGTAA GCGTACTGGA AGGTGCGCTT GGATAAAT
 Macaca_mulatta            TATAGGCTTG GTCCTGGCCT TTCTATTAGC TCTTGGCAGG ATTACACATG CAAACATCCT CGCTCCGGTG AAGACGCCCT ACAAATCA-T CATGACCAAG AGGAGCAAGC ATCAAGCACG CG--CA-CGC AGCTCAAAAC GCTTTGCCTA GCCACACCCC CACGGGAGAC AGCAGTGACA AATATTTAGC AATAAACGAA AGTTCAACTA AGCCATGCT- ATATTTAGGG TTGGTCAATT TCGTGCCAGC CACCGCGGTT ACACGATTAA CCCTAGCTAA TAGAGACCGG CGTAGAGGGT GTTTAAGATC ------TGAT ATAA-TAAAG CTAAACTCCA TCTAAACTGT --AAAACTCT AGCTGATGTA AAATAAACTA CGAAAGTGGC TTTAAAGCTT CTGAACACAC AATAGCCAGG ACCCAAACTG GGATTAGACA -CCCTACTAT GCTTGGCCCT AAACCTCAGT AGTT--AGAT AACAAAACTA CTCGCCAGAA TACTACAAGC TATAGCTTAA AACTCAAAGG ACTTGACGGT GCTTTACA-C CCCCTAGAGG AGCCTGTTCC GTAATCGATA AACCCCGATC CACCCCACCC TCTCTTG--C TCAGCCTATA TACCGCCATC TTCAGCAAAC CCTAATGAGG GTC-ACAAAG TGAGCGCAAA TGCCAT-TGC CGCAAACACG TTAGGTCAAG GTGTAGCCTA TGAGACGGTA AAAAATGGGC TACATTTTCT ACCTCAGAAA ATTCCACGAA AACCCTTATG AAATTTAAG- GGTCCAAGGA GGATTTAGCA GTAAATTAAG AATAGAGTGC TTAATTGAA- CCAGGCCATA AAGCGCGCAC ACACCGCCCG TCACTCCTCT CAAATATATT T-AAGGAACA TCTTAAC--- TA--AACGCC CTA-ATATTT ATATAGAGAG GATAAGTCGT AACATGGTAA GCGTACTGGA AGGTGCGCTT GGATAAAT"""
 
+
 def build_tree(parent, root, node, name_to_node, edges):
     if parent is not None:
         edges.append((parent, node))
@@ -58,6 +59,17 @@ def build_tree(parent, root, node, name_to_node, edges):
         for element in root:
             neo = build_tree(node, element, neo, name_to_node, edges)
     return neo
+
+
+def hky(distn, k):
+    R = np.array([
+        [0, 1, k, 1],
+        [1, 0, 1, k],
+        [k, 1, 0, 1],
+        [1, k, 1, 0],
+        ]) * distn
+    return R, R.sum(axis=1).dot(distn)
+
 
 def main():
 
@@ -82,15 +94,64 @@ def main():
         rows.append(row)
     cols = zip(*rows)
 
-    # Compute empirical nucleotide distribution.
-    #empirical_pi = 
-    #for 
+    # Compute the empirical distribution over nucleotides.
+    # This distribution will remain unchanged across the EM iterations.
+    counts = np.zeros(5)
+    for col in cols:
+        for value in col:
+            counts[value] += 1
+    acgt_pi = counts[:4] / counts[:4].sum()
 
     # Define initial parameter values,
-    # including a slow/fast mixture and a ts/tv ratio.
+    # including a slow/fast mixture and a global ts/tv ratio.
     mixture_pi = np.array([0.5, 0.5])
     mixture_rates = np.array([0.001, 0.1])
     kappa = 2.0
+
+    # Define the initial scene.
+    # This will be updated over the EM iterations.
+    # Because per-node per-observation missingness is not supported,
+    # we will call jsonctmctree once per observation column.
+    # It will also be called once for each of the two rate speeds,
+    # each of which corresponds to a different scaling of edge rate
+    # scaling factors.
+    node_count = len(name_to_node)
+    edge_count = len(edges)
+    row_nodes, column_nodes = zip(*edges)
+    scene = {
+            "node_count" : nnodes,
+            "process_count" : 1,
+            "state_space_shape" : [4],
+            "tree" : {
+                "row_nodes" : list(row_nodes),
+                "column_nodes" : list(column_nodes),
+                "edge_rate_scaling_factors" : [1]*edge_count,
+                "edge_processes" : [0]*edge_count
+            },
+            "root_prior" : {
+                "states" : [[0]],
+                "probabilities" : [1]
+            },
+            "process_definitions" : [{
+                "row_states" : [[0], [1], [2]],
+                "column_states" : [[1], [2], [3]],
+                "transition_rates" : [1, 2, 3]
+            }],
+            "observed_data" : {
+                "nodes" : [],
+                "variables" : [],
+                "iid_observations" : [[]]
+            }
+        }
+
+    # Do a few iterations of expectation maximization.
+    for i in range(5):
+
+        # update mixture parameters
+
+        # update slow and fast rates
+
+        # update global kappa
 
 
 main()
