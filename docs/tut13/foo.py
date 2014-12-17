@@ -73,13 +73,24 @@ def main():
     lines = s_alignment.splitlines()
     assert len(lines) == 30
     rows = []
+    data_nodes = []
     for line in lines:
         values = line.split()
         name = values[0]
+        data_nodes.append(name_to_node[name])
         row = ['ACGT-'.index(x) for x in ''.join(values[1:])]
         rows.append(row)
     cols = zip(*rows)
-    for col in cols:
-        print(col)
+
+    # Compute empirical nucleotide distribution.
+    #empirical_pi = 
+    #for 
+
+    # Define initial parameter values,
+    # including a slow/fast mixture and a ts/tv ratio.
+    mixture_pi = np.array([0.5, 0.5])
+    mixture_rates = np.array([0.001, 0.1])
+    kappa = 2.0
+
 
 main()
