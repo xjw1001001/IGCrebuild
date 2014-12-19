@@ -6,6 +6,8 @@ Some of these do precalculations, so they are not pure functions.
 """
 from __future__ import division, print_function, absolute_import
 
+import sys
+
 import numpy as np
 from numpy.testing import assert_equal, assert_
 
@@ -137,8 +139,16 @@ class EigenExpm(object):
 
 
 class ActionExpm(object):
-    def __init__(self, state_space_shape, row, col, rate):
+    def __init__(self, state_space_shape, row, col, rate, debug=False):
         self.Q = create_sparse_rate_matrix(state_space_shape, row, col, rate)
+        self.debug = debug
+
+    def _wrapped_expm_multiply(self, A, B):
+        n = B.shape[0]
+        if self.debug:
+            (A.dot(np.identity(n))).tofile('A.txt')
+            B.tofile('B.txt')
+        return scipy.sparse.linalg.expm_multiply(A, B)
 
     def expm_rmul(self, rate_scaling_factor, A):
         """
@@ -147,7 +157,7 @@ class ActionExpm(object):
         This uses the fact that exp(X.T) = exp(X).T.
 
         """
-        return scipy.sparse.linalg.expm_multiply(
+        return self._wrapped_expm_multiply(
                 rate_scaling_factor * self.Q.T, A.T).T
 
     def expm_mul(self, rate_scaling_factor, A):
@@ -155,7 +165,7 @@ class ActionExpm(object):
         Compute exp(Q * r) * A.
 
         """
-        return scipy.sparse.linalg.expm_multiply(
+        return self._wrapped_expm_multiply(
                 rate_scaling_factor * self.Q, A)
 
     def rate_mul(self, rate_scaling_factor, PA):

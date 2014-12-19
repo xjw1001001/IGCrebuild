@@ -98,7 +98,7 @@ def objective_and_gradient(scene, X):
             'scene' : scene,
             'requests' : [log_likelihood_request, derivatives_request]
             }
-    j_out = jsonctmctree.interface.process_json_in(j_in)
+    j_out = jsonctmctree.interface.process_json_in(j_in, debug=True)
     log_likelihood, edge_gradient = j_out['responses']
     cost = -log_likelihood + unpacking_cost
 
@@ -135,6 +135,8 @@ def objective_and_gradient(scene, X):
     return cost, gradient
 
 def main():
+
+    np.set_printoptions(threshold=100000)
 
     # Flatten the tree into a list of node indices and a list of edges.
     tree = s_tree.replace(',', ' ')

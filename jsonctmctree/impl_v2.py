@@ -79,7 +79,8 @@ class Reactor(object):
                     scene.state_space_shape,
                     p.row_states,
                     p.column_states,
-                    p.transition_rates)
+                    p.transition_rates,
+                    debug=debug)
             self.expm_objects.append(obj)
         self._note('reactor is initialized')
 
