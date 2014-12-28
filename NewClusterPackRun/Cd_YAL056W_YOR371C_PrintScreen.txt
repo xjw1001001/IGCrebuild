@@ -1,0 +1,2 @@
+number of sites to be analyzed:  659
+Now calculate MLE for pair ['YAL056W', 'YOR371C']

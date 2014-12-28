@@ -1,6 +1,11 @@
 # Uses Alex Griffing's JsonCTMCTree package for likelihood and gradient calculation
 # Re-written of my previous CondonBased2Repeats class
+# commit number: Oct 22nd, 2014 for old package
+# cb1ba60ee2b57d6703cd9a3987000c2fd4dd68a5
+# commit number: Dec 17th, 2014 for new package
+# 33e393a973161e3a29149e82bfda23882b5826f3
 from CodonGeneconFunc import *
+import argparse
 
 class CodonGeneconv:
     def __init__(self, tree_newick, alignment, paralog, Model = 'MG94', nnsites = None):
@@ -9,6 +14,7 @@ class CodonGeneconv:
         self.paralog = paralog  # paralog list
         self.nsites = nnsites  # number of sites in the alignment used for calculation
         self.Model = Model
+        self.ll = 0.0
 
 
         # Tree topology related variable
@@ -45,14 +51,23 @@ class CodonGeneconv:
          # self.x_process  log values
          # self.x_rates    log values
          # self.x (x_process + x_rates)
+         # self.x_clock (x_process + Lr)
          # self.pi         real values
          # self.kappa      real values
          # self.omega      real values
          # self.tau        real values
-        self.processes = self.get_MG94Geneconv_and_MG94()
+        self.processes = self.get_processes() #self.get_MG94Geneconv_and_MG94()
+        self.GeneconvTransRed = None
+        self.ExpectedGeneconv = None
         self.get_prior() 
 
         # guess related variable
+
+    def get_processes(self):
+        if self.Model == 'MG94':
+            return self.get_MG94Geneconv_and_MG94()
+        elif self.Model == 'HKY':
+            return self.get_HKYGeneconv()
 
     def get_initial_x_process(self, kappa = 1.2, omega = 0.9, tau = 1.4):
         count = np.array([0, 0, 0, 0], dtype = float) # count for A, C, G, T in all seq
@@ -60,19 +75,31 @@ class CodonGeneconv:
             for i in range(4):
                 count[i] += ''.join(self.name_to_seq[name]).count('ACGT'[i])
         count = count / count.sum()
-        
-        # x_process[] = %AG, %A, %C, kappa, omega, tau
-        x_process = np.array([count[0] + count[2], count[0] / (count[0] + count[2]), count[1] / (count[1] + count[3]),
-                              kappa, omega, tau])
-        x_process = np.log(x_process)        
+
+        if self.Model == 'MG94':
+            # x_process[] = %AG, %A, %C, kappa, omega, tau
+            x_process = np.array([count[0] + count[2], count[0] / (count[0] + count[2]), count[1] / (count[1] + count[3]),
+                                  kappa, omega, tau])
+            x_process = np.log(x_process)
+        elif self.Model == 'HKY':
+            # x_process[] = %AG, %A, %C, kappa, tau
+            x_process = np.array([count[0] + count[2], count[0] / (count[0] + count[2]), count[1] / (count[1] + count[3]),
+                                  kappa, tau])
+            x_process = np.log(x_process)            
         setattr(CodonGeneconv, 'x_process', x_process)
         
+        l = len(self.edge_to_blen) / 2 + 1               # number of leaves
+        x_rates_clock = np.ones((l)) * 0.9
+        x_clock = np.concatenate((x_process, np.log(x_rates_clock)))
+        setattr(CodonGeneconv, 'x_clock', x_clock)
+
         x_rates = np.array([ self.edge_to_blen[edge] for edge in self.edge_to_blen.keys()])
         x_rates = np.log(x_rates)
         setattr(CodonGeneconv, 'x_rates', x_rates)
 
         x = np.concatenate((x_process, x_rates))
         setattr(CodonGeneconv, 'x', x)
+        self.update_by_x_clock()
 
     def update_by_x(self, x = None):
         k = len(self.edge_to_blen)
@@ -81,6 +108,39 @@ class CodonGeneconv:
         self.x_process, self.x_rates = self.x[:-k], self.x[-k:]
         self.unpack_x_process()
         self.unpack_x_rates()
+
+    def update_by_x_clock(self, x_clock = None, display = False):
+        nEdge = len(self.edge_to_blen)  # number of edges
+        l = nEdge / 2 + 1               # number of leaves
+        k = l - 1   # number of internal nodes. The notation here is inconsistent with Alex's for trying to match my notes.
+
+        if x_clock != None:
+            self.x_clock = x_clock
+            
+        self.x_process, Lr = self.x_clock[:-l], np.exp(self.x_clock[-l:])
+        x_edge_clock = []
+
+        for edge in self.edge_to_blen.keys():
+            if edge[0] == 'N0':  # here I abondoned root node
+                if str.isdigit(edge[1][1:]):  # (N0, N1) branch
+                    x_edge_clock.append( Lr[0] * Lr[1] * (1 - Lr[2]) )
+                else:
+                    x_edge_clock.append( Lr[0] * (2 - Lr[1]) )
+
+            else:
+                tmp_k = int(edge[0][1:])
+                if str.isdigit( edge[1][1:] ): # ( N_temp_k, N_temp_k+1 ) branch
+                    x_edge_clock.append( reduce( mul, Lr[: (tmp_k + 2)], 1)  * (1 - Lr[tmp_k + 2]) )
+                else:  # ( N_temp_k, leaf ) branch
+                    x_edge_clock.append( reduce( mul, Lr[: (tmp_k + 2)], 1) )
+
+        self.x_rates = np.log(np.array(x_edge_clock))
+        self.x = np.concatenate([self.x_process, self.x_rates])
+        self.update_by_x()
+        
+        if display:
+            print 'Lr rates: ', Lr
+            print 'Process rates: ', np.exp(self.x_process)
         
 
     def get_tree(self):
@@ -121,19 +181,36 @@ class CodonGeneconv:
             )
         setattr(CodonGeneconv, 'tree', tree)
 
-        
+    def update_tree(self):
+        tree_rate = [self.edge_to_blen[k] for k in self.edge_to_blen.keys()]
+        self.tree['rate'] = tree_rate
+    
     def unpack_x_process(self):
-        # x_process[] = %AG, %A, %C, kappa, omega, tau
-        assert(len(self.x_process) == 6)
-        x_process = np.exp(self.x_process)
-        pi_a = x_process[0] * x_process[1]
-        pi_c = (1 - x_process[0]) * x_process[2]
-        pi_g = x_process[0] * (1 - x_process[1])
-        pi_t = (1 - x_process[0]) * (1 - x_process[2])
-        self.pi = [pi_a, pi_c, pi_g, pi_t]
-        self.kappa = x_process[3]
-        self.omega = x_process[4]
-        self.tau = x_process[5]
+        if self.Model == 'MG94':
+            # x_process[] = %AG, %A, %C, kappa, tau, omega
+            assert(len(self.x_process) == 6)
+            x_process = np.exp(self.x_process)
+            pi_a = x_process[0] * x_process[1]
+            pi_c = (1 - x_process[0]) * x_process[2]
+            pi_g = x_process[0] * (1 - x_process[1])
+            pi_t = (1 - x_process[0]) * (1 - x_process[2])
+            self.pi = [pi_a, pi_c, pi_g, pi_t]
+            self.kappa = x_process[3]
+            self.omega = x_process[4]
+            self.tau = x_process[5]
+        elif self.Model == 'HKY':
+            # x_process[] = %AG, %A, %C, kappa, tau
+            assert(len(self.x_process) == 5)
+            x_process = np.exp(self.x_process)
+            pi_a = x_process[0] * x_process[1]
+            pi_c = (1 - x_process[0]) * x_process[2]
+            pi_g = x_process[0] * (1 - x_process[1])
+            pi_t = (1 - x_process[0]) * (1 - x_process[2])
+            self.pi = [pi_a, pi_c, pi_g, pi_t]
+            self.kappa = x_process[3]
+            self.tau = x_process[4]
+        # Now update the prior distribution
+        self.get_prior()
 
     def unpack_x_rates(self):
         x_rates = np.exp(self.x_rates)
@@ -141,6 +218,7 @@ class CodonGeneconv:
         for it in range(len(self.edge_to_blen)):
             edge = self.edge_to_blen.keys()[it]
             self.edge_to_blen[edge] = x_rates[it]
+        self.update_tree()
         
 
     def nts_to_codons(self):
@@ -168,7 +246,7 @@ class CodonGeneconv:
             for name in self.name_to_seq:
                 self.name_to_seq[name] = self.name_to_seq[name][: self.nsites]
 
-        print('number of sites to be analyzed:', self.nsites)
+        print 'number of sites to be analyzed: ', self.nsites
 
         observable_names = self.name_to_seq.keys()
         setattr(CodonGeneconv, 'observable_names', observable_names)
@@ -210,9 +288,14 @@ class CodonGeneconv:
         return Qbasic, distn
 
     def get_prior(self):
-        prior_feasible_states = [(self.codon_to_state[codon], self.codon_to_state[codon]) for codon in self.codon_nonstop]
-        distn = [ reduce(mul, [self.pi['ACGT'.index(b)]  for b in codon], 1) for codon in self.codon_nonstop ]
-        distn = np.array(distn) / sum(distn)
+        if self.Model == 'MG94':
+            prior_feasible_states = [(self.codon_to_state[codon], self.codon_to_state[codon]) for codon in self.codon_nonstop]
+            distn = [ reduce(mul, [self.pi['ACGT'.index(b)]  for b in codon], 1) for codon in self.codon_nonstop ]
+            distn = np.array(distn) / sum(distn)
+        elif self.Model == 'HKY':
+            prior_feasible_states = [(self.nt_to_state[nt], self.nt_to_state[nt]) for nt in 'ACGT']
+            distn = [ self.pi['ACGT'.index(nt)] for nt in 'ACGT' ]
+            distn = np.array(distn) / sum(distn)
         setattr(CodonGeneconv, 'prior_feasible_states', prior_feasible_states)
         setattr(CodonGeneconv, 'prior_distribution', distn)
 
@@ -391,8 +474,10 @@ class CodonGeneconv:
         self.x_process, self.x_rates = self.x[:-k], self.x[-k:]
         if self.Model == 'MG94':
             self.processes = self.get_MG94Geneconv_and_MG94()
+            state_space_shape = [61, 61]
         elif self.Model == 'HKY':
             self.processes = self.get_HKYGeneconv()
+            state_space_shape = [4, 4]
 
         # prepare some extra parameters for the json interface
         if edge_derivative:
@@ -407,7 +492,7 @@ class CodonGeneconv:
             site_weights = site_weights,
             requested_derivatives = requested_derivatives,
             node_count = len(self.edge_to_blen) + 1,
-            state_space_shape = [61, 61],
+            state_space_shape = state_space_shape,
             process_count = len(self.processes),
             processes = self.processes,
             tree = self.tree,
@@ -429,18 +514,144 @@ class CodonGeneconv:
             raise Exception('Encountered some problem in the calculation of log likelihood and its derivatives')
 
         ll, edge_derivs = j_ll['log_likelihood'], j_ll['edge_derivatives']
+        self.ll = ll
 
         return ll, edge_derivs
+
+    def _loglikelihood2(self, edge_derivative = False):
+        '''
+        Modified from Alex's objective_and_gradient function in ctmcaas/adv-log-likelihoods/mle_geneconv_common.py
+        '''
+        scene = self.get_scene()
         
-        
-    def loglikelihood_and_gradient(self, display = False):
+        log_likelihood_request = {'property':'snnlogl'}
+        derivatives_request = {'property':'sdnderi'}
+        if edge_derivative:
+            requests = [log_likelihood_request, derivatives_request]
+        else:
+            requests = [log_likelihood_request]
+        j_in = {
+            'scene' : scene,
+            'requests' : requests
+            }
+        j_out = jsonctmctree.interface.process_json_in(j_in)
+
+        status = j_out['status']
+    
+        ll = j_out['responses'][0]
+        if edge_derivative:
+            edge_derivs = j_out['responses'][1]
+        else:
+            edge_derivs = []
+            
+        self.ll = ll
+
+        return ll, edge_derivs
+    
+    def get_scene(self):
+        k = len(self.edge_to_blen)
+        self.x_process, self.x_rates = self.x[:-k], self.x[-k:]
+        if self.Model == 'MG94':
+            self.processes = self.get_MG94Geneconv_and_MG94()
+            state_space_shape = [61, 61]
+        elif self.Model == 'HKY':
+            self.processes = self.get_HKYGeneconv()
+            state_space_shape = [4, 4]
+        process_definitions = [{'row_states':i['row'], 'column_states':i['col'], 'transition_rates':i['rate']} for i in self.processes]
+        scene = dict(
+            node_count = len(self.edge_to_blen) + 1,
+            process_count = len(self.processes),
+            state_space_shape = state_space_shape,
+            tree = {
+                'row_nodes' : self.tree['row'],
+                'column_nodes' : self.tree['col'],
+                'edge_rate_scaling_factors' : self.tree['rate'],
+                'edge_processes' : self.tree['process']
+                },
+            root_prior = {'states':self.prior_feasible_states,
+                          'probabilities': self.prior_distribution},
+            process_definitions = process_definitions,
+            observed_data = {
+                'nodes':self.observable_nodes,
+                'variables':self.observable_axes,
+                'iid_observations':self.iid_observations
+                }            
+            )
+        return scene
+    
+    def get_geneconvTransRed(self):
+        row_states = []
+        column_states = []
+        if self.Model == 'MG94':
+            for i, pair in enumerate(product(self.codon_nonstop, repeat = 2)):
+                ca, cb = pair
+                sa = self.codon_to_state[ca]
+                sb = self.codon_to_state[cb]
+                if ca == cb:
+                    continue
+                
+                # (ca, cb) to (ca, ca)
+                row_states.append((sa, sb))
+                column_states.append((sa, sa))
+                # (ca, cb) to (cb, cb)
+                row_states.append((sa, sb))
+                column_states.append((sb, sb))
+            
+        elif self.Model == 'HKY':
+            for i, pair in enumerate(product('ACGT', repeat = 2)):
+                na, nb = pair
+                sa = self.nt_to_state[na]
+                sb = self.nt_to_state[nb]
+                if na == nb:
+                    continue
+
+                # (na, nb) to (na, na)
+                row_states.append((sa, sb))
+                column_states.append((sa, sa))
+
+                # (na, nb) to (nb, nb)
+                row_states.append((sa, sb))
+                column_states.append((sb, sb))
+
+        return {'row_states' : row_states, 'column_states' : column_states, 'weights' : np.ones(len(row_states))}
+                
+                
+
+
+    def _ExpectedNumGeneconv(self, package = 'new', display = False):
+        if self.GeneconvTransRed is None:
+            self.GeneconvTransRed = self.get_geneconvTransRed()
+
+        if package == 'new':
+            scene = self.get_scene()
+            requests = [{'property' : 'SDNTRAN', 'transition_reduction' : self.GeneconvTransRed}]
+            j_in = {
+                'scene' : scene,
+                'requests' : requests
+                }        
+            j_out = jsonctmctree.interface.process_json_in(j_in)
+
+            status = j_out['status']
+            ExpectedGeneconv = {self.edge_to_blen.keys()[i] : j_out['responses'][0][i] for i in range(len(self.edge_to_blen))}
+            return ExpectedGeneconv
+        else:
+            print 'Need to implement this for old package'
+
+    def get_ExpectedNumGeneconv(self):
+        self.ExpectedGeneconv = self._ExpectedNumGeneconv()
+            
+    def loglikelihood_and_gradient(self, package = 'new', display = False):
         '''
         Modified from Alex's objective_and_gradient function in ctmcaas/adv-log-likelihoods/mle_geneconv_common.py
         '''
         delta = 1e-8
         x = deepcopy(self.x)  # store the current x array
+        if package == 'new':
+            fn = self._loglikelihood2
+        else:
+            fn = self._loglikelihood
 
-        ll, edge_derivs = self._loglikelihood(edge_derivative = True)
+        ll, edge_derivs = fn(edge_derivative = True)
         
         m = len(self.x) - len(self.edge_to_blen)
 
@@ -449,10 +660,10 @@ class CodonGeneconv:
         
         for i in range(m):
         #for i in range(m-1, -1, -1):
-            x_plus_delta = np.array(x)
+            x_plus_delta = np.array(self.x)
             x_plus_delta[i] += delta
             self.update_by_x(x_plus_delta)
-            ll_delta, _ = self._loglikelihood(edge_derivative = False)
+            ll_delta, _ = fn(edge_derivative = False)
             d_estimate = (ll_delta - ll) / delta           
             other_derivs.append(d_estimate)
             # restore self.x
@@ -468,59 +679,122 @@ class CodonGeneconv:
         g = -np.concatenate((other_derivs, edge_derivs))
         return f, g
         #ll, edge_derivs =
+
+    def Clock_wrap(self, display, x_clock):
+        nEdge = len(self.edge_to_blen)  # number of edges
+        l = nEdge / 2 + 1               # number of leaves
+        k = l - 1   # number of internal nodes. The notation here is inconsistent with Alex's for trying to match my notes.
+
+        self.update_by_x_clock(x_clock, display)
+        self.x_process, Lr = x_clock[:-l], np.exp(x_clock[-l:])
+
+        f, g = self.loglikelihood_and_gradient()
+        
+        # Now need to calculate the derivates
+        other_derives, edge_derives = g[:-nEdge], g[-nEdge:]
+        edge_to_derives = {self.edge_to_blen.keys()[i] : edge_derives[i] for i in range(len(self.edge_to_blen.keys()))}
+
+        leaf_branch = [edge for edge in self.edge_to_blen.keys() if edge[0][0] == 'N' and str.isdigit(edge[0][1:]) and not str.isdigit(edge[1][1:])]
+        out_group_branch = [edge for edge in leaf_branch if edge[0] == 'N0' and not str.isdigit(edge[1][1:])] [0]
+        internal_branch = [x for x in self.edge_to_blen.keys() if not x in leaf_branch]
+        assert(len(internal_branch) == k-1)  # check if number of internal branch is one less than number of internal nodes
+
+        leaf_branch.sort(key = lambda node: int(node[0][1:]))  # sort the list by the first node number in increasing order
+        internal_branch.sort(key = lambda node: int(node[0][1:]))  # sort the list by the first node number in increasing order
+
+        Lr_derives = []  # used to store derivatives for the clock parameters L, r0, r1, ...
+        Lr_derives.append(sum(edge_derives))  # dLL/dL = sum(all derives)
+        Lr_derives.append(edge_to_derives[out_group_branch] * 2 / (Lr[1] - 2)
+                          + sum(edge_derives))
+
+        for i in range(2, len(Lr)):  # r(i-1)
+            Lr_derives.append( edge_to_derives[('N' + str(i - 2), 'N' + str(i - 1))] * Lr[i] / (Lr[i] - 1) # 
+                               + sum([edge_to_derives[internal_branch[j]] for j in range(i - 1, len(internal_branch))])  # only sum over nodes decendent from node i-1
+                               + sum([edge_to_derives[leaf_branch[j]] for j in range(i - 1, len(leaf_branch))]))  # only sum over nodes decendent from node i-1
+
+        #TODO: Need to change the two sums if using general tree
+
+        g_clock = np.concatenate( (np.array(other_derives), np.array(Lr_derives)))
+
+        if display:
+            print 'log likelihood = ', f
+            print 'Lr derivatives = ', Lr_derives
+            print 'other derivatives = ', other_derives
+            print 'Current x_clock array = ', self.x_clock
+
+        return f, g_clock
+        
     def objective_and_gradient(self, display, x):
         self.update_by_x(x)
         f, g = self.loglikelihood_and_gradient(display = display)
         return f, g
 
-    def get_mle(self, display = True):
-        guess_x = self.x
+    def get_mle(self, clock = False, display = True):
         bnds = [(None, -0.05)] * 3
-        bnds.extend([(None, None)] * (len(self.x) - 3))
-        f = partial(self.objective_and_gradient, display)
+        if clock == False:
+            f = partial(self.objective_and_gradient, display)
+            guess_x = self.x            
+            bnds.extend([(None, None)] * (len(self.x) - 3))
+            
+        else:
+            self.update_by_x_clock()
+            f = partial(self.Clock_wrap, display)
+            guess_x = self.x_clock
+            bnds.extend([(None, None)] * (len(self.x_clock) - 2 - (len(self.edge_to_blen) / 2 + 1)))
+            bnds.extend([(None, 0.0)] * (len(self.edge_to_blen) / 2))        
+
         result = scipy.optimize.minimize(f, guess_x, jac = True, method = 'L-BFGS-B', bounds = bnds)
         print (result)
         return result
 
+    def save_to_file(self, clock = False, file_name = None, path = './'):
+        if file_name == None:
+            file_name = self.Model + '_' + '_'.join(self.paralog)
+            if clock:
+                file_name += '_clock.p'
+            else:
+                file_name += '_nonclock.p'
+        save_file = path + file_name
+        save_info = dict(
+            Model = self.Model,
+            x     = self.x,
+            edge_to_blen = self.edge_to_blen,
+            ExpectedGeneconv = self.ExpectedGeneconv,
+            ll    = self.ll,
+            newicktree = self.newicktree,
+            alignment_file = self.seqloc,
+            paralog = self.paralog,
+            clock = clock
+            )
+        pickle.dump(save_info, open(save_file, 'wb+'))  # use pickle to save the class which can be easily reconstructed by pickle.load()
         
+def main(args):
+    paralog = [args.paralog1, args.paralog2]
+    alignment_file = '../PairsAlignemt/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    newicktree = '../PairsAlignemt/YeastTree.newick'
+    test = CodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94')
 
+    print 'Now calculate MLE for pair', paralog
+    x = np.array([-0.64353555, -0.48264002, -0.93307917,  1.76977596, -2.44028574,
+        1.19617746, -3.90910406, -3.87159909, -4.30005794, -6.28014701,
+       -2.83555499, -3.29056063, -2.92359461, -3.49891453, -3.97438916,
+       -3.10701318, -4.59465356, -2.01786889])
+    test.update_by_x(x)
+    result = test.get_mle(clock = False, display = True)
+    test.get_ExpectedNumGeneconv()
+    test.save_to_file(clock = False, path = './NewPackageNewRun/')
+
+    x_clock = np.array([-0.64430238, -0.48627304, -0.93852343, 1.76793238, -2.45061608, 1.23836258,
+                  -2.11088631, -0.15313429, -0.23202426, -0.63091448, -0.25441366, -0.20629961,-0.23301088])
+    test.update_by_x_clock(x_clock)
+    result = test.get_mle(clock = True, display = True)
+    test.get_ExpectedNumGeneconv()
+    test.save_to_file(clock = True, path = './NewPackageNewRun/')
+    
 
 if __name__ == '__main__':
-    #alignment_file = '/Users/xji3/Genconv/PairsAlignemt/YDR502C_YLR180W/YDR502C_YLR180W_input.fasta'
-    alignment_file = '/Users/xji3/Genconv/PairsAlignemt/YAL056W_YOR371C/YAL056W_YOR371C_input.fasta'
-    newicktree = '/Users/xji3/Genconv/PairsAlignemt/YeastTree.newick'
-    paralog = ['YAL056W', 'YOR371C']
-    test = CodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', nnsites = 10)
-    #test = CodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', nnsites = 10)
-##    x = np.array([-0.4671754 , -0.47657272, -1.05338269,  0.58005615, -1.62906811,
-##       -1.42286024,  0.3567071 , -0.85263062, -0.38357827, -0.65378769,
-##       -0.51712782, -0.33653191,  0.60581195,  0.84021518, -0.65989123,
-##       -0.62867968, -0.55471522,  0.3931776])
-##
-##    x = np.array([-0.52856124, -0.50895601, -1.08978484,  0.14326525, -2.45656832,
-##       -1.62703482,  0.47515258, -1.24235701, -0.62424348, -1.00954971,
-##       -0.80980144, -0.54295938,  0.86255682,  1.21904872, -0.95233185,
-##       -0.96061732, -0.88000097,  0.57393683])
-##
-##    x = np.array([-0.33192463, -0.38047998, -0.945599  ,  0.09092072, -1.54660303,
-##       -1.56649691,  0.70287302, -1.50665575, -0.86620656, -1.41793859,
-##       -0.05129703, -0.71300579,  1.82643417,  1.03687331, -1.40222114,
-##       -1.32922251, -1.22190485,  1.07804555])
-##    test.update_by_x(x)
-
-
-    print 'Now calculate likelihood'
-    #j_ll = test.loglikelihood_and_gradient()
-
-    result = test.get_mle(display = True)
-    #result = test.get_mle(display = True)
-
-    #cProfile.run('result = test.get_mle()')
-
-##    print get_MG94BasicRate('ATG','AAG',test.pi,test.kappa, test.omega, test.codon_table)
-##    print vec_get_MG94BasicRate(ca = ['ATG','TAG'],cb = ['AAG','ATG'],pi = test.pi,kappa = test.kappa, omega = test.omega, codon_table = test.codon_table)
-##
-##    print get_MG94GeneconvRate('ATGAAG','ATGATG', test.pi, test.kappa, test.omega, test.codon_table, test.tau, test.codon_to_state)
-##    print vec_get_MG94GeneconvRate(pair_from = ['ATGAAG'], pair_to = ['ATGATG', 'ATGAAT'], pi = test.pi,
-##                                   kappa = test.kappa, omega = test.omega, codon_table = test.codon_table,
-##                                   tau = test.tau, codon_to_state = test.codon_to_state)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
+    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
+    
+    main(parser.parse_args())
