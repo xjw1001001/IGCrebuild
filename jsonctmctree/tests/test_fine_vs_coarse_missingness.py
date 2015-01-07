@@ -5,8 +5,7 @@ Test fine-grained vs. coarse-grained missing data.
 from __future__ import division, print_function, absolute_import
 
 import numpy as np
-from numpy.testing import (assert_allclose, assert_equal,
-        assert_array_less, assert_)
+from numpy.testing import assert_equal
 
 from jsonctmctree.interface import process_json_in
 
