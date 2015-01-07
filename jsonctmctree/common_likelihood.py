@@ -31,6 +31,25 @@ def create_indicator_array(
     """
     Create the initial array indicating observations.
 
+    Allow fine-grained missing data by using -1 as a placeholder
+    for a missing observation.
+    If all information about one of the variables in the multivariate process
+    is missing at one of the nodes, then a coarser-grained representation
+    of the missingness should be used.
+
+    Parameters
+    ----------
+    node : x
+        x
+    state_space_shape : x
+        x
+    observable_nodes : x
+        x
+    observable_axes : x
+        x
+    iid_observations : x
+        x
+
     Returns
     -------
     obs : 2d ndarray of shape (nstates, nsites)
@@ -57,8 +76,10 @@ def create_indicator_array(
         k = state_space_shape[axis]
         projection_shape = [k if i == axis else 1 for i in state_space_axes]
         mask_shape = (nsites, ) + tuple(projection_shape)
-        ident = np.identity(k)
-        obs *= np.take(ident, states, axis=0).reshape(mask_shape)
+        indicator_arrays = np.zeros((k+1, k), dtype=int)
+        np.fill_diagonal(indicator_arrays, 1)
+        indicator_arrays[-1, :] = 1
+        obs *= np.take(indicator_arrays, states, axis=0).reshape(mask_shape)
 
     # Reshape the observation array to 2d.
     # First collapse the dimensionality of the state space to 1d,
