@@ -23,4 +23,4 @@ __ http://abacus.gene.ucl.ac.uk/MESA/
    :maxdepth: 2
 
    table_4_3_JC69/main.rst
-   table_4_3_K80.rst
+   table_4_3_K80/main.rst
