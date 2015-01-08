@@ -70,16 +70,9 @@ def get_nucleotide_alignment_info(name_to_node):
             variables.extend([0, 1, 2, 3])
     # arr[node, site, variable]
     arr = np.array(sequences, dtype=int)
-    print(arr.shape)
     arr = np.transpose(arr, (1, 0, 2))
     iid_observations = np.reshape(arr, (arr.shape[0], -1))
-    print(iid_observations.shape)
     iid_observations = iid_observations.tolist()
-    #iid_observations = [list(x) for x in zip(*sequences)]
-    #iid_observations = [x for x in iid_observations if -1 not in x]
-    print(nodes)
-    print(variables)
-    #print(iid_observations[0])
     return nodes, variables, iid_observations
 
 
@@ -99,23 +92,20 @@ def main():
     tree = dict(
             row_nodes = list(row_nodes),
             column_nodes = list(column_nodes),
-            edge_rate_scaling_factors = [0.01] * len(edges),
-            edge_processes = [0] * len(edges))
+            edge_rate_scaling_factors = [0.01] * edge_count,
+            edge_processes = [0] * edge_count)
 
     # Define the Jukes-Cantor process.
     # Rates are scaled so that the exit rate is 1 from every state.
     row_states = []
     column_states = []
     rates = []
+    ident = np.identity(4, dtype=int).tolist()
     for i in range(4):
         for j in range(4):
             if i != j:
-                u = [0]*4
-                u[i] = 1
-                v = [0]*4
-                v[j] = 1
-                row_states.append(u)
-                column_states.append(v)
+                row_states.append(ident[i])
+                column_states.append(ident[j])
                 rates.append(1/3)
     process_definition = dict(
             row_states = row_states,
@@ -124,11 +114,7 @@ def main():
 
     # Define the root distribution.
     root_prior = dict(
-            states = [
-                [1, 0, 0, 0],
-                [0, 1, 0, 0],
-                [0, 0, 1, 0],
-                [0, 0, 0, 1]],
+            states = ident,
             probabilities = [0.25, 0.25, 0.25, 0.25])
 
     # Define the observed data.
@@ -170,9 +156,7 @@ def main():
     arr = []
     j_out = None
     nsites = len(iid_observations)
-    print('nsites:', nsites)
-    print('edge count:', edge_count)
-    for i in range(10):
+    for i in range(8):
         if j_out is None:
             j_out = jsonctmctree.interface.process_json_in(j_in)
         else:
@@ -180,12 +164,9 @@ def main():
             edge_rates = [t/nsites for t in trans_counts]
             j_in['scene']['tree']['edge_rate_scaling_factors'] = edge_rates
             j_out = jsonctmctree.interface.process_json_in(j_in)
-            print(ll)
-            print(edge_rates)
         arr.append(copy.deepcopy(j_out))
-        #print(j_out)
 
-    #print(json.dumps(arr, indent=4))
+    print(json.dumps(arr, indent=4))
 
 
 main()
