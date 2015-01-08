@@ -3,12 +3,10 @@ from __future__ import print_function, division, absolute_import
 import copy
 import json
 
+import pyparsing
+
 import numpy as np
 from numpy.testing import assert_equal
-
-from scipy.misc import logsumexp
-from scipy.optimize import minimize
-import pyparsing
 
 import jsonctmctree.interface
 
