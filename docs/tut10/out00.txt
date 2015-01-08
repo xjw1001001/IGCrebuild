@@ -1,6 +1,9 @@
+gene population limit: 1000
+gene birth rate: 0.5
+gene death rate: 0.3
 likelihood: 0.16796869708
 upper bound likelihood for unbounded population: 0.16796869708
-unconditional probability of exceeding the population cap: -8.32667268469e-17
+unconditional probability of exceeding the population cap: 5.82867087928e-16
 expected number of extinctions: 57.7209579089
 expected number of extant lineages at each node:
 0 : 1.0

@@ -121,6 +121,9 @@ def main():
 
     logl, extinction, extant, dwell = j_out['responses']
     wrap_likelihood = exp(logl)
+    print('gene population limit:', n)
+    print('gene birth rate:', lam)
+    print('gene death rate:', mu)
     print('likelihood:', wrap_likelihood)
     print('upper bound likelihood for unbounded population:', absorb_likelihood)
     print('unconditional probability of exceeding the population cap:',
