@@ -87,19 +87,19 @@ class CodonGeneconv:
             x_process = np.array([count[0] + count[2], count[0] / (count[0] + count[2]), count[1] / (count[1] + count[3]),
                                   kappa, tau])
             x_process = np.log(x_process)            
-        setattr(CodonGeneconv, 'x_process', x_process)
+        setattr(self, 'x_process', x_process)
         
         l = len(self.edge_to_blen) / 2 + 1               # number of leaves
         x_rates_clock = np.ones((l)) * 0.9
         x_clock = np.concatenate((x_process, np.log(x_rates_clock)))
-        setattr(CodonGeneconv, 'x_clock', x_clock)
+        setattr(self, 'x_clock', x_clock)
 
         x_rates = np.array([ self.edge_to_blen[edge] for edge in self.edge_to_blen.keys()])
         x_rates = np.log(x_rates)
-        setattr(CodonGeneconv, 'x_rates', x_rates)
+        setattr(self, 'x_rates', x_rates)
 
         x = np.concatenate((x_process, x_rates))
-        setattr(CodonGeneconv, 'x', x)
+        setattr(self, 'x', x)
         self.update_by_x_clock(Force = Force)
 
         if Force != None:
@@ -164,7 +164,7 @@ class CodonGeneconv:
             clade.name = 'N' + str(numInternalNode)
             numInternalNode += 1
         tree_phy = tree.as_phyloxml(rooted = 'True')
-        setattr(CodonGeneconv, 'tree_phy', tree_phy)
+        setattr(self, 'tree_phy', tree_phy)
         # I decided not to append data onto topology this time
         # Because they were stored in self.name_to_seq
         tree_nx = Phylo.to_networkx(self.tree_phy)
@@ -177,12 +177,12 @@ class CodonGeneconv:
             T.add_edge(*edge)
             edge_to_blen[edge] = blen
 
-        setattr(CodonGeneconv, 'edge_to_blen', edge_to_blen)
+        setattr(self, 'edge_to_blen', edge_to_blen)
         leaves = set(v for v, degree in T.degree().items() if degree == 1)
         Outgroup = list(set(leaves).difference(nx.descendants(T, self.SpecAfterDupli_node)))
         node_names = list(T)
         node_to_number = {n: i for i, n in enumerate(node_names)}
-        setattr(CodonGeneconv, 'node_to_num', node_to_number)
+        setattr(self, 'node_to_num', node_to_number)
         tree_row = [self.node_to_num[na] for na, nb in edge_to_blen.keys()]
         tree_col = [self.node_to_num[nb] for na, nb in edge_to_blen.keys()]
         tree_process = [0 if e == ('N0', Outgroup[0]) else 1 for e in edge_to_blen]
@@ -192,7 +192,7 @@ class CodonGeneconv:
             process = tree_process,
             rate = np.ones(len(tree_row))
             )
-        setattr(CodonGeneconv, 'tree', tree)
+        setattr(self, 'tree', tree)
 
     def update_tree(self):
         tree_rate = [self.edge_to_blen[k] for k in self.edge_to_blen.keys()]
@@ -200,6 +200,7 @@ class CodonGeneconv:
     
     def unpack_x_process(self, Force = None):
         x_process = np.exp(self.x_process)
+
         if Force != None:
             for i in Force.keys():
                 if i < len(self.x_process):
@@ -229,21 +230,48 @@ class CodonGeneconv:
             self.tau = x_process[4]
 
 
+
+
         # Now update the prior distribution
         self.get_prior()
 
-    def unpack_x_rates(self, Force = None):
+        # Now update processes (Rate matrices)
+        self.get_processes()
+        
+
+    def unpack_x_rates(self, Force = None):  # TODO: Change it to fit general tree structure rather than cherry tree
         x_rates = np.exp(self.x_rates)
         if Force != None:
             for i in Force.keys():
                 if i < len(self.x_rates):
                     x_rates[i] = Force[i]
         assert(len(x_rates) == len(self.edge_to_blen))
-        for it in range(len(self.edge_to_blen)):
-            edge = self.edge_to_blen.keys()[it]
-            self.edge_to_blen[edge] = x_rates[it]
+
+        nEdge = len(self.edge_to_blen)  # number of edges
+        l = nEdge / 2 + 1               # number of leaves
+        k = l - 1   # number of internal nodes. The notation here is inconsistent with Alex's for trying to match my notes.
+
+        leaf_branch = [edge for edge in self.edge_to_blen.keys() if edge[0][0] == 'N' and str.isdigit(edge[0][1:]) and not str.isdigit(edge[1][1:])]
+        out_group_branch = [edge for edge in leaf_branch if edge[0] == 'N0' and not str.isdigit(edge[1][1:])] [0]
+        internal_branch = [x for x in self.edge_to_blen.keys() if not x in leaf_branch]
+        assert(len(internal_branch) == k-1)  # check if number of internal branch is one less than number of internal nodes
+
+        leaf_branch.sort(key = lambda node: int(node[0][1:]))  # sort the list by the first node number in increasing order
+        internal_branch.sort(key = lambda node: int(node[0][1:]))  # sort the list by the first node number in increasing order
+
+        # Now update blen with fixed order:
+        # Always start from the root and internal-tip branch first
+        for i in range(len(internal_branch)):
+            self.edge_to_blen[internal_branch[i]] = x_rates[2 * i]
+            self.edge_to_blen[leaf_branch[i]] = x_rates[2 * i + 1]
+        for j in range(len(leaf_branch[i + 1:])):
+            self.edge_to_blen[leaf_branch[i + 1 + j]] = x_rates[ - len(leaf_branch[i + 1:]) + j]
+##        self.edge_to_blen = {}
+##        for it in range(len(self.edge_to_blen)):
+##            edge = self.edge_to_blen.keys()[it]
+##            self.edge_to_blen[edge] = x_rates[it]
         self.update_tree()
-        
+         
 
     def nts_to_codons(self):
         for name in self.name_to_seq.keys():
@@ -254,7 +282,7 @@ class CodonGeneconv:
         
     def get_data(self, Model):
         seq_dict = SeqIO.to_dict(SeqIO.parse( self.seqloc, "fasta" ))
-        setattr(CodonGeneconv, 'name_to_seq', {name:str(seq_dict[name].seq) for name in seq_dict.keys()})
+        setattr(self, 'name_to_seq', {name:str(seq_dict[name].seq) for name in seq_dict.keys()})
 
         if Model == 'MG94':
             # Convert from nucleotide sequences to codon sequences.
@@ -273,7 +301,7 @@ class CodonGeneconv:
         print 'number of sites to be analyzed: ', self.nsites
 
         observable_names = self.name_to_seq.keys()
-        setattr(CodonGeneconv, 'observable_names', observable_names)
+        setattr(self, 'observable_names', observable_names)
         paralog_len = [len(a) for a in self.paralog]
         assert(paralog_len[1:] == paralog_len[:-1])  # check if all paralog names have same length
         suffix_len = len(self.paralog[0])
@@ -282,8 +310,8 @@ class CodonGeneconv:
         suffix_to_axis = {n:i for (i, n) in enumerate(list(set(observable_suffixes))) }
         observable_nodes = [self.node_to_num[n[:-suffix_len]] for n in observable_names]
         observable_axes = [suffix_to_axis[s[-suffix_len:]] for s in observable_names]
-        setattr(CodonGeneconv, 'observable_axes', observable_axes)
-        setattr(CodonGeneconv, 'observable_nodes', observable_nodes)
+        setattr(self, 'observable_axes', observable_axes)
+        setattr(self, 'observable_nodes', observable_nodes)
 
 
         iid_observations = []
@@ -293,7 +321,7 @@ class CodonGeneconv:
                 observation = obs_to_state[self.name_to_seq[name][site]]
                 observations.append(observation)
             iid_observations.append(observations)
-        setattr(CodonGeneconv, 'iid_observations', iid_observations)
+        setattr(self, 'iid_observations', iid_observations)
 
     def get_MG94Basic(self):
         # May not need to construct this matrix as well
@@ -320,8 +348,8 @@ class CodonGeneconv:
             prior_feasible_states = [(self.nt_to_state[nt], self.nt_to_state[nt]) for nt in 'ACGT']
             distn = [ self.pi['ACGT'.index(nt)] for nt in 'ACGT' ]
             distn = np.array(distn) / sum(distn)
-        setattr(CodonGeneconv, 'prior_feasible_states', prior_feasible_states)
-        setattr(CodonGeneconv, 'prior_distribution', distn)
+        setattr(self, 'prior_feasible_states', prior_feasible_states)
+        setattr(self, 'prior_distribution', distn)
 
     def vec_get_MG94Geneconv(self):
         pair_list = [a + b for a, b in product(self.codon_nonstop, repeat = 2)]
@@ -337,7 +365,7 @@ class CodonGeneconv:
         rate_geneconv = []
         rate_basic = []
 
-        self.update_by_x(x)
+        #self.update_by_x(x)
 
         for i, pair_from in enumerate(product('ACGT', repeat = 2)):
             na, nb = pair_from
@@ -382,7 +410,7 @@ class CodonGeneconv:
         rate_geneconv = []
         rate_basic = []
 
-        self.update_by_x(x)
+        #self.update_by_x(x)
 
         for i, pair in enumerate(product(self.codon_nonstop, repeat = 2)):
             #rate_sum_geneconv = 0
@@ -495,13 +523,13 @@ class CodonGeneconv:
         '''
         Modified from Alex's objective_and_gradient function in ctmcaas/adv-log-likelihoods/mle_geneconv_common.py
         '''
-        k = len(self.edge_to_blen)
-        self.x_process, self.x_rates = self.x[:-k], self.x[-k:]
+##        k = len(self.edge_to_blen)
+##        self.x_process, self.x_rates = self.x[:-k], self.x[-k:]
         if self.Model == 'MG94':
-            self.processes = self.get_MG94Geneconv_and_MG94()
+##            self.processes = self.get_MG94Geneconv_and_MG94()
             state_space_shape = [61, 61]
         elif self.Model == 'HKY':
-            self.processes = self.get_HKYGeneconv()
+##            self.processes = self.get_HKYGeneconv()
             state_space_shape = [4, 4]
 
         # prepare some extra parameters for the json interface
@@ -539,7 +567,6 @@ class CodonGeneconv:
             raise Exception('Encountered some problem in the calculation of log likelihood and its derivatives')
 
         ll, edge_derivs = j_ll['log_likelihood'], j_ll['edge_derivatives']
-        self.ll = ll
 
         return ll, edge_derivs
 
@@ -568,19 +595,17 @@ class CodonGeneconv:
             edge_derivs = j_out['responses'][1]
         else:
             edge_derivs = []
-            
-        self.ll = ll
 
         return ll, edge_derivs
     
     def get_scene(self):
-        k = len(self.edge_to_blen)
-        self.x_process, self.x_rates = self.x[:-k], self.x[-k:]
+        #k = len(self.edge_to_blen)
+        #self.x_process, self.x_rates = self.x[:-k], self.x[-k:]
         if self.Model == 'MG94':
-            self.processes = self.get_MG94Geneconv_and_MG94()
+            #self.processes = self.get_MG94Geneconv_and_MG94()
             state_space_shape = [61, 61]
         elif self.Model == 'HKY':
-            self.processes = self.get_HKYGeneconv()
+            #self.processes = self.get_HKYGeneconv()
             state_space_shape = [4, 4]
         process_definitions = [{'row_states':i['row'], 'column_states':i['col'], 'transition_rates':i['rate']} for i in self.processes]
         scene = dict(
@@ -604,7 +629,7 @@ class CodonGeneconv:
             )
         return scene
     
-    def get_geneconvTransRed(self):
+    def get_geneconvTransRed(self, get_rate = False):
         row_states = []
         column_states = []
         if self.Model == 'MG94':
@@ -704,6 +729,7 @@ class CodonGeneconv:
             print 'other derivatives:', other_derivs
             print 'Current x array = ', self.x
 
+        self.ll = ll
         f = -ll
         g = -np.concatenate((other_derivs, edge_derivs))
         return f, g
@@ -777,7 +803,7 @@ class CodonGeneconv:
         print (result)
         return result
 
-    def save_to_file(self, clock = False, file_name = None, path = './'):
+    def save_to_file(self, clock = False, file_name = None, path = './', Force = None):
         if file_name == None:
             file_name = self.Model + '_' + '_'.join(self.paralog)
             if clock:
@@ -785,16 +811,20 @@ class CodonGeneconv:
             else:
                 file_name += '_nonclock.p'
         save_file = path + file_name
+        self.ll = self._loglikelihood()[0]
+        print 'x = ', self.x, 'x_clock = ', self.x_clock
         save_info = dict(
             Model = self.Model,
-            x     = self.x,
+            x     = self.x.tolist(),
+            x_clock = self.x_clock.tolist(),
             edge_to_blen = self.edge_to_blen,
             ExpectedGeneconv = self.ExpectedGeneconv,
             ll    = self.ll,
             newicktree = self.newicktree,
             alignment_file = self.seqloc,
             paralog = self.paralog,
-            clock = clock
+            clock = clock,
+            Force = Force
             )
         pickle.dump(save_info, open(save_file, 'wb+'))  # use pickle to save the class which can be easily reconstructed by pickle.load()
         
@@ -806,47 +836,106 @@ def main(args):
     path = './NewPackageNewRun/'
 
     print 'Now calculate MLE for pair', paralog
-    x = np.array([-0.64353555, -0.48264002, -0.93307917,  1.76977596, -2.44028574,
-        1.19617746, -3.90910406, -3.87159909, -4.30005794, -6.28014701,
-       -2.83555499, -3.29056063, -2.92359461, -3.49891453, -3.97438916,
-       -3.10701318, -4.59465356, -2.01786889])
+    x = np.array([-0.64353555, -0.48264002, -0.93307917,  1.76977596, -2.44028574, 1.19617746,
+                   -3.90910406, -2.01786889,  # N0
+                   -2.92359461, -2.83555499,  # N1
+                   -4.30005794, -3.29056063,  # N2
+                   -4.59465356, -3.49891453,  # N3
+                   -6.28014701, -3.10701318,  # N4
+                   -3.87159909, -3.97438916]) # N5
     
     if hasattr(args, 'Force'):
         Force = args.Force
-        path += 'Force_'
+        if Force != None:
+            path += 'Force_'
     else:
         Force = None
     test.update_by_x(x, Force = Force)
     
     result = test.get_mle(clock = False, display = True, Force = Force)
     test.get_ExpectedNumGeneconv()
-    test.save_to_file(clock = False, path = path)
+    test.save_to_file(clock = False, path = path, Force = Force)
 
     x_clock = np.array([-0.64430238, -0.48627304, -0.93852343, 1.76793238, -2.45061608, 1.23836258,
                   -2.11088631, -0.15313429, -0.23202426, -0.63091448, -0.25441366, -0.20629961,-0.23301088])
     test.update_by_x_clock(x_clock, Force = Force)
     result = test.get_mle(clock = True, display = True, Force = Force)
     test.get_ExpectedNumGeneconv()
-    test.save_to_file(clock = True, path = path)
+    test.save_to_file(clock = True, path = path, Force = Force)
     
 
 if __name__ == '__main__':##    parser = argparse.ArgumentParser()
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
-    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
-    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
+##    parser = argparse.ArgumentParser()
+##    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
+##    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
+##    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
+##    
+##    main(parser.parse_args())
+
+    paralog1 = 'YML026C'
+    paralog2 = 'YDR450W'
+    paralog1 = 'YDR502C'
+    paralog2 = 'YLR180W'
+    Force    = {5:0.0}
+   # Force    = {4:0.0}
+    #Force = None
+
+    paralog = [paralog1, paralog2]
+    alignment_file = '../PairsAlignemt/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    newicktree = '../PairsAlignemt/YeastTree.newick'
+    test = CodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94')#, nnsites = 1)
     
-    main(parser.parse_args())
+##    x = [ -0.71504098,  -0.51228865,  -0.89531866,   1.58369229,
+##        -2.83087967,   1.19617746,  -2.82848596,  -3.37970062,
+##        -4.27815837,  -4.98465689,  -2.17551306,  -3.22866221,
+##       -15.46376865,  -2.73078175,  -4.01541511,  -1.91221709,
+##       -18.25127742,  -2.62498074]
+    
+    xx = np.array([-0.64353555, -0.48264002, -0.93307917,  1.76977596, -2.44028574,
+        1.19617746, -3.90910406, -3.87159909, -4.30005794, -6.28014701,
+       -2.83555499, -3.29056063, -2.92359461, -3.49891453, -3.97438916,
+       -3.10701318, -4.59465356, -2.01786889])
 
-##    paralog1 = 'YAL056W'
-##    paralog2 = 'YOR371C'
-##    Force    = {4:0.0}
-##    #Force = None
+    #xx = np.array([-0.64353555, -0.48264002, -0.93307917,  1.76977596, -2.44028574,
+    xx = np.array([-0.60829003, -0.51797889, -0.8170342,  1.76977596, -2.44028574, 1.19617746,
+    #xx = np.array([-0.60829003, -0.51797889, -0.8170342,  1.76977596, -2.44028574,
+                   -3.90910406, -2.01786889,  # N0
+                   -2.92359461, -2.83555499,  # N1
+                   -4.30005794, -3.29056063,  # N2
+                   -4.59465356, -3.49891453,  # N3
+                   -6.28014701, -3.10701318,  # N4
+                   -3.87159909, -3.97438916]) # N5
+
+    x = np.array([-0.64353555, -0.48264002, -0.93307917,  1.76977596, -2.44028574, 1.19617746,
+    #x = np.array([-0.60829003, -0.51797889, -0.8170342,  1.76977596, -2.44028574,
+                   -3.90910406, -2.01786889,  # N0
+                   -2.92359461, -2.83555499,  # N1
+                   -4.30005794, -3.29056063,  # N2
+                   -4.59465356, -3.49891453,  # N3
+                   -6.28014701, -3.10701318,  # N4
+                   -3.87159909, -3.97438916]) # N5
+
+    
+    #test.update_by_x(x = xx, Force = Force)
+    test.update_by_x(x = x)
+    
+    
+    print 'tau = ', test.tau
+    #print test._loglikelihood2()
+    
+    branch = test.edge_to_blen.keys()
+    branch.sort(key = lambda node: int(node[0][1:]))
+    for i in branch:
+        print i, test.edge_to_blen[i]
 ##
-##    paralog = [paralog1, paralog2]
-##    alignment_file = '../PairsAlignemt/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-##    newicktree = '../PairsAlignemt/YeastTree.newick'
-##    test = CodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY')
-##    test.update_by_x(Force = Force)
-##    #result = test.get_mle(clock = True, display = True, Force = Force)
+##    tree_branch = [(test.tree['row'][i], test.tree['col'][i], test.tree['rate'][i]) for i in range(len(test.tree['col']))]
+##    tree_branch.sort(key = lambda node: int(node[0]))
+##    for i in tree_branch:
+##        print i
+##
+##    print test.node_to_num
 
+##    for i in range(20, 30):
+##        print test.processes[0]['row'][i], test.processes[0]['col'][i], test.processes[0]['rate'][i], test.processes[1]['row'][i], test.processes[1]['col'][i], test.processes[1]['rate'][i]
+
+        

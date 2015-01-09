@@ -1,0 +1,49 @@
+---
+title: "SummaryPlot"
+author: "Xiang Ji"
+date: "December 29, 2014"
+output: word_document
+---
+
+This R script is used for generating summary plot for the Geneconv project
+
+1, Read in tables
+```{r}
+rm(list=ls())  # clean up workspace
+path <- "/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/"
+#HKY_clock_summary <- "HKY_clock_summary"
+summary.list <- c( "HKY_nonclock_summary",
+                  "HKY_clock_summary",
+                  "MG94_clock_summary",
+                  "MG94_nonclock_summary", 
+                  "Force_HKY_clock_summary", 
+                  "Force_HKY_nonclock_summary",
+                  "Force_MG94_clock_summary", 
+                  "Force_MG94_nonclock_summary"
+                  )
+summary.list <- c("Force_MG94_clock_summary")
+for (target.summary in summary.list){
+  summary_file <- paste(path, target.summary, '.txt', sep = '')
+  all <- readLines(summary_file, n = -1)
+  col.names <- strsplit(all[1], ' ')[[1]][-1]
+  row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+  summary_mat <- as.matrix(read.table(summary_file, 
+                                        row.names = row.names, 
+                                        col.names = col.names))
+  
+  para.list <- c(2:20)
+  for (i in para.list){
+    image.name <- paste(path, 'Rscripts/', target.summary, '_',
+                        row.names[i], '.png', sep = '')
+    png(image.name)
+    plot(summary_mat[1, ], summary_mat[i, ],
+         xlab = row.names[1], ylab = row.names[i],
+         main = target.summary)
+    dev.off()
+    }
+  
+  
+}
+
+
+```
