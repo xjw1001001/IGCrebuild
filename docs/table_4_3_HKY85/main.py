@@ -1,3 +1,8 @@
+# NOTE: this script currently has a few problems.
+# 1) This may not be a true EM.
+# 2) Even the empirical nucleotide distributions do not match
+#    the ones in the paper.
+
 from __future__ import print_function, division, absolute_import
 
 import copy
@@ -87,30 +92,55 @@ def get_nucleotide_alignment_info(name_to_node):
     return nodes, variables, iid_observations, pi
 
 
-def get_process_definition(pi, kappa):
-    # Get the structure of the rate matrix.
-    ts_info, tv_info = get_transition_components(pi)
-    (
-            ts_row_states,
-            ts_column_states,
-            ts_row_probabilities,
-            ts_coefficients) = ts_info
-    (
-            tv_row_states,
-            tv_column_states,
-            tv_row_probabilities,
-            tv_coefficients) = tv_info
+def get_expected_rate(pi, kappa):
+    raw_exit_rates = get_unnormalized_exit_rates(pi, kappa)
+    return np.dot(pi, raw_exit_rates)
 
-    # Put together the rate matrix.
-    row_states = ts_row_states + tv_row_states
-    column_states = ts_column_states + tv_column_states
-    row_probabilities = ts_row_probabilities + tv_row_probabilities
-    coefficients = ts_coefficients + tv_coefficients
-    nts = len(ts_row_states)
-    ntv = len(tv_row_states)
-    rates = [c * r for c, r in zip(coefficients, [kappa]*nts + [1]*ntv)]
-    expected_rate = np.dot(row_probabilities, rates)
-    rates = [r / expected_rate for r in rates]
+
+def get_exit_rates(pi, kappa):
+    raw_exit_rates = get_unnormalized_exit_rates(pi, kappa)
+    expectation = np.dot(pi, raw_exit_rates)
+    return [r / expectation for r in raw_exit_rates]
+
+
+def get_unnormalized_exit_rates(pi, kappa):
+    exit_rates = [0, 0, 0, 0]
+    for i, j, ts, tv in gen_hky():
+        rate = (kappa * ts + tv) * pi[j]
+        exit_rates[i] += rate
+    return exit_rates
+
+def get_unnormalized_ts_exits(pi, kappa):
+    exit_rates = [0, 0, 0, 0]
+    for i, j, ts, tv in gen_hky():
+        if ts:
+            rate = (kappa * ts + tv) * pi[j]
+            exit_rates[i] += rate
+    return exit_rates
+
+def get_unnormalized_tv_exits(pi, kappa):
+    exit_rates = [0, 0, 0, 0]
+    for i, j, ts, tv in gen_hky():
+        if tv:
+            rate = (kappa * ts + tv) * pi[j]
+            exit_rates[i] += rate
+    return exit_rates
+
+
+def get_process_definition(pi, kappa):
+
+    # Put together the multivariate rate matrix,
+    # normalized by dividing by the expected rate.
+    expected_rate = get_expected_rate(pi, kappa)
+    ident = np.identity(4, dtype=int).tolist()
+    row_states = []
+    column_states = []
+    rates = []
+    for i, j, ts, tv in gen_hky():
+        rate = (kappa * ts + tv) * pi[j]
+        row_states.append(ident[i])
+        column_states.append(ident[j])
+        rates.append(rate / expected_rate)
 
     # Assemble and return the process definition.
     process_definition = dict(
@@ -120,46 +150,102 @@ def get_process_definition(pi, kappa):
     return process_definition
 
 
-def get_transition_components(pi):
-    # Returns ts_info, tv_info,
-    # each of which has (row_states, column_states, coefficients).
-    ts_row_states = []
-    ts_column_states = []
-    ts_row_probabilities = []
-    ts_coefficients = []
-    tv_row_probabilities = []
-    tv_row_states = []
-    tv_column_states = []
-    tv_coefficients = []
-    ident = np.identity(4, dtype=int).tolist()
+def gen_hky():
+    # Yield a tuple for each state transition.
+    # Currently, this tuple consists of the univariate initial state,
+    # the univariate final state, a ts indicator, and a tv indicator.
     # ts: A<->G, C<->T
-    ts = ((0, 2), (2, 0), (1, 3), (3, 1))
+    ts_pairs = ((0, 2), (2, 0), (1, 3), (3, 1))
     for i in range(4):
         for j in range(4):
             if i != j:
-                rs = ident[i]
-                cs = ident[j]
-                if (i, j) in ts:
-                    ts_row_states.append(rs)
-                    ts_column_states.append(cs)
-                    ts_row_probabilities.append(pi[i])
-                    ts_coefficients.append(pi[j])
-                else:
-                    tv_row_states.append(rs)
-                    tv_column_states.append(cs)
-                    tv_row_probabilities.append(pi[i])
-                    tv_coefficients.append(pi[j])
-    ts_info = (
-            ts_row_states,
-            ts_column_states,
-            ts_row_probabilities,
-            ts_coefficients)
-    tv_info = (
-            tv_row_states,
-            tv_column_states,
-            tv_row_probabilities,
-            tv_coefficients)
-    return ts_info, tv_info
+                ts = 1 if (i, j) in ts_pairs else 0
+                tv = 1 - ts
+                yield i, j, ts, tv
+
+
+def get_requests(edge_rates, pi, kappa):
+
+    # Precompute the structure of the sparse matrix.
+    edge_count = len(edge_rates)
+    ident = np.identity(4, dtype=int).tolist()
+    hky = list(gen_hky())
+
+    # Define the exit rates given the current parameter values.
+    # This includes normalization by dividing by the expected rate.
+    exit_rates = get_exit_rates(pi, kappa)
+
+    # Define the log likelihood request.
+    log_likelihood_request = {"property" : "SNNLOGL"}
+
+    # Define the requests for expecatations that are used
+    # to update the branch length parameter estimates.
+    per_edge_opportunity_request = dict(
+            property = "SDWDWEL",
+            state_reduction = dict(
+                states = ident,
+                weights = exit_rates))
+    per_edge_change_request = dict(
+            property = "SDNTRAN",
+            transition_reduction = dict(
+                row_states = [ident[i] for i, j, ts, tv in hky],
+                column_states = [ident[j] for i, j, ts, tv in hky],
+                weights = [1] * len(hky)))
+
+    # Define the requests for expectations that are used
+    # to update the kappa estimates.
+
+    ts_row_states = [ident[i] for i, j, ts, tv in hky if ts]
+    ts_column_states = [ident[j] for i, j, ts, tv in hky if ts]
+    ts_rates = [kappa * pi[j] for i, j, ts, tv in hky if ts]
+
+    tv_row_states = [ident[i] for i, j, ts, tv in hky if tv]
+    tv_column_states = [ident[j] for i, j, ts, tv in hky if tv]
+    tv_rates = [pi[j] for i, j, ts, tv in hky if tv]
+
+
+    # Get unnormalized ts and tv exit rates.
+    ts_exits = get_unnormalized_ts_exits(pi, kappa)
+    tv_exits = get_unnormalized_tv_exits(pi, kappa)
+    edge_reduction = dict(
+            edges = range(edge_count),
+            weights = edge_rates)
+
+    ts_opportunity_request = dict(
+            property = "SWWDWEL",
+            edge_reduction = edge_reduction,
+            state_reduction = dict(
+                states = ident,
+                weights = ts_exits))
+    tv_opportunity_request = dict(
+            property = "SWWDWEL",
+            edge_reduction = edge_reduction,
+            state_reduction = dict(
+                states = ident,
+                weights = tv_exits))
+    ts_change_request = dict(
+            property = "SWNTRAN",
+            edge_reduction = edge_reduction,
+            transition_reduction = dict(
+                row_states = ts_row_states,
+                column_states = ts_column_states,
+                weights = ts_rates))
+    tv_change_request = dict(
+            property = "SWNTRAN",
+            edge_reduction = edge_reduction,
+            transition_reduction = dict(
+                row_states = tv_row_states,
+                column_states = tv_column_states,
+                weights = tv_rates))
+
+    return [
+        log_likelihood_request,
+        per_edge_opportunity_request,
+        per_edge_change_request,
+        ts_opportunity_request,
+        tv_opportunity_request,
+        ts_change_request,
+        tv_change_request]
 
 
 def main():
@@ -171,38 +257,30 @@ def main():
 
     # Read the alignment.
     info = get_nucleotide_alignment_info(name_to_node)
-    nodes, variables, iid_observations, pi = info
+    nodes, variables, iid_observations, empirical_pi = info
     nsites = len(iid_observations)
+
+    # Initialize some guesses.
+    edge_rates = [0.01] * edge_count
+    pi = empirical_pi
+    kappa = 2.0
 
     # Define the tree component of the scene
     row_nodes, column_nodes = zip(*edges)
     tree = dict(
             row_nodes = list(row_nodes),
             column_nodes = list(column_nodes),
-            edge_rate_scaling_factors = [0.01] * edge_count,
+            edge_rate_scaling_factors = edge_rates,
             edge_processes = [0] * edge_count)
 
-    # Get the structure of the rate matrix.
-    ts_info, tv_info = get_transition_components(pi)
-    (
-            ts_row_states,
-            ts_column_states,
-            ts_row_probabilities,
-            ts_coefficients) = ts_info
-    (
-            tv_row_states,
-            tv_column_states,
-            tv_row_probabilities,
-            tv_coefficients) = tv_info
-
-    row_states = ts_row_states + tv_row_states
-    column_states = ts_column_states + tv_column_states
+    # Define the structure of the hky model.
+    hky = list(gen_hky())
 
     # Define the root distribution.
     ident = np.identity(4, dtype=int).tolist()
     root_prior = dict(
             states = ident,
-            probabilities = [0.25, 0.25, 0.25, 0.25])
+            probabilities = pi)
 
     # Define the observed data.
     observed_data = dict(
@@ -219,45 +297,9 @@ def main():
             root_prior = root_prior,
             observed_data = observed_data)
 
-    # Define some requests.
-    # These include the log likelihood
-    # and the sum of transition count expectations.
-    requests = [
-            {"property" : "SNNLOGL"},
-            {
-                "property" : "SDWDWEL",
-                "state_reduction" : {
-                    "states" : np.identity(4).tolist(),
-                    "weights" : [1] * len(row_states)
-                }
-            },
-            {
-                "property" : "SSNTRAN",
-                "transition_reduction" : {
-                    "row_states" : ts_row_states,
-                    "column_states" : ts_column_states,
-                    "weights" : [1] * len(ts_row_states)
-                }
-            },
-            {
-                "property" : "SSNTRAN",
-                "transition_reduction" : {
-                    "row_states" : tv_row_states,
-                    "column_states" : tv_column_states,
-                    "weights" : [1] * len(tv_row_states)
-                }
-            }]
-
-    # Request some stuff.
-    j_in = {
-            "scene" : scene,
-            "requests" : requests
-            }
-
     arr = []
     j_out = None
-    kappa = 2.0
-    for i in range(8):
+    for i in range(20):
 
         # if j_out is available, recompute kappa and edge rates
         if j_out is not None:
@@ -274,12 +316,17 @@ def main():
             for change, dwell in zip(per_edge_change, per_edge_opportunity):
                 edge_rates.append(change / dwell)
             kappa = (ts_change / ts_opportunity) / (tv_change / tv_opportunity)
-            j_in['scene']['tree']['edge_rate_scaling_factors'] = edge_rates
 
         process_definition = get_process_definition(pi, kappa)
+        j_in = dict(scene = scene)
+        j_in['scene']['tree']['edge_rate_scaling_factors'] = edge_rates
+        j_in['requests'] = get_requests(edge_rates, pi, kappa)
         j_in['scene']['process_definitions'] = [process_definition]
         j_out = jsonctmctree.interface.process_json_in(j_in)
         arr.append(copy.deepcopy(j_out))
+
+        print(j_out)
+        print(kappa)
 
     print(json.dumps(arr, indent=4))
 
