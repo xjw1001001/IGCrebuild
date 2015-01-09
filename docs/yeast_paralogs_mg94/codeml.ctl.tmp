@@ -1,5 +1,5 @@
-      seqfile = /Users/xji3/Genconv/CodemlTest/YML026C_YDR450W_input.fasta
-     treefile = /Users/xji3/Genconv/CodemlTest/YeastTree.newick
+      seqfile = YML026C_YDR450W_input.fasta
+     treefile = yeast.tree.newick
       outfile = mlc
 
         noisy = 9
