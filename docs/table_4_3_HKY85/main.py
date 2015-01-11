@@ -88,7 +88,16 @@ def get_nucleotide_alignment_info(name_to_node):
     arr = np.transpose(arr, (1, 0, 2))
     iid_observations = np.reshape(arr, (arr.shape[0], -1))
     iid_observations = iid_observations.tolist()
-    pi = (acgt_counts / acgt_counts.sum()).tolist()
+
+    # Compute pi empirically, or use the values from the textbook.
+    #pi = (acgt_counts / acgt_counts.sum()).tolist()
+    pi = [
+            0.2754,
+            0.1927,
+            0.2452,
+            0.2867,
+            ]
+
     return nodes, variables, iid_observations, pi
 
 
