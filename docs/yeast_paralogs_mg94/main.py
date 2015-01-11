@@ -3,7 +3,13 @@ from __future__ import print_function, division
 import itertools
 from StringIO import StringIO
 
+import numpy as np
+from numpy.testing import assert_equal, assert_
+
 import dendropy
+
+import jsonctmctree.interface
+
 
 _code = """
 0	ala	gct
@@ -76,7 +82,7 @@ _code = """
 def grouper(n, iterable, fillvalue=None):
     "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
-    return itertools.zip_longest(*args, fillvalue=fillvalue)
+    return itertools.izip_longest(*args, fillvalue=fillvalue)
 
 def get_deltas(a, b):
     deltas = []
@@ -128,19 +134,29 @@ def gen_mg94_structure(codon_residue_pairs):
                         non, syn = 0, 1
                     else:
                         non, syn = 1, 0
-                    nt = 'ACGT'.index[delta[1]]
+                    nt = 'ACGT'.index(delta[1])
                     yield i, j, ts, tv, non, syn, nt
 
 
 def main():
+
+    # Hard-coded ACGT nucleotide mutational distribution.
+    pi =  np.array([
+        0.32427103989856332,
+        0.18666711777554265,
+        0.20116040714181568,
+        0.28790143518407829])
+
+    # Other hard-coded parameter values.
+    kappa = 5.8695382027250913
+    omega = 0.087135949678171815
 
     # Read the tree, including leaf names and branch lengths.
     with open('yeast.tree.newick') as fin:
         lines = fin.readlines()
     edges, edge_rates, name_to_node = read_newick(StringIO(lines[-1]))
     edge_count = len(edges)
-
-    # Define the tree.
+    node_count = edge_count + 1
     row_nodes, column_nodes = zip(*edges)
     tree = dict(
             row_nodes = list(row_nodes),
@@ -155,13 +171,24 @@ def main():
         if line:
             row = line.upper().split()
             idx_string, residue, codon = row
-            if codon != 'STOP':
+            if residue != 'STOP':
                 codon_residue_pairs.append((codon, residue))
+    nstates = 61
+    assert_equal(len(codon_residue_pairs), nstates)
     codon_to_state = {c : i for i, (c, r) in enumerate(codon_residue_pairs)}
-    state_to_residue = {i : r for i, (c, r) in enumerate(codon_residue_pairs)}
+
+    # Define the distribution over codons.
+    codon_weights = np.zeros(nstates)
+    for i, (codon, r) in enumerate(codon_residue_pairs):
+        codon_weights[i] = np.prod([pi['ACGT'.index(x)] for x in codon])
+    codon_distribution = codon_weights / codon_weights.sum()
+    root_prior = dict(
+            states = [[i] for i in range(nstates)],
+            probabilities = codon_distribution.tolist())
 
     # Define the MG94 process.
-    nstates = 61
+    row_states = []
+    column_states = []
     exit_rates = np.zeros(nstates)
     rates = []
     for i, j, ts, tv, non, syn, nt in gen_mg94_structure(codon_residue_pairs):
@@ -170,7 +197,7 @@ def main():
         rate = (kappa * ts + tv) * (omega * non + syn) * pi[nt]
         exit_rates[i] += rate
         rates.append(rate)
-    expected_rate = np.dot(root_distn, exit_rates)
+    expected_rate = np.dot(codon_distribution, exit_rates)
     transition_rates = [r / expected_rate for r in rates]
     process_definition = dict(
             row_states = row_states,
@@ -184,7 +211,7 @@ def main():
         lines = [line.strip() for line in fin]
         lines = [line for line in lines if line]
     for name_line, sequence_line in grouper(2, lines):
-        assert name_line.starts_with('>')
+        assert_(name_line.startswith('>'))
         name = name_line[1:]
         sequence = []
         for triple in grouper(3, sequence_line):
@@ -193,5 +220,32 @@ def main():
             sequence.append(state)
         observable_nodes.append(name_to_node[name])
         sequences.append(sequence)
+
+    # Define the observed data.
+    columns = zip(*sequences)
+    observed_data = dict(
+            nodes = observable_nodes,
+            variables = [0] * len(observable_nodes),
+            iid_observations = [list(column) for column in columns])
+    
+    # Assemble the scene.
+    scene = dict(
+            node_count = node_count,
+            process_count = 1,
+            state_space_shape = [nstates],
+            tree = tree,
+            root_prior = root_prior,
+            process_definitions = [process_definition],
+            observed_data = observed_data)
+
+    # Ask for the log likelihood, summed over sites.
+    request = dict(property = 'SNNLOGL')
+
+    j_in = dict(
+            scene = scene,
+            requests = [request])
+    j_out = jsonctmctree.interface.process_json_in(j_in)
+    print(j_out)
+
 
 main()
