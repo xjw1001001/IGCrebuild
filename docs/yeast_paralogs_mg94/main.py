@@ -95,11 +95,7 @@ def read_newick(fin):
     # use dendropy to read this newick file
     t = dendropy.Tree(stream=fin, schema='newick')
     nodes = list(t.preorder_node_iter())
-
-    # node index lookup
     id_to_idx = {id(n) : i for i, n in enumerate(nodes)}
-
-    # build the networkx tree
     edges = []
     edge_rates = []
     for dendro_edge in t.preorder_edge_iter():
@@ -108,10 +104,7 @@ def read_newick(fin):
             nb = id_to_idx[id(dendro_edge.head_node)]
             edges.append((na, nb))
             edge_rates.append(dendro_edge.length)
-
-    # Map leaf names to nodes.
     name_to_node = {str(n.taxon) : id_to_idx[id(n)] for n in t.leaf_nodes()}
-
     return edges, edge_rates, name_to_node
 
 def codon_to_triple(codon):
