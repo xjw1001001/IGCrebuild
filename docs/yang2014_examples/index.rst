@@ -1,16 +1,5 @@
-uncategorized examples
-----------------------
-
-.. toctree::
-   :maxdepth: 2
-   :glob:
-
-   tut*/main
-
-
-
-mol-evol examples
------------------
+examples from molecular evolution
+---------------------------------
 
 These examples are taken from table 4.3 of
 `Molecular Evolution: A Statistical Approach`__
@@ -24,3 +13,7 @@ __ http://abacus.gene.ucl.ac.uk/MESA/
 
    table_4_3_JC69/main.rst
    table_4_3_K80/main.rst
+   tut04/main.rst
+   tut05/main.rst
+   tut06/main.rst
+   tut09/main.rst
