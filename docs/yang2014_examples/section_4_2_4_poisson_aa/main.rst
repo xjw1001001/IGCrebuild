@@ -1,11 +1,11 @@
-.. _example_6:
+.. _section_4_2_4_poisson_aa:
 
-example 6
-=========
+Section 4.2.4 poisson amino acid model
+======================================
 
 This is from section 4.2.4 of
-`Molecular Evolution: A Statistical Approach`__
-by Ziheng Yang, 2014, Oxford University Press.
+`Molecular Evolution: A Statistical Approach`__,
+at the top of page 110.
 
 __ http://abacus.gene.ucl.ac.uk/MESA/
 

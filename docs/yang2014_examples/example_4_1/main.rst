@@ -1,11 +1,10 @@
-.. _example_5:
+.. _example_4_1:
 
-example 5
-=========
+example 4.1
+===========
 
-This is an implementation of the problem in example 4.1 of
-`Molecular Evolution: A Statistical Approach`__
-by Ziheng Yang, 2014, Oxford University Press.
+This is example 4.1 in
+`Molecular Evolution: A Statistical Approach`__, section 4.2.2.1, page 105.
 
 __ http://abacus.gene.ucl.ac.uk/MESA/
 
