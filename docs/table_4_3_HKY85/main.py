@@ -273,6 +273,7 @@ def main():
     edge_rates = [0.01] * edge_count
     pi = empirical_pi
     kappa = 2.0
+    #kappa = 3.620
 
     # Define the tree component of the scene
     row_nodes, column_nodes = zip(*edges)
@@ -308,7 +309,7 @@ def main():
 
     arr = []
     j_out = None
-    for i in range(20):
+    for i in range(10):
 
         # if j_out is available, recompute kappa and edge rates
         if j_out is not None:
