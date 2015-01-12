@@ -1,11 +1,10 @@
-.. _example_10:
+.. _section_4_4_2_1_marginal:
 
-example 10
-==========
+section 4.4.2.1 marginal reconstruction
+=======================================
 
-This is an implementation of the marginalization in section 4.4.2.1 of
-`Molecular Evolution: A Statistical Approach`__
-by Ziheng Yang, 2014, Oxford University Press.
+This is an implementation of the marginal reconstruction in section 4.4.2.1 of
+`Molecular Evolution: A Statistical Approach`__, pages 127--128.
 
 __ http://abacus.gene.ucl.ac.uk/MESA/
 

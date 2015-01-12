@@ -1,11 +1,10 @@
-.. _example_7:
+.. _section_4_2_4_mtmam:
 
-example 7
-=========
+section 4.2.4 MTMAM
+===================
 
 This is another example from section 4.2.4 of
-`Molecular Evolution: A Statistical Approach`__
-by Ziheng Yang, 2014, Oxford University Press.
+`Molecular Evolution: A Statistical Approach`__, page 109.
 
 __ http://abacus.gene.ucl.ac.uk/MESA/
 
@@ -26,5 +25,3 @@ This is an expectation maximization.
 .. literalinclude:: em_out.json
    :language: json
    :linenos:
-
-

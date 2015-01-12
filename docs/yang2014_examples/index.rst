@@ -15,5 +15,5 @@ __ http://abacus.gene.ucl.ac.uk/MESA/
    table_4_3_K80/main.rst
    example_4_1/main.rst
    section_4_2_4_poisson_aa/main.rst
-   tut06/main.rst
-   tut09/main.rst
+   section_4_2_4_mtmam/main.rst
+   section_4_4_2_1_marginal/main.rst

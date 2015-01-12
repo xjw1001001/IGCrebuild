@@ -1,6 +1,6 @@
 .. _section_4_2_4_poisson_aa:
 
-Section 4.2.4 poisson amino acid model
+section 4.2.4 poisson amino acid model
 ======================================
 
 This is from section 4.2.4 of
