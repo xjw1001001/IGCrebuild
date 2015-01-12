@@ -31,3 +31,11 @@ entire .json files, but it is not highlighting code-block json.
 So it turns out that I was just giving it an invalid json
 block that looked kind of like ``{1:2}`` whereas only strings
 are allowed as keys.
+
+I'm experimenting with math notation rendering.
+Maybe if your browser works with mathjax,
+the next line will have math notation.
+
+.. math::
+
+  W^{3\beta}_{\delta_1 \rho_1 \sigma_2} \approx U^{3\beta}_{\delta_1 \rho_1}
