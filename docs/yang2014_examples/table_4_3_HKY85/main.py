@@ -1,6 +1,3 @@
-# NOTE: the iterative algorithm used by this script may not be a true EM,
-#       and it may not converge to the maximum likelihood estimates.
-
 from __future__ import print_function, division, absolute_import
 
 from functools import partial
@@ -297,17 +294,57 @@ def unpack(X):
     kappa = Y[-1]
     return edge_rates, kappa
 
+
 def objective(scene, pi, X):
-    scene = copy.deepcopy(scene)
+    delta = 1e-8
     edge_rates, kappa = unpack(X)
     scene['tree']['edge_rate_scaling_factors'] = edge_rates
+    log_likelihood_request = dict(property = "SNNLOGL")
+    scene = copy.deepcopy(scene)
+
+    edge_rates, kappa = unpack(X)
     scene['process_definitions'] = [get_process_definition(pi, kappa)]
     j_in = dict(
             scene = scene,
-            requests = [{"property" : "SNNLOGL"}])
+            requests = [log_likelihood_request])
+    j_out = jsonctmctree.interface.process_json_in(j_in)
+    ll = j_out['responses'][0]
+
+    return -ll
+
+
+def objective_and_gradient(scene, pi, X):
+    delta = 1e-8
+    edge_rates, kappa = unpack(X)
+    scene['tree']['edge_rate_scaling_factors'] = edge_rates
+    log_likelihood_request = dict(property = "SNNLOGL")
+    edge_gradient_request = dict(property = "SDNDERI")
+    scene = copy.deepcopy(scene)
+
+    scene['process_definitions'] = [get_process_definition(pi, kappa)]
+    j_in = dict(
+            scene = scene,
+            requests = [
+                log_likelihood_request,
+                edge_gradient_request])
     j_out = jsonctmctree.interface.process_json_in(j_in)
     log_likelihood = j_out['responses'][0]
-    return -log_likelihood
+    edge_gradient = j_out['responses'][1]
+
+    X2 = X.copy()
+    X2[-1] = X[-1] + delta
+    edge_rates, kappa = unpack(X2)
+    scene['process_definitions'] = [get_process_definition(pi, kappa)]
+    j_in = dict(
+            scene = scene,
+            requests = [log_likelihood_request])
+    j_out = jsonctmctree.interface.process_json_in(j_in)
+    ll = j_out['responses'][0]
+    kgrad = (ll - log_likelihood) / delta
+
+    neg_ll_gradient = np.array([-x for x in edge_gradient] + [-kgrad])
+
+    return -log_likelihood, neg_ll_gradient
 
 
 def main():
@@ -392,9 +429,11 @@ def main():
         print(kappa)
 
     # Improve the estimates using a numerical search.
-    f = partial(objective, scene, pi)
     x0 = pack(edge_rates, kappa)
-    result = scipy.optimize.minimize(f, x0, method='L-BFGS-B')
+    f = partial(objective_and_gradient, scene, pi)
+    result = scipy.optimize.minimize(f, x0, jac=True, method='L-BFGS-B')
+    #f = partial(objective, scene, pi)
+    #result = scipy.optimize.minimize(f, x0, method='L-BFGS-B')
     xopt = result.x
     print(result)
     edge_rates, kappa = unpack(xopt)
