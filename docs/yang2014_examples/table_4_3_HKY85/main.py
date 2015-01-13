@@ -1,10 +1,9 @@
-# NOTE: this script currently has a few problems.
-# 1) This may not be a true EM.
-# 2) Even the empirical nucleotide distributions do not match
-#    the ones in the paper.
+# NOTE: the iterative algorithm used by this script may not be a true EM,
+#       and it may not converge to the maximum likelihood estimates.
 
 from __future__ import print_function, division, absolute_import
 
+import collections
 import copy
 import json
 
@@ -17,6 +16,24 @@ import jsonctmctree.interface
 
 s_tree = """(kiwi_fruit, ((((agave, garlic), rice), black_pepper),
 ((cabbage, cotton), (cucumber, walnut))), (sunflower, (tomato, tobacco)))"""
+
+
+# An observed state of -1 means completely missing data.
+_nt_to_state = {
+        'A' : [1, 0, 0, 0],
+        'C' : [0, 1, 0, 0],
+        'G' : [0, 0, 1, 0],
+        'T' : [0, 0, 0, 1],
+        '?' : [-1, -1, -1, -1],
+        '-' : [-1, -1, -1, -1],
+        'N' : [-1, -1, -1, -1],
+        'M' : [-1, -1, 0, 0],
+        'R' : [-1, 0, -1, 0],
+        'W' : [-1, 0, 0, -1],
+        'S' : [0, -1, -1, 0],
+        'Y' : [0, -1, 0, -1],
+        'K' : [0, 0, -1, -1],
+        }
 
 def _help_build_tree(parent, root, node, name_to_node, edges):
     if parent is not None:
@@ -41,27 +58,38 @@ def get_tree_info():
     return name_to_node, edges
 
 
+def get_maximum_likelihood_pi(character_to_count):
+    # Use EM to get the maximum likelihood nucleotide frequency distribution.
+    # Initialize a uniform distribution.
+    pi = np.ones(4) / 4
+    informative_state_to_indicators = dict()
+    for nt, arr in _nt_to_state.items():
+        indicators = np.absolute(arr)
+        if indicators.sum() < 4:
+            informative_state_to_indicators[nt] = indicators
+    # Use a few iterations.
+    for i in range(10):
+        weights = np.zeros(4)
+        for character, count in character_to_count.items():
+            indicators = informative_state_to_indicators.get(character, None)
+            if indicators is not None:
+                p = pi * indicators
+                weights = weights + count * (p / p.sum())
+        pi = weights / weights.sum()
+    # Return the EM estimate of the maximum likelihood
+    # probability distribution over nucleotides.
+    return pi
+
+
 def get_nucleotide_alignment_info(name_to_node):
     # Return an ordered list of observable node indices,
     # and return the array of iid observations.
-    # An observed state of -1 means completely missing data.
-    nt_to_state = {
-            'A' : [1, 0, 0, 0],
-            'C' : [0, 1, 0, 0],
-            'G' : [0, 0, 1, 0],
-            'T' : [0, 0, 0, 1],
-            '?' : [-1, -1, -1, -1],
-            '-' : [-1, -1, -1, -1],
-            'N' : [-1, -1, -1, -1],
-            'M' : [-1, -1, 0, 0],
-            'R' : [-1, 0, -1, 0],
-            'W' : [-1, 0, 0, -1],
-            'S' : [0, -1, -1, 0],
-            'Y' : [0, -1, 0, -1],
-            'K' : [0, 0, -1, -1],
-            }
+    # Some of the states are more informative than others.
+    # Eventually use this information to estimate nuceotide frequencies
+    # with maximum likelihood by using EM to deal with the
+    # partially informative sites.
     #nt_to_count_vector = {}
-    #for k, state in nt_to_state.items():
+    #for k, state in _nt_to_state.items():
         #v = np.absolute(state)
         #nt_to_count_vector[k] = v / v.sum()
     nt_to_idx = {c : i for i, c in enumerate('ACGT')}
@@ -69,19 +97,22 @@ def get_nucleotide_alignment_info(name_to_node):
     nodes = []
     variables = []
     acgt_counts = np.zeros(4)
+    character_to_count = collections.defaultdict(int)
+    # Get counts of each completely or partially informative nucleotide.
     with open('vegetables.rbcL.txt') as fin:
         lines = fin.readlines()
         header = lines[0]
         for line in lines[1:]:
             name, sequence = line.strip().split()
             for c in sequence:
+                character_to_count[c] += 1
                 #acgt_counts += nt_to_count_vector[c]
                 idx = nt_to_idx.get(c, None)
                 if idx is not None:
                     acgt_counts[idx] += 1
             node = name_to_node[name]
             nodes.extend([node]*4)
-            sequences.append([nt_to_state[c] for c in sequence])
+            sequences.append([_nt_to_state[c] for c in sequence])
             variables.extend([0, 1, 2, 3])
     # arr[node, site, variable]
     arr = np.array(sequences, dtype=int)
@@ -89,14 +120,12 @@ def get_nucleotide_alignment_info(name_to_node):
     iid_observations = np.reshape(arr, (arr.shape[0], -1))
     iid_observations = iid_observations.tolist()
 
-    # Compute pi empirically, or use the values from the textbook.
+    # Compute pi empirically.
     #pi = (acgt_counts / acgt_counts.sum()).tolist()
-    pi = [
-            0.2754,
-            0.1927,
-            0.2452,
-            0.2867,
-            ]
+    # Or use the values from the textbook.
+    #pi = [0.2754, 0.1927, 0.2452, 0.2867]
+    # Or get maximum likelihood estimates with EM in the manner of PAML.
+    pi = get_maximum_likelihood_pi(character_to_count)
 
     return nodes, variables, iid_observations, pi
 
