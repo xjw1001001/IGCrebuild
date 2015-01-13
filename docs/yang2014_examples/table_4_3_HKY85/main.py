@@ -3,7 +3,8 @@
 
 from __future__ import print_function, division, absolute_import
 
-import collections
+from functools import partial
+from collections import defaultdict
 import copy
 import json
 
@@ -11,6 +12,7 @@ import pyparsing
 
 import numpy as np
 from numpy.testing import assert_equal
+import scipy.optimize
 
 import jsonctmctree.interface
 
@@ -98,7 +100,7 @@ def get_nucleotide_alignment_info(name_to_node):
     nodes = []
     variables = []
     acgt_counts = np.zeros(4)
-    character_to_count = collections.defaultdict(int)
+    character_to_count = defaultdict(int)
     # Get counts of each completely or partially informative nucleotide.
     with open('vegetables.rbcL.txt') as fin:
         lines = fin.readlines()
@@ -286,6 +288,27 @@ def get_requests(edge_rates, pi, kappa):
         ts_change_request,
         tv_change_request]
 
+def pack(edge_rates, kappa):
+    return np.log(list(edge_rates) + [kappa])
+
+def unpack(X):
+    Y = np.exp(X)
+    edge_rates = Y[:-1].tolist()
+    kappa = Y[-1]
+    return edge_rates, kappa
+
+def objective(scene, pi, X):
+    scene = copy.deepcopy(scene)
+    edge_rates, kappa = unpack(X)
+    scene['tree']['edge_rate_scaling_factors'] = edge_rates
+    scene['process_definitions'] = [get_process_definition(pi, kappa)]
+    j_in = dict(
+            scene = scene,
+            requests = [{"property" : "SNNLOGL"}])
+    j_out = jsonctmctree.interface.process_json_in(j_in)
+    log_likelihood = j_out['responses'][0]
+    return -log_likelihood
+
 
 def main():
 
@@ -368,7 +391,17 @@ def main():
         print(j_out)
         print(kappa)
 
-    print(json.dumps(arr, indent=4))
+    # Improve the estimates using a numerical search.
+    f = partial(objective, scene, pi)
+    x0 = pack(edge_rates, kappa)
+    result = scipy.optimize.minimize(f, x0, method='L-BFGS-B')
+    xopt = result.x
+    print(result)
+    edge_rates, kappa = unpack(xopt)
+    print(edge_rates)
+    print(kappa)
+
+    #print(json.dumps(arr, indent=4))
 
 
 main()
