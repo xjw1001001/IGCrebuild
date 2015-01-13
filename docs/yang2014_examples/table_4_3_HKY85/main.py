@@ -60,14 +60,15 @@ def get_tree_info():
 
 def get_maximum_likelihood_pi(character_to_count):
     # Use EM to get the maximum likelihood nucleotide frequency distribution.
-    # Initialize a uniform distribution.
-    pi = np.ones(4) / 4
+    # This gives a distribution similar to the one computed by PAML.
     informative_state_to_indicators = dict()
     for nt, arr in _nt_to_state.items():
         indicators = np.absolute(arr)
         if indicators.sum() < 4:
             informative_state_to_indicators[nt] = indicators
     # Use a few iterations.
+    # Begin with a uniform distribution for the first iteration.
+    pi = np.ones(4) / 4
     for i in range(10):
         weights = np.zeros(4)
         for character, count in character_to_count.items():

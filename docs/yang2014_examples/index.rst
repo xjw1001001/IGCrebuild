@@ -1,7 +1,7 @@
 examples from molecular evolution
 ---------------------------------
 
-This section includes implementations of examples and problems from
+This section includes implementations of examples (but not problem sets) from
 `Molecular Evolution: A Statistical Approach`__
 by Ziheng Yang, 2014, Oxford University Press.
 
