@@ -298,6 +298,17 @@ def print_packed(X):
     print()
 
 
+def get_codon_distn_and_root_prior(codon_residue_pairs, pi):
+    codon_weights = np.zeros(61)
+    for i, (codon, r) in enumerate(codon_residue_pairs):
+        codon_weights[i] = np.prod([pi['ACGT'.index(x)] for x in codon])
+    codon_distn = codon_weights / codon_weights.sum()
+    root_prior = dict(
+            states = [[i, i] for i in range(61)],
+            probabilities = codon_distn.tolist())
+    return codon_distn, root_prior
+
+
 def objective(scene, codon_residue_pairs, X):
 
     # For more verbosity print the parameter values.
@@ -311,20 +322,13 @@ def objective(scene, codon_residue_pairs, X):
     # and unconstrained representation.
     pi, kappa, omega, tau, edge_rates = unpack(X)
 
-    # Compute the codon distribution.
-    codon_weights = np.zeros(61)
-    for i, (codon, r) in enumerate(codon_residue_pairs):
-        codon_weights[i] = np.prod([pi['ACGT'.index(x)] for x in codon])
-    codon_distribution = codon_weights / codon_weights.sum()
-
-    # Compute the root prior.
-    root_prior = dict(
-            states = [[i, i] for i in range(61)],
-            probabilities = codon_distribution.tolist())
+    # Compute the codon distribution and root prior.
+    codon_distn, root_prior = get_codon_distn_and_root_prior(
+            codon_residue_pairs, pi)
 
     # Define the stochastic process.
     defn = get_geneconv_process_definition(
-            pi, kappa, omega, tau, codon_distribution, codon_residue_pairs)
+            pi, kappa, omega, tau, codon_distn, codon_residue_pairs)
 
     # Set the edge rates and the process definition.
     scene['root_prior'] = root_prior
@@ -340,6 +344,83 @@ def objective(scene, codon_residue_pairs, X):
     print(ll)
 
     return -ll
+
+
+def objective_and_gradient(scene, codon_residue_pairs, X):
+
+    # For more verbosity print the parameter values.
+    print_packed(X)
+
+    # Initialize the delta for numerical gradient calculation.
+    delta = 1e-6
+
+    #TODO do we need to divide the gradient by the number of sites?
+    #     maybe not...
+    #nsites = len(scene['observed_data']['iid_observations'])
+
+    # Define the log likelihood request and the derivatives request,
+    # and copy the scene.
+    log_likelihood_request = dict(property = "SNNLOGL")
+    edge_gradient_request = dict(property = "SDNDERI")
+    scene = copy.deepcopy(scene)
+
+    # Decode the parameter values from their unbounded
+    # and unconstrained representation.
+    # Compute the codon distribution and root prior.
+    # Define the stochastic process.
+    pi, kappa, omega, tau, edge_rates = unpack(X)
+    codon_distn, root_prior = get_codon_distn_and_root_prior(
+            codon_residue_pairs, pi)
+    defn = get_geneconv_process_definition(
+            pi, kappa, omega, tau, codon_distn, codon_residue_pairs)
+
+    # Set the edge rates and the process definition.
+    scene['root_prior'] = root_prior
+    scene['tree']['edge_rate_scaling_factors'] = edge_rates
+    scene['process_definitions'] = [defn]
+    j_in = dict(
+            scene = scene,
+            requests = [
+                log_likelihood_request,
+                edge_gradient_request])
+
+    print('computing log likelihood and analytical derivatives...')
+    j_out = jsonctmctree.interface.process_json_in(j_in)
+    neg_log_likelihood = -j_out['responses'][0]
+    edge_gradient = j_out['responses'][1]
+
+    print(j_out)
+    print(neg_log_likelihood)
+
+    # For each non-edge-specific parameter, compute a numerical derivative.
+    # This is 3 for the degrees of freedom of a nucleotide distribution,
+    # plus 1 each for kappa, omega, and tau.
+    k = 6
+    extra_derivatives = []
+    print('computing finite differences for tree-wide parameters...')
+    for i in range(k):
+        X2 = X.copy()
+        X2[i] += delta
+        pi, kappa, omega, tau, edge_rates = unpack(X2)
+        codon_distn, root_prior = get_codon_distn_and_root_prior(
+                codon_residue_pairs, pi)
+        defn = get_geneconv_process_definition(
+                pi, kappa, omega, tau, codon_distn, codon_residue_pairs)
+        scene['root_prior'] = root_prior
+        scene['tree']['edge_rate_scaling_factors'] = edge_rates
+        scene['process_definitions'] = [defn]
+        j_in = dict(
+                scene = scene,
+                requests = [log_likelihood_request])
+        j_out = jsonctmctree.interface.process_json_in(j_in)
+        neg_ll = -j_out['responses'][0]
+        deriv = (neg_ll - neg_log_likelihood) / delta
+        extra_derivatives.append(deriv)
+        print(neg_ll, deriv)
+    print()
+
+    neg_ll_gradient = np.array([-x for x in edge_gradient] + extra_derivatives)
+    return neg_log_likelihood, neg_ll_gradient
 
 
 def initialization_a():
@@ -514,10 +595,11 @@ def main():
     print(j_out)
 
     # Compute the maximum likelihood estimates.
-    f = partial(objective, scene, codon_residue_pairs)
+    jac = True
+    f = partial(objective_and_gradient, scene, codon_residue_pairs)
     x0 = pack(pi, kappa, omega, tau, edge_rates)
     print('beginning the search...')
-    result = scipy.optimize.minimize(f, x0, method='L-BFGS-B')
+    result = scipy.optimize.minimize(f, x0, jac=jac, method='L-BFGS-B')
 
     print(result)
     xopt = result.x
