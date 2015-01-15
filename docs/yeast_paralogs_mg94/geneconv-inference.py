@@ -151,31 +151,98 @@ def get_geneconv_process_definition(
     mg94_rates = get_mg94_rates(
             pi, kappa, omega, codon_distribution, codon_residue_pairs))
 
-    # Define the gene conversion structure and rates.
-    row_states = []
-    column_states = []
-    transition_rates = []
+    # Define the MG94 structure and rates.
+    # This is a univariate codon process.
+    # Create a dict that maps an initial codon state to a list of tuple pairs.
+    # Each tuple pair is like (rate, info),
+    # where the rate is an MG94 rate normalized by the expected rate,
+    # and the info is a tuple of the following values:
+    # the initial codon index,
+    # the final codon index,
+    # a nucleotide transition indicator,
+    # a nucleotide transversion indicator,
+    # a nonsynonymous substitution indicator,
+    # a synonymous substitution indicator,
+    # and the index of the final nucleotide state.
     row_idx_to_aug_info = {i : [] for i in range(nstates)}
     mg94_infos = list(gen_mg94_structure(codon_residue_pairs))
     for mg94_rate, mg94_info in zip(mg94_rates, mg94_infos):
         i, j, ts, tv, non, syn, nt = mg94_info
         row_idx_to_aug_info[i].append((mg94_rate, mg94_info))
 
+    # Define the gene conversion structure and rates.
+    # This is a di-codon process.
+    row_states = []
+    column_states = []
+    transition_rates = []
+    # Iterate over initial codon pairs.
     for ia, ib in itertools.product(range(61), repeat=2):
-        for rate, info in row_idx_to_aug_info[ia]:
-            ja, jb, ts, tv, non, syn, nt = info
-            assert_equal(ib, jb)
+
+        # Iterate over all substitution transitions for the first codon.
+        # Include the interlocus gene conversion if appropriate.
+        homogenized_to_site_b = False
+        for mg94_rate, info in row_idx_to_aug_info[ia]:
+            i, j, ts, tv, non, syn, nt = info
+            assert_equal(ia, i)
+            ja, jb = j, ib
             if ja == jb:
-
+                assert_(not homogenized_to_site_b)
+                    homogenized_to_site_b = True
+                rate = tau * (omega * non + syn) + mg94_rate
+            else:
+                rate = mg94_rate
             row_states.append([ia, ib])
+            column_states.append([ja, jb])
+            transition_rates.append(rate)
 
-        for j, r in row_idx_to_info[ia]:
-            column_states.append([j, ib])
-            transition_rates.append(r)
-        for j, r in row_idx_to_info[ib]:
+        # Iterate over all substitution transitions for the second codon.
+        # Include the interlocus gene conversion if appropriate.
+        homogenized_to_site_a = False
+        for mg94_rate, info in row_idx_to_aug_info[ib]:
+            i, j, ts, tv, non, syn, nt = info
+            assert_equal(ib, i)
+            ja, jb = ia, j
+            if ja == jb:
+                assert_(not homogenized_to_site_a)
+                    homogenized_to_site_a = True
+                rate = tau * (omega * non + syn) + mg94_rate
+            else:
+                rate = mg94_rate
             row_states.append([ia, ib])
-            column_states.append([ia, j])
-            transition_rates.append(r)
+            column_states.append([ja, jb])
+            transition_rates.append(rate)
+
+        # If only one of the homogenizations has occurred,
+        # then this would indicate a bug.
+        if homogenized_to_site_a and not homogenized_to_site_b:
+            raise Exception
+        if homogenized_to_site_b and not homogenized_to_site_a:
+            raise Exception
+
+        # If the initial pair of codons are different from each other,
+        # and if homogenization has not yet occurred,
+        # then add one more interlocus gene conversion in each direction.
+        if ia != ib:
+            if not homogenized_to_site_a and not homogenized_to_site_b:
+
+                # The interlocus gene conversion rate will
+                # depend on whether the residues are the same or not.
+                ia_codon, ia_residue = codon_residue_pairs[ia]
+                ib_codon, ib_residue = codon_residue_pairs[ib]
+                if ia_residue == ib_residue:
+                    rate = tau
+                else:
+                    rate = omega * tau
+
+                # Add interlocus gene conversion in one direction.
+                row_states.append([ia, ib])
+                column_states.append([ib, ib])
+                transition_rates.append(rate)
+
+                # Add interlocus gene conversion in the other direction.
+                row_states.append([ia, ib])
+                column_states.append([ia, ia])
+                transition_rates.append(rate)
 
     # Assemble the process definition.
     process_definition = dict(
@@ -185,27 +252,56 @@ def get_geneconv_process_definition(
     return process_definition
 
 
+def pack(pi, kappa, omega, tau, edge_rates):
+    a, c, g, t = pi
+    acgt = pi.sum()
+    at = a+t
+    cg = c+g
+    a_div_at = a / at
+    c_div_cg = c / cg
+    arr = [
+            scipy.special.logit([at, a_div_at, c_div_cg]),
+            np.log([kappa, omega, tau]),
+            np.log(edge_rates),
+            ]
+    return arr
+
+
+def unpack(X):
+    nt_info = scipy.special.expit(X[0:3])
+    at, a_div_at, c_div_cg = nt_info
+    a = a_div_at * at
+    t = (1 - a_div_at) * at
+    cg = 1 - at
+    c = c_div_cg * cg
+    g = (1 - c_div_cg) * cg
+    pi = np.array([a, c, g, t])
+    misc_params = np.exp(X[3:3+3])
+    kappa, omega, tau = misc_params
+    edge_rates = np.exp(X[6:])
+    return pi, kappa, omega, tau, edge_rates
+
+
 def main():
 
-    # Hard-coded ACGT nucleotide mutational distribution.
-    pi =  np.array([
-        0.32427103989856332,
-        0.18666711777554265,
-        0.20116040714181568,
-        0.28790143518407829])
-
-    # Other hard-coded parameter values.
-    kappa = 5.8695382027250913
-    omega = 0.087135949678171815
+    # Initialize some parameter values.
+    pi = np.ones(4) / 4
+    kappa = 2.0
+    omega = 0.2
+    tau = 1.0
 
     # Hard-code the paralogs.
     suffix_length = 7
     paralog_to_index = {
-            'YML026C' : 0,
-            'YDR450W' : 1}
+            'YLR248C' : 0,
+            'YOR180C' : 1}
+
+    # Define the filenames.
+    fasta_filename = 'YLR284C_YOR180C_input.fasta'
+    newick_filename = 'collapsed.tree.newick'
 
     # Read the tree, including leaf names and branch lengths.
-    with open('collapsed.tree.newick') as fin:
+    with open(newick_filename) as fin:
         lines = fin.readlines()
     edges, edge_rates, name_to_node = read_newick(StringIO(lines[-1]))
     edge_count = len(edges)
@@ -241,13 +337,13 @@ def main():
 
     # Define the process.
     process_definition = get_geneconv_process_definition(
-            pi, kappa, omega, codon_distribution, codon_residue_pairs)
+            pi, kappa, omega, tau, codon_distribution, codon_residue_pairs)
 
     # Read the fasta file.
     observable_nodes = []
     sequences = []
     variables = []
-    with open('YML026C_YDR450W_input.fasta') as fin:
+    with open(fasta_filename) as fin:
         lines = [line.strip() for line in fin]
         lines = [line for line in lines if line]
     for name_line, sequence_line in grouper(2, lines):
