@@ -1,7 +1,7 @@
 .. _example_11:
 
-example 11
-==========
+conditional summaries
+=====================
 
 Compute conditional summaries of a birth-death model.
 

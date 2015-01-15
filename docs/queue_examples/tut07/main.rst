@@ -1,7 +1,7 @@
 .. _example_8:
 
-example 8
-=========
+derivatives
+===========
 
 Examine the log likelihood derivatives request.
 This may be confusing, because the derivative is of the 

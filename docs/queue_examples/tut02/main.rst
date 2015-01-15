@@ -1,5 +1,5 @@
-example 3
-=========
+EM estimation
+=============
 
 In this example we use EM to estimate the two parameters
 of a 3-state pure-death process.

@@ -1,5 +1,5 @@
-example 2
-=========
+prior summaries
+===============
 
 In this example we look at prior properties of the 2-state pure-death process.
 In other words, we will look at properties of the model

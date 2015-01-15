@@ -1,8 +1,7 @@
-
 .. _example_4:
 
-example 4
----------
+a simple multivariate process
+=============================
 
 .. literalinclude:: in00.json
    :language: json

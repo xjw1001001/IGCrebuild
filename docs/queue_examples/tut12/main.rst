@@ -1,7 +1,7 @@
 .. _example_13:
 
-example 13
-==========
+dwell time plot
+===============
 
 This pure-birth dwell-time calculation example is an implementation of
 Demonstration 1 in the

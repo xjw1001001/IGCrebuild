@@ -1,7 +1,7 @@
 .. _example_1:
 
-example 1
-=========
+log likelihood
+==============
 
 This example computes a log likelihood for a simple process.
 
