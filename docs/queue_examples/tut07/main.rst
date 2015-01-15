@@ -3,14 +3,14 @@
 derivatives
 ===========
 
-Examine the log likelihood derivatives request.
-This may be confusing, because the derivative is of the 
+This example demonstrates the log likelihood derivatives request.
+In particular, the request is for the derivatives of the
 *log* likelihood with respect to the
-*log* of the edge specific rate scaling factor.
+*log* of the edge specific rate scaling factors.
 
 
-pure death with rate 5
-----------------------
+2-state pure-death model with rate 5
+------------------------------------
 
 In this example with a single branch,
 the log likelihood is equal to
