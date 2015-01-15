@@ -708,7 +708,7 @@ class ReCodonGeneconv:
             f = partial(self.Clock_wrap, display)
             guess_x = self.x_clock
             bnds.extend([(None, None)] * (len(self.x_clock) - 2 - (len(self.edge_to_blen) / 2 + 1)))
-            bnds.extend([(-20, 0.0)] * (len(self.edge_to_blen) / 2))        
+            bnds.extend([(-10, 0.0)] * (len(self.edge_to_blen) / 2))        
 
         result = scipy.optimize.minimize(f, guess_x, jac = True, method = 'L-BFGS-B', bounds = bnds)
         print (result)
@@ -801,7 +801,7 @@ class ReCodonGeneconv:
 
 def main(args):
     paralog = [args.paralog1, args.paralog2]
-    alignment_file = '../PairsAlignemt/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
     path = './NewPackageNewRun/'
 
@@ -835,40 +835,40 @@ def main(args):
     
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
-    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
-    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
-    
-    main(parser.parse_args())
+##    parser = argparse.ArgumentParser()
+##    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
+##    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
+##    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
+##    
+##    main(parser.parse_args())
 
-##    paralog1 = 'YML026C'
-##    paralog2 = 'YDR450W'
-##    #paralog1 = 'ECP'
-##    #paralog2 = 'EDN'
-##
-##    Force    = {5:0.0}
-##
-##    paralog = [paralog1, paralog2]
-##    alignment_file = '../PairsAlignemt/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-##    #alignment_file = '../data/cleaned_input_data.fasta'
-##    newicktree = '../PairsAlignemt/YeastTree.newick'
-##    #newicktree = '../data/input_tree.newick'
-##    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)#, nnsites = 5)
-##    #test.get_mle(display = False)
-##    #test.get_ExpectedNumGeneconv()
-##    #print test.ExpectedGeneconv
-##    x = np.array([-0.64353555, -0.48264002, -0.93307917,  1.76977596, -2.44028574, 1.19617746,
-##                   -3.90910406, -2.01786889,  # N0
-##                   -2.92359461, -2.83555499,  # N1
-##                   -4.30005794, -3.29056063,  # N2
-##                   -4.59465356, -3.49891453,  # N3
-##                   -6.28014701, -3.10701318,  # N4
-##                   -3.87159909, -3.97438916]) # N5
-##                 
-##    test.update_by_x(x = x)
-##
-##    print test._loglikelihood()
+    paralog1 = 'YML026C'
+    paralog2 = 'YDR450W'
+    #paralog1 = 'ECP'
+    #paralog2 = 'EDN'
+
+    Force    = {5:0.0}
+
+    paralog = [paralog1, paralog2]
+    alignment_file = '../PairsAlignemt/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    #alignment_file = '../data/cleaned_input_data.fasta'
+    newicktree = '../PairsAlignemt/YeastTree.newick'
+    #newicktree = '../data/input_tree.newick'
+    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)#, nnsites = 5)
+    #test.get_mle(display = False)
+    #test.get_ExpectedNumGeneconv()
+    #print test.ExpectedGeneconv
+    x = np.array([-0.64353555, -0.48264002, -0.93307917,  1.76977596, -2.44028574, 1.19617746,
+                   -3.90910406, -2.01786889,  # N0
+                   -2.92359461, -2.83555499,  # N1
+                   -4.30005794, -3.29056063,  # N2
+                   -4.59465356, -3.49891453,  # N3
+                   -6.28014701, -3.10701318,  # N4
+                   -3.87159909, -3.97438916]) # N5
+                 
+    test.update_by_x(x = x)
+
+    print test._loglikelihood()  # should be -1513.0033676643861
 
 
 ##    paralog1 = 'YDR502C'
@@ -895,6 +895,6 @@ if __name__ == '__main__':
 ##    test2.update_by_x(x = x)
 ##
 ##    print test2._loglikelihood()
-        
+##        
         
         

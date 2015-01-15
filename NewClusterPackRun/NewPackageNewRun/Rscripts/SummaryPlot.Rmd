@@ -21,7 +21,7 @@ summary.list <- c( "HKY_nonclock_summary",
                   "Force_MG94_clock_summary", 
                   "Force_MG94_nonclock_summary"
                   )
-summary.list <- c("Force_MG94_clock_summary")
+#summary.list <- c("Force_MG94_clock_summary")
 for (target.summary in summary.list){
   summary_file <- paste(path, target.summary, '.txt', sep = '')
   all <- readLines(summary_file, n = -1)

@@ -1,13 +1,13 @@
-from CodonGeneconv import *
+from Rewrite_CodonGeneconv import *
 import os.path
 
 def get_summary(p_file, output_label = False):
     res = pickle.load(open(p_file, 'r'))
-    t = CodonGeneconv(res['newicktree'], res['alignment_file'], res['paralog'], Model = res['Model'])
+    t = ReCodonGeneconv(res['newicktree'], res['alignment_file'], res['paralog'], Model = res['Model'], clock = res['clock'], Force = res['Force'])
     if res['clock']:
-        t.update_by_x_clock(res['x_clock'], Force = res['Force'])
+        t.update_by_x_clock(res['x_clock'])
     else:
-        t.update_by_x(res['x'], Force = res['Force'])
+        t.update_by_x(res['x'])
 
     nEdge = len(t.edge_to_blen)  # number of edges
     l = nEdge / 2 + 1               # number of leaves
@@ -52,6 +52,7 @@ def get_summary(p_file, output_label = False):
         return out
 
 def get_expectednum_summary(p_file, output_label = False):
+    print
 
 def get_mass_summary(pairs, pair_path, model, summary_file, unfinished_list_file, clock = True, force = False):
     summary_mat = []
@@ -97,55 +98,46 @@ if __name__ == '__main__':
     res = pickle.load(open(p_file, 'r'))
     print res.keys()
     #print 'X = ', res['x']
-    t = CodonGeneconv(res['newicktree'], res['alignment_file'], res['paralog'], Model = res['Model'])
-    if res['clock']:
-        t.update_by_x_clock(res['x_clock'], Force = res['Force'])
-    else:
-        t.update_by_x(res['x'], Force = res['Force'])
-
-    print 'LL = ', t._loglikelihood(), res['ll']
-
-    print get_summary(p_file, True)
-
+    
     pairs = []
     with open('../All_Pairs.txt', 'r') as f:
         for line in f.readlines():
             pairs.append(line.replace('\n','').split('_'))
     pairs.remove(['YLR028C', 'YMR120C'])
-##
-####################################################################################################################################################
-##
-##    # HKY clock model 
-##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/HKY_clock_summary.txt',
-##                     unfinished_list_file = './NewPackageNewRun/HKY_clock_unfinished.txt', clock = True, force = False)
-##
-##    # HKY nonclock model 
-##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/HKY_nonclock_summary.txt',
-##                     unfinished_list_file = './NewPackageNewRun/HKY_nonclock_unfinished.txt', clock = False, force = False)
-##
-##    # HKY clock model (force tau = 0)
-##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/Force_HKY_clock_summary.txt',
-##                     unfinished_list_file = './NewPackageNewRun/Force_HKY_clock_unfinished.txt', clock = True, force = True)
-##
-##    # HKY nonclock model (force tau = 0)
-##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/Force_HKY_nonclock_summary.txt',
-##                     unfinished_list_file = './NewPackageNewRun/Force_HKY_nonclock_unfinished.txt', clock = False, force = True)
-##                
-####################################################################################################################################################
-##
-##    # MG94 clock model 
-##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/MG94_clock_summary.txt',
-##                     unfinished_list_file = './NewPackageNewRun/MG94_clock_unfinished.txt', clock = True, force = False)
-##
-##    # MG94 nonclock model 
-##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/MG94_nonclock_summary.txt',
-##                     unfinished_list_file = './NewPackageNewRun/MG94_nonclock_unfinished.txt', clock = False, force = False)
-##
-##    # MG94 clock model (force tau = 0)
-##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/Force_MG94_clock_summary.txt',
-##                     unfinished_list_file = './NewPackageNewRun/Force_MG94_clock_unfinished.txt', clock = True, force = True)
-##
-##    # MG94 nonclock model (force tau = 0)
-##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/Force_MG94_nonclock_summary.txt',
-##                     unfinished_list_file = './NewPackageNewRun/Force_MG94_nonclock_unfinished.txt', clock = False, force = True)
-##                
+
+##################################################################################################################################################
+
+    # HKY clock model 
+    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/HKY_clock_summary.txt',
+                     unfinished_list_file = './NewPackageNewRun/HKY_clock_unfinished.txt', clock = True, force = False)
+
+    # HKY nonclock model 
+    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/HKY_nonclock_summary.txt',
+                     unfinished_list_file = './NewPackageNewRun/HKY_nonclock_unfinished.txt', clock = False, force = False)
+
+    # HKY clock model (force tau = 0)
+    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/Force_HKY_clock_summary.txt',
+                     unfinished_list_file = './NewPackageNewRun/Force_HKY_clock_unfinished.txt', clock = True, force = True)
+
+    # HKY nonclock model (force tau = 0)
+    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/Force_HKY_nonclock_summary.txt',
+                     unfinished_list_file = './NewPackageNewRun/Force_HKY_nonclock_unfinished.txt', clock = False, force = True)
+                
+##################################################################################################################################################
+
+    # MG94 clock model 
+    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/MG94_clock_summary.txt',
+                     unfinished_list_file = './NewPackageNewRun/MG94_clock_unfinished.txt', clock = True, force = False)
+
+    # MG94 nonclock model 
+    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/MG94_nonclock_summary.txt',
+                     unfinished_list_file = './NewPackageNewRun/MG94_nonclock_unfinished.txt', clock = False, force = False)
+
+    # MG94 clock model (force tau = 0)
+    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/Force_MG94_clock_summary.txt',
+                     unfinished_list_file = './NewPackageNewRun/Force_MG94_clock_unfinished.txt', clock = True, force = True)
+
+    # MG94 nonclock model (force tau = 0)
+    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/Force_MG94_nonclock_summary.txt',
+                     unfinished_list_file = './NewPackageNewRun/Force_MG94_nonclock_unfinished.txt', clock = False, force = True)
+                

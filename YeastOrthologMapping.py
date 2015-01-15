@@ -245,13 +245,16 @@ if __name__=='__main__':
         #subprocess.check_output(cmd)
 
 
-        cmd = ['perl','./translatorx_vLocal.pl','-i','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.fa','-o','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_translatorX_alignment','-p','M']
+        # Used Musle for MSA
+        #cmd = ['perl','./translatorx_vLocal.pl','-i','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.fa','-o','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_translatorX_alignment','-p','M']
+        # Change to MAFFT for MSA
+        cmd = ['perl','./translatorx_vLocal.pl','-i','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.fa','-o','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_translatorX_alignment_MAFFT','-p','P']
         #os.system(' '.join(cmd))
         my_env = os.environ.copy()
         my_env['PATH'] = "/usr/sbin:/sbin:" + '/Users/xji3/AlignmentPro:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/Users/xji3/fas-1.15.9/MUMmer3.23:/opt/X11/bin:/opt/ImageMagick/bin:/usr/local/ncbi/blast/bin:/usr/texbin:/usr/local/ncbi/blast/bin:/Users/xji3/AlignmentPro'
         subprocess.check_output(cmd,env = my_env)
 
-        aligned_file = './PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_translatorX_alignment.nt_ali.fasta'
+        aligned_file = './PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_translatorX_alignment_MAFFT.nt_ali.fasta'
         align = processAlignment(aligned_file)
         lookup = dict((rec.id,str(rec.seq)) for rec in align)
         with open('./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_input.fasta','w+') as f:

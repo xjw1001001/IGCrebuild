@@ -6,7 +6,7 @@ if __name__ == '__main__':
         for line in f.readlines():
             pairs.append(line.replace('\n','').split('_'))
     pairs.remove(['YLR028C', 'YMR120C'])
-    pairs = pairs[12:]
+    pairs = pairs[-4:]
     for pair in pairs:
         alignment_file = '/Users/xji3/Genconv/PairsAlignemt/' + '_'.join(pair) + '/'+ '_'.join(pair) + '_input.fasta'
         newicktree = '/Users/xji3/Genconv/PairsAlignemt/YeastTree.newick'
@@ -45,7 +45,7 @@ if __name__ == '__main__':
             print
             
         test3 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', clock = False, Force = Force)
-        test3.update_by_x(x = x)
+        #test3.update_by_x(x = x)
         try:
             result = test3.get_mle(display = False)
             #test.get_ExpectedNumGeneconv()
