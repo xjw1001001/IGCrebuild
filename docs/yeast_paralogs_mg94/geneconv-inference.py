@@ -1,10 +1,13 @@
 from __future__ import print_function, division
 
+from functools import partial
 import itertools
 from StringIO import StringIO
+import copy
 
 import numpy as np
 from numpy.testing import assert_equal, assert_
+import scipy.optimize
 
 import dendropy
 
@@ -130,6 +133,7 @@ def gen_mg94_structure(codon_residue_pairs):
                     nt = 'ACGT'.index(delta[1])
                     yield i, j, ts, tv, non, syn, nt
 
+
 def get_mg94_rates(pi, kappa, omega, codon_distribution, codon_residue_pairs):
     nstates = 61
     exit_rates = np.zeros(nstates)
@@ -149,7 +153,7 @@ def get_geneconv_process_definition(
     # Compute the MG94 rates (without gene conversion).
     nstates = 61
     mg94_rates = get_mg94_rates(
-            pi, kappa, omega, codon_distribution, codon_residue_pairs))
+            pi, kappa, omega, codon_distribution, codon_residue_pairs)
 
     # Define the MG94 structure and rates.
     # This is a univariate codon process.
@@ -187,7 +191,7 @@ def get_geneconv_process_definition(
             ja, jb = j, ib
             if ja == jb:
                 assert_(not homogenized_to_site_b)
-                    homogenized_to_site_b = True
+                homogenized_to_site_b = True
                 rate = tau * (omega * non + syn) + mg94_rate
             else:
                 rate = mg94_rate
@@ -204,7 +208,7 @@ def get_geneconv_process_definition(
             ja, jb = ia, j
             if ja == jb:
                 assert_(not homogenized_to_site_a)
-                    homogenized_to_site_a = True
+                homogenized_to_site_a = True
                 rate = tau * (omega * non + syn) + mg94_rate
             else:
                 rate = mg94_rate
@@ -259,11 +263,11 @@ def pack(pi, kappa, omega, tau, edge_rates):
     cg = c+g
     a_div_at = a / at
     c_div_cg = c / cg
-    arr = [
-            scipy.special.logit([at, a_div_at, c_div_cg]),
-            np.log([kappa, omega, tau]),
-            np.log(edge_rates),
-            ]
+    arr = np.concatenate([
+        scipy.special.logit([at, a_div_at, c_div_cg]),
+        np.log([kappa, omega, tau]),
+        np.log(edge_rates),
+        ])
     return arr
 
 
@@ -282,7 +286,104 @@ def unpack(X):
     return pi, kappa, omega, tau, edge_rates
 
 
-def main():
+def print_packed(X):
+    pi, kappa, omega, tau, edge_rates = unpack(X)
+    print('pi:', pi)
+    print('kappa:', kappa)
+    print('omega:', omega)
+    print('tau:', tau)
+    print('edge rates:')
+    for rate in edge_rates:
+        print(rate)
+    print()
+
+
+def objective(scene, codon_residue_pairs, X):
+
+    # For more verbosity print the parameter values.
+    print_packed(X)
+
+    # Define the log likelihood request and copy the scene.
+    log_likelihood_request = dict(property = "SNNLOGL")
+    scene = copy.deepcopy(scene)
+
+    # Decode the parameter values from their unbounded
+    # and unconstrained representation.
+    pi, kappa, omega, tau, edge_rates = unpack(X)
+
+    # Compute the codon distribution.
+    codon_weights = np.zeros(61)
+    for i, (codon, r) in enumerate(codon_residue_pairs):
+        codon_weights[i] = np.prod([pi['ACGT'.index(x)] for x in codon])
+    codon_distribution = codon_weights / codon_weights.sum()
+
+    # Compute the root prior.
+    root_prior = dict(
+            states = [[i, i] for i in range(61)],
+            probabilities = codon_distribution.tolist())
+
+    # Define the stochastic process.
+    defn = get_geneconv_process_definition(
+            pi, kappa, omega, tau, codon_distribution, codon_residue_pairs)
+
+    # Set the edge rates and the process definition.
+    scene['root_prior'] = root_prior
+    scene['tree']['edge_rate_scaling_factors'] = edge_rates
+    scene['process_definitions'] = [defn]
+    j_in = dict(
+            scene = scene,
+            requests = [log_likelihood_request])
+    j_out = jsonctmctree.interface.process_json_in(j_in)
+    ll = j_out['responses'][0]
+
+    print(j_out)
+    print(ll)
+
+    return -ll
+
+
+def initialization_a():
+    # This is for a questionable log likelihood evaluation.
+    # The log likelihood should be about -1513.003.
+    # This has been independently checked a few ways,
+    # including with codeml (this is possible because tau=0).
+
+    # Hard-coded ACGT nucleotide mutational distribution.
+    pi =  np.array([
+        0.32427103989856332,
+        0.18666711777554265,
+        0.20116040714181568,
+        0.28790143518407829])
+
+    # Other hard-coded parameter values.
+    kappa = 5.8695382027250913
+    omega = 0.087135949678171815
+    tau = 0
+
+    # Hard-code the paralogs.
+    suffix_length = 7
+    paralog_to_index = {
+            'YML026C' : 0,
+            'YDR450W' : 1}
+
+    # Define the filenames.
+    fasta_filename = 'YML026C_YDR450W_input.fasta'
+    newick_filename = 'collapsed.tree.newick'
+
+    return (
+            pi,
+            kappa,
+            omega,
+            tau,
+            suffix_length,
+            paralog_to_index,
+            fasta_filename,
+            newick_filename,
+            )
+
+
+def initialization_b():
+    # This is for a questionable maximum likelihood estimation.
 
     # Initialize some parameter values.
     pi = np.ones(4) / 4
@@ -293,12 +394,38 @@ def main():
     # Hard-code the paralogs.
     suffix_length = 7
     paralog_to_index = {
-            'YLR248C' : 0,
+            'YLR284C' : 0,
             'YOR180C' : 1}
 
     # Define the filenames.
     fasta_filename = 'YLR284C_YOR180C_input.fasta'
     newick_filename = 'collapsed.tree.newick'
+
+    return (
+            pi,
+            kappa,
+            omega,
+            tau,
+            suffix_length,
+            paralog_to_index,
+            fasta_filename,
+            newick_filename,
+            )
+
+
+def main():
+
+    # Initialize some values for one of the analyses.
+    (
+            pi,
+            kappa,
+            omega,
+            tau,
+            suffix_length,
+            paralog_to_index,
+            fasta_filename,
+            newick_filename,
+            ) = initialization_b()
 
     # Read the tree, including leaf names and branch lengths.
     with open(newick_filename) as fin:
@@ -385,6 +512,17 @@ def main():
             requests = [request])
     j_out = jsonctmctree.interface.process_json_in(j_in)
     print(j_out)
+
+    # Compute the maximum likelihood estimates.
+    f = partial(objective, scene, codon_residue_pairs)
+    x0 = pack(pi, kappa, omega, tau, edge_rates)
+    print('beginning the search...')
+    result = scipy.optimize.minimize(f, x0, method='L-BFGS-B')
+
+    print(result)
+    xopt = result.x
+
+    print_packed(xopt)
 
 
 main()
