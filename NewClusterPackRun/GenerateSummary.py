@@ -107,21 +107,21 @@ if __name__ == '__main__':
 
 ##################################################################################################################################################
 
-    # HKY clock model 
-    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/HKY_clock_summary.txt',
-                     unfinished_list_file = './NewPackageNewRun/HKY_clock_unfinished.txt', clock = True, force = False)
-
-    # HKY nonclock model 
-    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/HKY_nonclock_summary.txt',
-                     unfinished_list_file = './NewPackageNewRun/HKY_nonclock_unfinished.txt', clock = False, force = False)
-
-    # HKY clock model (force tau = 0)
-    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/Force_HKY_clock_summary.txt',
-                     unfinished_list_file = './NewPackageNewRun/Force_HKY_clock_unfinished.txt', clock = True, force = True)
-
-    # HKY nonclock model (force tau = 0)
-    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/Force_HKY_nonclock_summary.txt',
-                     unfinished_list_file = './NewPackageNewRun/Force_HKY_nonclock_unfinished.txt', clock = False, force = True)
+##    # HKY clock model 
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/HKY_clock_summary.txt',
+##                     unfinished_list_file = './NewPackageNewRun/HKY_clock_unfinished.txt', clock = True, force = False)
+##
+##    # HKY nonclock model 
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/HKY_nonclock_summary.txt',
+##                     unfinished_list_file = './NewPackageNewRun/HKY_nonclock_unfinished.txt', clock = False, force = False)
+##
+##    # HKY clock model (force tau = 0)
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/Force_HKY_clock_summary.txt',
+##                     unfinished_list_file = './NewPackageNewRun/Force_HKY_clock_unfinished.txt', clock = True, force = True)
+##
+##    # HKY nonclock model (force tau = 0)
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/Force_HKY_nonclock_summary.txt',
+##                     unfinished_list_file = './NewPackageNewRun/Force_HKY_nonclock_unfinished.txt', clock = False, force = True)
                 
 ##################################################################################################################################################
 

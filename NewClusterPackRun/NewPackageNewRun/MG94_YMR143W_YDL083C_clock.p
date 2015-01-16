@@ -112,10 +112,10 @@ ag23
 asS'edge_to_blen'
 p44
 (dp45
-g6
+g19
 g32
 (g36
-S'\x82P\xf3\x0c\xe6\x8d\xb7?'
+S'\xd8\x95z\x07\xf8\xfc\x8a?'
 p46
 tp47
 Rp48
@@ -140,10 +140,10 @@ S'\xadv>8\x91\xe2~?'
 p55
 tp56
 Rp57
-sg21
+sg15
 g32
 (g36
-S'\xc8\xadg \xb8?\xa8?'
+S'\xd6\xf6\xfdZ\xc0\xe7\xc3?'
 p58
 tp59
 Rp60
@@ -154,17 +154,17 @@ S"'\x9d\x08\xa9\x9aA\xb0?"
 p61
 tp62
 Rp63
-sg19
+sg6
 g32
 (g36
-S'\xd8\x95z\x07\xf8\xfc\x8a?'
+S'\x82P\xf3\x0c\xe6\x8d\xb7?'
 p64
 tp65
 Rp66
-sg15
+sg21
 g32
 (g36
-S'\xd6\xf6\xfdZ\xc0\xe7\xc3?'
+S'\xc8\xadg \xb8?\xa8?'
 p67
 tp68
 Rp69
@@ -205,7 +205,7 @@ aS'YDL083C'
 p85
 asS'alignment_file'
 p86
-S'../PairsAlignemt/YMR143W_YDL083C/YMR143W_YDL083C_input.fasta'
+S'../MafftAlignment/YMR143W_YDL083C/YMR143W_YDL083C_input.fasta'
 p87
 sS'x_clock'
 p88

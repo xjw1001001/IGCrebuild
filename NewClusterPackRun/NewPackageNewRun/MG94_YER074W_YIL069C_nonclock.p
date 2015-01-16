@@ -205,7 +205,7 @@ aS'YIL069C'
 p85
 asS'alignment_file'
 p86
-S'../PairsAlignemt/YER074W_YIL069C/YER074W_YIL069C_input.fasta'
+S'../MafftAlignment/YER074W_YIL069C/YER074W_YIL069C_input.fasta'
 p87
 sS'x_clock'
 p88

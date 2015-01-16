@@ -47,7 +47,7 @@ class ReCodonGeneconv:
 
 
         # Rate matrix related variable
-        self.x_process      = None      # log values of process parameters
+        self.x_process      = None      # log values of process parameters (logit for ratios)
         self.x_rates        = None      # log values of blen (general for both clock and nonclock cases)
         self.x              = None      # x_process + x_rates
         self.x_Lr           = None      # log values of clock blen parameters

@@ -6,9 +6,9 @@ if __name__ == '__main__':
         for line in f.readlines():
             pairs.append(line.replace('\n','').split('_'))
     pairs.remove(['YLR028C', 'YMR120C'])
-    pairs = pairs[-4:]
+    pairs = pairs[:-4]
     for pair in pairs:
-        alignment_file = '/Users/xji3/Genconv/PairsAlignemt/' + '_'.join(pair) + '/'+ '_'.join(pair) + '_input.fasta'
+        alignment_file = '/Users/xji3/Genconv/MafftAlignment/' + '_'.join(pair) + '/'+ '_'.join(pair) + '_input.fasta'
         newicktree = '/Users/xji3/Genconv/PairsAlignemt/YeastTree.newick'
         paralog = pair
         Force = {4:0.0}

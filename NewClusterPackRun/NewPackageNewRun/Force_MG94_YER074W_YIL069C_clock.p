@@ -178,10 +178,10 @@ S'\xa3\xfa\x8f\x91\xed\x94\xa9?'
 p71
 tp72
 Rp73
-sg29
+sg26
 g33
 (g37
-S'\xa2.\x8f?t\x1e\xb0?'
+S'\x81\xd2\xfa\xf8c\xde\xcc?'
 p74
 tp75
 Rp76
@@ -192,10 +192,10 @@ S'b\xb3H\x1b\x06/\x88?'
 p77
 tp78
 Rp79
-sg26
+sg29
 g33
 (g37
-S'\x81\xd2\xfa\xf8c\xde\xcc?'
+S'\xa2.\x8f?t\x1e\xb0?'
 p80
 tp81
 Rp82
@@ -208,7 +208,7 @@ aS'YIL069C'
 p86
 asS'alignment_file'
 p87
-S'../PairsAlignemt/YER074W_YIL069C/YER074W_YIL069C_input.fasta'
+S'../MafftAlignment/YER074W_YIL069C/YER074W_YIL069C_input.fasta'
 p88
 sS'x_clock'
 p89

@@ -10,7 +10,8 @@ This R script is used for generating summary plot for the Geneconv project
 1, Read in tables
 ```{r}
 rm(list=ls())  # clean up workspace
-path <- "/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/"
+path <- "/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/OldResults01152015/"
+#path <- "G:/Geneconv/NewClusterPackRun/NewPackageNewRun/"
 #HKY_clock_summary <- "HKY_clock_summary"
 summary.list <- c( "HKY_nonclock_summary",
                   "HKY_clock_summary",
@@ -30,6 +31,7 @@ for (target.summary in summary.list){
   summary_mat <- as.matrix(read.table(summary_file, 
                                         row.names = row.names, 
                                         col.names = col.names))
+  assign(target.summary, summary_mat)
   
   para.list <- c(2:20)
   for (i in para.list){
@@ -46,4 +48,228 @@ for (target.summary in summary.list){
 }
 
 
+```
+
+Now generate summary file of only pairs that have all cases finished in HKY or MG94 models.
+
+```{r}
+# HKY
+HKY.pair.names <- intersect(intersect(intersect(colnames(HKY_clock_summary), 
+                            colnames(HKY_nonclock_summary)),
+                            colnames(Force_HKY_clock_summary)),
+                            colnames(Force_HKY_nonclock_summary))
+HKY.clock.filtered <- HKY_clock_summary[, HKY.pair.names]
+HKY.nonclock.filtered <- HKY_nonclock_summary[, HKY.pair.names]
+HKY.Force.clock.filtered <- Force_HKY_clock_summary[, HKY.pair.names]
+HKY.Force.nonclock.filtered <- Force_HKY_nonclock_summary[, HKY.pair.names]
+
+write.table(HKY.clock.filtered, paste( path, "HKY_clock_filtered", sep = ""))
+write.table(HKY.nonclock.filtered, paste( path, "HKY_nonclock_filtered", sep = ""))
+write.table(HKY.Force.clock.filtered, paste( path, "HKY_Force_clock_filtered", sep = ""))
+write.table(HKY.Force.nonclock.filtered, paste( path, "HKY_Force_nonclock_filtered", sep = ""))
+
+
+
+# MG94
+MG94.pair.names <- intersect(intersect(intersect(colnames(MG94_clock_summary), 
+                            colnames(MG94_nonclock_summary)),
+                            colnames(Force_MG94_clock_summary)),
+                            colnames(Force_MG94_nonclock_summary))
+MG94.clock.filtered <- MG94_clock_summary[, MG94.pair.names]
+MG94.nonclock.filtered <- MG94_nonclock_summary[, MG94.pair.names]
+MG94.Force.clock.filtered <- Force_MG94_clock_summary[, MG94.pair.names]
+MG94.Force.nonclock.filtered <- Force_MG94_nonclock_summary[, MG94.pair.names]
+
+write.table(MG94.clock.filtered, paste( path, "MG94_clock_filtered", sep = ""))
+write.table(MG94.nonclock.filtered, paste( path, "MG94_nonclock_filtered", sep = ""))
+write.table(MG94.Force.clock.filtered, paste( path, "MG94_Force_clock_filtered", sep = ""))
+write.table(MG94.Force.nonclock.filtered, paste( path, "MG94_Force_nonclock_filtered", sep = ""))
+```
+
+
+Now analyze the results
+
+First, show the loglikelihood improvement for each model with/without tau
+
+```{r}
+# HKY nonclock
+(HKY.nonclock.filtered - HKY.Force.nonclock.filtered)[2,]
+# HKY clock
+(HKY.clock.filtered - HKY.Force.clock.filtered)[2,]
+# MG94 nonclock
+(MG94.nonclock.filtered - MG94.Force.nonclock.filtered)[2,]
+# MG94 clock
+(MG94.clock.filtered - MG94.Force.clock.filtered)[2,]
+```
+
+Now plot Total blen v.s. Tau into different groups (differ by color)
+
+HKY nonclock case
+```{r}
+plot(colSums(HKY.nonclock.filtered[9:20, ]), HKY.nonclock.filtered[8, ],
+     type = "n", xlab = "Total branch length", ylab = "Tau" )
+col.color <- rep("black", dim(HKY.nonclock.filtered)[2])
+col.color[(HKY.nonclock.filtered - HKY.Force.nonclock.filtered)[2,] < 50] <- "red"
+points(x = colSums(HKY.nonclock.filtered[9:20, ]), y = HKY.nonclock.filtered[8, ],
+       type = "p", col = col.color, bg = col.color)
+legend("topright", c("lnL improvement > 50", "lnL improvement < 50"),
+       lty = c(1, 1), 
+       lwd = c(2.5, 2.5),
+       col = c("black", "red"))
+title("HKY nonclock")
+```
+
+HKY clock case
+```{r}
+plot(colSums(HKY.clock.filtered[9:20, ]), HKY.clock.filtered[8, ],
+     type = "n", xlab = "Total branch length", ylab = "Tau" )
+col.color <- rep("black", dim(HKY.clock.filtered)[2])
+col.color[(HKY.clock.filtered - HKY.Force.clock.filtered)[2,] < 50] <- "red"
+points(x = colSums(HKY.clock.filtered[9:20, ]), y = HKY.clock.filtered[8, ],
+       type = "p", col = col.color, bg = col.color)
+legend("topright", c("lnL improvement > 50", "lnL improvement < 50"),
+       lty = c(1, 1), 
+       lwd = c(2.5, 2.5),
+       col = c("black", "red"))
+title("HKY clock")
+```
+
+MG94 nonclock case
+```{r}
+improvement.lmt <- 20
+plot(colSums(MG94.nonclock.filtered[9:20, ]), MG94.nonclock.filtered[8, ],
+     type = "n", xlab = "Total branch length", ylab = "Tau" )
+col.color <- rep("black", dim(MG94.nonclock.filtered)[2])
+col.color[(MG94.nonclock.filtered - MG94.Force.nonclock.filtered)[2,] < improvement.lmt] <- "red"
+points(x = colSums(MG94.nonclock.filtered[9:20, ]), y = MG94.nonclock.filtered[8, ],
+       type = "p", col = col.color, bg = col.color)
+legend("topright", 
+       c(paste("lnL improvement > ", toString(improvement.lmt), sep = ""),
+         paste("lnL improvement < ", toString(improvement.lmt), sep = "")),
+       lty = c(1, 1), 
+       lwd = c(2.5, 2.5),
+       col = c("black", "red"))
+title("MG94 nonclock")
+```
+
+MG94 clock case
+```{r}
+improvement.lmt <- 20
+plot(colSums(MG94.clock.filtered[9:20, ]), MG94.clock.filtered[8, ],
+     type = "n", xlab = "Total branch length", ylab = "Tau" )
+col.color <- rep("black", dim(MG94.clock.filtered)[2])
+col.color[(MG94.clock.filtered - MG94.Force.clock.filtered)[2,] < improvement.lmt] <- "red"
+points(x = colSums(MG94.clock.filtered[9:20, ]), y = MG94.clock.filtered[8, ],
+       type = "p", col = col.color, bg = col.color)
+legend("topright", 
+       c(paste("lnL improvement > ", toString(improvement.lmt), sep = ""),
+         paste("lnL improvement < ", toString(improvement.lmt), sep = "")),
+       lty = c(1, 1), 
+       lwd = c(2.5, 2.5),
+       col = c("black", "red"))
+title("MG94 clock")
+```
+
+Now see if the pairs red in HKY are also red in MG94
+
+nonclock case
+```{r}
+HKY.pair.names[(HKY.nonclock.filtered - HKY.Force.nonclock.filtered)[2,] < 50]
+MG94.pair.names[(MG94.nonclock.filtered - MG94.Force.nonclock.filtered)[2,] < improvement.lmt]
+```
+
+Only 3 pairs show up in both: YLR406C_YDL075W, YIL057C_YER067W, YDR438W_YML018C.
+
+
+clock case
+```{r}
+HKY.pair.names[(HKY.clock.filtered - HKY.Force.clock.filtered)[2,] < 50]
+MG94.pair.names[(MG94.clock.filtered - MG94.Force.clock.filtered)[2,] < improvement.lmt]
+```
+
+2 pairs show up in both: YLR406C_YDL075W, YDR438W_YML018C
+
+=========================================
+
+
+Now plot Total blen v.s. Tau into different groups (differ by lnL improvement per site)
+
+HKY nonclock case
+```{r}
+plot(colSums(HKY.nonclock.filtered[9:20, ]), HKY.nonclock.filtered[8, ],
+     type = "n", xlab = "Total branch length", ylab = "Tau" )
+col.color <- rep("black", dim(HKY.nonclock.filtered)[2])
+col.color[((HKY.nonclock.filtered - HKY.Force.nonclock.filtered)[2,] /  HKY.nonclock.filtered[1, ]) < 0.06] <- "red"
+points(x = colSums(HKY.nonclock.filtered[9:20, ]), y = HKY.nonclock.filtered[8, ],
+       type = "p", col = col.color, bg = col.color)
+legend("topright", c("lnL improvement per site > 0.06",
+                     "lnL improvement per site < 0.06"),
+       lty = c(1, 1), 
+       lwd = c(2.5, 2.5),
+       col = c("black", "red"))
+title("HKY nonclock")
+
+# lnL improvement per site
+((HKY.nonclock.filtered - HKY.Force.nonclock.filtered)[2,] /  HKY.nonclock.filtered[1, ])
+```
+
+HKY clock case
+```{r}
+plot(colSums(HKY.clock.filtered[9:20, ]), HKY.clock.filtered[8, ],
+     type = "n", xlab = "Total branch length", ylab = "Tau" )
+col.color <- rep("black", dim(HKY.clock.filtered)[2])
+col.color[((HKY.clock.filtered - HKY.Force.clock.filtered)[2,] /  HKY.clock.filtered[1, ]) < 0.06] <- "red"
+points(x = colSums(HKY.clock.filtered[9:20, ]), y = HKY.clock.filtered[8, ],
+       type = "p", col = col.color, bg = col.color)
+legend("topright", c("lnL improvement per site > 0.06",
+                     "lnL improvement per site < 0.06"),
+       lty = c(1, 1), 
+       lwd = c(2.5, 2.5),
+       col = c("black", "red"))
+title("HKY clock")
+
+# lnL improvement per site
+((HKY.clock.filtered - HKY.Force.clock.filtered)[2,] /  HKY.clock.filtered[1, ])
+```
+
+MG94 nonclock case
+```{r}
+improvement.lmt <- 0.16
+plot(colSums(MG94.nonclock.filtered[9:20, ]), MG94.nonclock.filtered[8, ],
+     type = "n", xlab = "Total branch length", ylab = "Tau" )
+col.color <- rep("black", dim(MG94.nonclock.filtered)[2])
+col.color[((MG94.nonclock.filtered - MG94.Force.nonclock.filtered)[2,] / MG94.nonclock.filtered[1]) < improvement.lmt] <- "red"
+points(x = colSums(MG94.nonclock.filtered[9:20, ]), y = MG94.nonclock.filtered[8, ],
+       type = "p", col = col.color, bg = col.color)
+legend("topright", 
+       c(paste("lnL improvement per site > ", toString(improvement.lmt), sep = ""),
+         paste("lnL improvement per site < ", toString(improvement.lmt), sep = "")),
+       lty = c(1, 1), 
+       lwd = c(2.5, 2.5),
+       col = c("black", "red"))
+title("MG94 nonclock")
+
+# lnL improvement per site
+((MG94.nonclock.filtered - MG94.Force.nonclock.filtered)[2,] / MG94.nonclock.filtered[1])
+```
+
+MG94 clock case
+```{r}
+improvement.lmt <- 0.4
+plot(colSums(MG94.clock.filtered[9:20, ]), MG94.clock.filtered[8, ],
+     type = "n", xlab = "Total branch length", ylab = "Tau" )
+col.color <- rep("black", dim(MG94.clock.filtered)[2])
+col.color[((MG94.clock.filtered - MG94.Force.clock.filtered)[2,] / MG94.clock.filtered[1]) < improvement.lmt] <- "red"
+points(x = colSums(MG94.clock.filtered[9:20, ]), y = MG94.clock.filtered[8, ],
+       type = "p", col = col.color, bg = col.color)
+legend("topright", 
+       c(paste("lnL improvement per site > ", toString(improvement.lmt), sep = ""),
+         paste("lnL improvement per site < ", toString(improvement.lmt), sep = "")),
+       lty = c(1, 1), 
+       lwd = c(2.5, 2.5),
+       col = c("black", "red"))
+title("MG94 clock")
+
+# lnL improvement per site
+((MG94.clock.filtered - MG94.Force.clock.filtered)[2,] / MG94.clock.filtered[1])
 ```

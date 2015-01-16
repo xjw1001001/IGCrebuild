@@ -205,7 +205,7 @@ aS'YDL083C'
 p85
 asS'alignment_file'
 p86
-S'../PairsAlignemt/YMR143W_YDL083C/YMR143W_YDL083C_input.fasta'
+S'../MafftAlignment/YMR143W_YDL083C/YMR143W_YDL083C_input.fasta'
 p87
 sS'x_clock'
 p88
