@@ -13,6 +13,7 @@ from __future__ import print_function, division
 """
 
 
+from collections import defaultdict
 import argparse
 import sys
 
@@ -45,6 +46,7 @@ def process_newick_string(newick_stream_in, newick_stream_out, paralogs):
 
     # Parse the newick string.
     edges, edge_rates, name_to_node = read_newick(newick_stream_in)
+    original_edge_to_idx = {e : i for i, e in enumerate(edges)}
 
     # Break the full names into species and gene components.
     # At the same time, track the species names,
@@ -105,10 +107,68 @@ def process_newick_string(newick_stream_in, newick_stream_out, paralogs):
         node_to_subtree_species_indices[na] = tuple(
                 sorted(subtree_species_indices))
 
+    # Each unique collection of descendent species indices
+    # will corrspond to a unique node in the species tree.
+    unique_descendent_species_index_tuples = set(
+            node_to_subtree_species_indices.values())
+    descendent_species_idx_list = list(unique_descendent_species_index_tuples)
+    descendent_species_to_sptree_node = {tup : i for i, tup in enumerate(
+        descendent_species_idx_list)}
+
+    # Begin creating the species tree.
+    sptree_edge_to_edge_idx = dict()
+    sptree_edges = []
+    sptree_edge_idx_to_original_edge_idx_list = defaultdict(list)
+    for original_edge in T.edges():
+
+        # Extract some information about the gene tree edge.
+        na, nb = original_edge
+        original_edge_idx = original_edge_to_idx[original_edge]
+
+        # Determine the corresponding species tree nodes and edge.
+        na_species_node = descendent_species_to_sptree_node[
+                node_to_subtree_species_indices[na]]
+        nb_species_node = descendent_species_to_sptree_node[
+                node_to_subtree_species_indices[nb]]
+        sptree_edge = (na_species_node, nb_species_node)
+
+        # Add or look up the species tree edge index.
+        sptree_edge_idx = sptree_edge_to_edge_idx.get(sptree_edge, None)
+        if sptree_edge_idx is None:
+            sptree_edge_idx = len(sptree_edges)
+            sptree_edge_to_edge_idx[sptree_edge] = sptree_edge_idx
+            sptree_edges.append(sptree_edge)
+
+        # Add the index of the original edge to the list of such
+        # edges associated to the species tree edge.
+        sptree_edge_idx_to_original_edge_idx_list[sptree_edge_idx].append(
+                original_edge_idx)
+
+    # Create the list of branch lengths for the species tree
+    # by averaging the corresponding branch lengths of the gene tree.
+    sptree_edge_rates = []
+    for sptree_edge_idx, sptree_edge in enumerate(sptree_edges):
+        original_edge_rate_sum = 0
+        original_edge_rate_count = 0
+        original_edge_idx_list = sptree_edge_idx_to_original_edge_idx_list[
+                sptree_edge_idx]
+        for original_edge_idx in original_edge_idx_list:
+            original_edge_rate = edge_rates[original_edge_idx]
+            original_edge_rate_sum += original_edge_rate
+            original_edge_rate_count += 1
+        if not original_edge_rate_count:
+            raise Exception('Found a branch on the species tree that does not '
+                    'correspond to any branch on the gene tree.')
+        sptree_edge_rate = original_edge_rate_sum / original_edge_rate_count
+        sptree_edge_rates.append(sptree_edge_rate)
+
+    #
+
     print(len(T))
     print(len(T.edges()))
     print(node_to_subtree_species_indices)
     print('species list:', species_list)
+    print('dendropy to newick tree:', dt.as_newick_string)
 
 
 def main(args):
