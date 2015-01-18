@@ -39,6 +39,32 @@ def read_newick(fin):
     return edges, edge_rates, name_to_node
 
 
+def _nx_to_newick(T, na, nb, node_to_name, edge_to_rate):
+    successors = list(T.successors(nb))
+    if successors:
+        arr = []
+        for nc in successors:
+            s = _nx_to_newick(T, nb, nc, node_to_name, edge_to_rate)
+            arr.append(s)
+        base_name = '(' + ', '.join(arr) + ')'
+    else:
+        base_name = node_to_name.get(nb, None)
+        if base_name is None:
+            raise Exception('Found a node that has no successors but also '
+                    'has no leaf name.')
+    if na is not None:
+        edge = (na, nb)
+        rate = edge_to_rate[edge]
+        return base_name + ':' + str(rate)
+    else:
+        return base_name + ';'
+
+
+def nx_to_newick(T, node_to_name, edge_to_rate):
+    root = list(nx.dfs_preorder_nodes(T))[0]
+    return _nx_to_newick(T, None, root, node_to_name, edge_to_rate)
+
+
 def process_newick_string(newick_stream_in, newick_stream_out, paralogs):
 
     # Define the map from paralog name to index.
@@ -61,7 +87,7 @@ def process_newick_string(newick_stream_in, newick_stream_out, paralogs):
         for p in paralogs:
             if full_name.endswith(p):
                 paralog_names.append(p)
-                species_names.append(full_name[:len(p)])
+                species_names.append(full_name[:-len(p)])
         if not species_names or not paralog_names:
             raise Exception('The input name "%s" does not seem to be in '
                     'the form of a species name prefix followed by a gene '
@@ -162,13 +188,33 @@ def process_newick_string(newick_stream_in, newick_stream_out, paralogs):
         sptree_edge_rate = original_edge_rate_sum / original_edge_rate_count
         sptree_edge_rates.append(sptree_edge_rate)
 
-    #
+    # Define a map from species node to leaf species name.
+    # Note that only leaf species nodes will be keys in this dict.
+    sptree_node_to_species_name = dict()
+    for sptree_node, species_indices in enumerate(
+            unique_descendent_species_index_tuples):
+        if len(species_indices) == 1:
+            species_idx = species_indices[0]
+            species_name = species_list[species_idx]
+            sptree_node_to_species_name[sptree_node] = species_name
+
+    # Define the map from species edge to species rate.
+    sptree_edge_to_rate = dict(zip(sptree_edges, sptree_edge_rates))
 
     print(len(T))
     print(len(T.edges()))
     print(node_to_subtree_species_indices)
     print('species list:', species_list)
-    print('dendropy to newick tree:', dt.as_newick_string)
+    print('dendropy to newick tree:')
+
+    # Create the networkx graph representing the species tree.
+    Tsp = nx.DiGraph()
+    Tsp.add_edges_from(sptree_edges)
+
+    # Get the newick string representing the species tree.
+    s_out = nx_to_newick(Tsp, sptree_node_to_species_name, sptree_edge_to_rate)
+
+    print(s_out)
 
 
 def main(args):
