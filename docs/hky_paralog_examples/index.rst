@@ -10,3 +10,4 @@ possibly with some extra parameters or with some extra constraints.
    :maxdepth: 2
 
    primate_geneconv_zero_tau/main.rst
+   yeast_geneconv_zero_tau/main.rst
