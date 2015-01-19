@@ -538,7 +538,7 @@ def main():
 
     arr = []
     j_out = None
-    for i in range(10):
+    for i in range(5):
 
         # if j_out is available, recompute kappa and edge rates
         if j_out is not None:
