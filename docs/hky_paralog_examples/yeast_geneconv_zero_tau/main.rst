@@ -5,7 +5,7 @@ In this example we estimate parameters of a molecular model
 of the evolution of the DNA sequences of some paralogous genes
 using the following molecular data from yeast.
 
-.. literalinclude:: ECP_EDN.dat
+.. literalinclude:: YDR502C_YLR180W.dat
    :linenos:
 
 The molecular model is an HKY85 nucleotide substitution process
