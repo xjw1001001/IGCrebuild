@@ -3,6 +3,12 @@ Given a newick gene tree, return a species tree with averaged branch lengths.
 
 The leaves of the tree should be named according to the taxa.
 
+OK so this module/script was based on the flawed premise that
+if a set of branches in a gene tree have the same set of subtree leaf species,
+then these branches can be identified with each other in the species tree,
+for example for the purpose of averaging their branch lengths to get
+branch length guesses.
+
 """
 from __future__ import print_function, division
 
@@ -205,7 +211,9 @@ def process_newick_string(newick_stream_in, newick_stream_out, paralogs):
     print(len(T.edges()))
     print(node_to_subtree_species_indices)
     print('species list:', species_list)
-    print('dendropy to newick tree:')
+    print('sptree node to species name:', sptree_node_to_species_name)
+    print('sptree edge to rate:', sptree_edge_to_rate)
+    print('sptree edges:', sptree_edges)
 
     # Create the networkx graph representing the species tree.
     Tsp = nx.DiGraph()
@@ -214,6 +222,7 @@ def process_newick_string(newick_stream_in, newick_stream_out, paralogs):
     # Get the newick string representing the species tree.
     s_out = nx_to_newick(Tsp, sptree_node_to_species_name, sptree_edge_to_rate)
 
+    print('dendropy to newick tree:')
     print(s_out)
 
 
