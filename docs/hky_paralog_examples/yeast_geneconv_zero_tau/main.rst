@@ -5,6 +5,9 @@ In this example we estimate parameters of a molecular model
 of the evolution of the DNA sequences of some paralogous genes
 using the following molecular data from yeast.
 
+.. literalinclude:: newick.tree
+   :linenos:
+
 .. literalinclude:: YDR502C_YLR180W.dat
    :linenos:
 

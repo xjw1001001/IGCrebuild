@@ -3,7 +3,10 @@ primate HKY+geneconv with tau=0
 
 In this example we estimate parameters of a molecular model
 of the evolution of the DNA sequences of some paralogous genes
-using the following molecular data from several primates.
+using the following molecular data from several primate species.
+
+.. literalinclude:: newick.tree
+   :linenos:
 
 .. literalinclude:: ECP_EDN.dat
    :linenos:
