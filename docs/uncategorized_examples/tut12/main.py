@@ -31,12 +31,14 @@ import jsonctmctree.interface
 
 # Include some hardcoded configuration.
 
+_paralog_names = ('ECP', 'EDN')
 _paralog_names = ('YDR502C', 'YLR180W')
 
 _alignment_filename = '_'.join(_paralog_names) + '.dat'
 
 _tree = """((((((cerevisiae,paradoxus),mikatae),kudriavzevii),
 bayanus),castellii),kluyveri)"""
+#_tree = "(Tamarin, (Macaque, (Orangutan, (Chimpanzee, Gorilla))))"
 
 
 def gen_paragraphs(fin):
@@ -49,6 +51,8 @@ def gen_paragraphs(fin):
             if lines:
                 yield lines
                 lines = []
+    if lines:
+        yield lines
 
 
 def _help_build_tree(parent, root, node, name_to_node, edges):
@@ -189,14 +193,9 @@ def get_joint_hky_process_definition(pi, kappa):
 
 
 def get_root_prior(pi):
-    states = []
-    probabilities = []
-    for a, b in itertools.product(range(4), repeat=2):
-        states.append([a, b])
-        probabilities.append(pi[a] * pi[b])
     root_prior = dict(
-            states = states,
-            probabilities = probabilities)
+            states = [[i, i] for i in range(4)],
+            probabilities = list(pi))
     return root_prior
 
 
