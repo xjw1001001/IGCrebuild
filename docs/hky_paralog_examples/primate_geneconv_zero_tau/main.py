@@ -14,6 +14,8 @@ paralogous branches to have identical lengths as each other.
 """
 from __future__ import print_function, division, absolute_import
 
+import time
+import argparse
 import itertools
 from functools import partial
 from collections import defaultdict
@@ -23,22 +25,10 @@ import json
 import pyparsing
 
 import numpy as np
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_
 import scipy.optimize
 
 import jsonctmctree.interface
-
-
-# Include some hardcoded configuration.
-
-_paralog_names = ('ECP', 'EDN')
-#_paralog_names = ('YDR502C', 'YLR180W')
-
-_alignment_filename = '_'.join(_paralog_names) + '.dat'
-
-#_tree = """((((((cerevisiae,paradoxus),mikatae),kudriavzevii),
-#bayanus),castellii),kluyveri)"""
-_tree = "(Tamarin, (Macaque, (Orangutan, (Chimpanzee, Gorilla))))"
 
 
 def gen_paragraphs(fin):
@@ -67,10 +57,11 @@ def _help_build_tree(parent, root, node, name_to_node, edges):
     return neo
 
 
-def get_tree_info():
+def get_tree_info(tree_string):
     # Return a dictionary mapping name to node index,
     # and return a list of edges as ordered pairs of node indices.
-    tree = _tree.replace(',', ' ')
+    assert_(tree_string.endswith(';'))
+    tree = tree_string[:-1].replace(',', ' ')
     nestedItems = pyparsing.nestedExpr(opener='(', closer=')')
     tree = (nestedItems + pyparsing.stringEnd).parseString(tree).asList()[0]
     name_to_node = {}
@@ -301,10 +292,6 @@ def get_requests(edge_rates, pi, kappa):
 
     expected_rate = get_expected_univariate_rate(pi, kappa)
 
-    # Define the exit rates given the current parameter values.
-    # This includes normalization by dividing by the expected rate.
-    #exit_rates = get_exit_rates(pi, kappa)
-
     # Define the log likelihood request.
     log_likelihood_request = {"property" : "SNNLOGL"}
 
@@ -410,24 +397,6 @@ def unpack(X):
     return pi, kappa, edge_rates
 
 
-def objective(scene, X):
-    delta = 1e-8
-    pi, kappa, edge_rates = unpack(X)
-    scene['tree']['edge_rate_scaling_factors'] = edge_rates
-    log_likelihood_request = dict(property = "SNNLOGL")
-    scene = copy.deepcopy(scene)
-
-    pi, kappa, edge_rates = unpack(X)
-    scene['process_definitions'] = [get_joint_hky_process_definition(pi, kappa)]
-    j_in = dict(
-            scene = scene,
-            requests = [log_likelihood_request])
-    j_out = jsonctmctree.interface.process_json_in(j_in)
-    ll = j_out['responses'][0]
-
-    return -ll
-
-
 def objective_and_gradient(scene, X):
     delta = 1e-8
 
@@ -472,32 +441,32 @@ def objective_and_gradient(scene, X):
         j_out = jsonctmctree.interface.process_json_in(j_in)
         neg_ll = -j_out['responses'][0]
         deriv = (neg_ll - neg_log_likelihood) / delta
-        #print(neg_log_likelihood, neg_ll, deriv, pi, kappa)
-        #print('neg_ll:', neg_ll)
-        #print('deriv:', deriv)
-        #print('pi:', pi)
-        #print('kappa:', kappa)
-        print(neg_ll, deriv)
         extra_derivatives.append(deriv)
-
-    #print()
 
     neg_ll_gradient = np.array(extra_derivatives + [-x for x in edge_gradient])
     return neg_log_likelihood, neg_ll_gradient
 
 
-def main():
+def main(args):
+
+    # Get the paralog names.
+    paralog_names = args.paralogs
 
     # Read the tree.
-    name_to_node, edges = get_tree_info()
+    with open(args.tree) as fin:
+        tree_string = fin.read().strip()
+    name_to_node, edges = get_tree_info(tree_string)
     edge_count = len(edges)
     node_count = edge_count + 1
 
     # Read the alignment.
-    with open(_alignment_filename) as alignment_fd:
-        info = get_alignment_info(alignment_fd, name_to_node, _paralog_names)
+    with open(args.alignment) as alignment_fd:
+        info = get_alignment_info(alignment_fd, name_to_node, paralog_names)
     nodes, variables, iid_observations = info
     nsites = len(iid_observations)
+
+    print('number of sites in the alignment:', nsites)
+    print('number of sequences:', len(nodes))
 
     # Compute the empirical distribution of the nucleotides.
     counts = np.zeros(4)
@@ -538,7 +507,10 @@ def main():
 
     arr = []
     j_out = None
-    for i in range(5):
+    iterative_improvement_count = 5
+
+    tm_start = time.time()
+    for i in range(iterative_improvement_count):
 
         # if j_out is available, recompute kappa and edge rates
         if j_out is not None:
@@ -567,19 +539,21 @@ def main():
         j_in['requests'] = get_requests(edge_rates, pi, kappa)
         j_out = jsonctmctree.interface.process_json_in(j_in)
         arr.append(copy.deepcopy(j_out))
-
-        print(j_out)
-        print(kappa)
+    tm_stop = time.time()
+    print(
+            'seconds for', iterative_improvement_count,
+            'initial iterations:', tm_stop - tm_start)
 
     # Improve the estimates using a numerical search.
     x0 = pack(pi, kappa, edge_rates)
     f = partial(objective_and_gradient, scene)
+    tm_start = time.time()
     result = scipy.optimize.minimize(f, x0, jac=True, method='L-BFGS-B')
-    #f = partial(objective, scene, pi)
-    #result = scipy.optimize.minimize(f, x0, method='L-BFGS-B')
+    tm_stop = time.time()
+    print('seconds for quasi-newton search:', tm_stop - tm_start)
     xopt = result.x
-    print(result)
     pi, kappa, edge_rates = unpack(xopt)
+    print('negative log likelihood:', result.fun)
     print('nucleotide distribution:')
     for nt, p in zip('ACGT', pi):
         print(nt, ':', p)
@@ -587,7 +561,14 @@ def main():
     print('edge rates:')
     print(edge_rates)
 
-    #print(json.dumps(arr, indent=4))
 
-
-main()
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--alignment', required=True,
+            help='alignment file')
+    parser.add_argument('--tree', required=True,
+            help='tree file')
+    parser.add_argument('--paralogs', nargs='+', required=True,
+            help='paralog names')
+    args = parser.parse_args()
+    main(args)
