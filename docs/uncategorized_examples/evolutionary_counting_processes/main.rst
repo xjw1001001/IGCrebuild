@@ -8,8 +8,8 @@ by Minin and Suchard, up to sampling error.
 
 In the paper they sampled nucleotide sequences of length 1000
 and computed labeled transition count expectations conditional
-on those sequences, but here I've computed the expectations exactly
-as if an infinite number of sequences had been sampled.
+on those sequences, but here I've computed the expectations
+in the limit as the sequence length increases.
 The discrepancies in the reported conditional expectations
 seem to be within the sampling error.
 
