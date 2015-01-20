@@ -8,6 +8,7 @@ Reproduce an example from Minin and Suchard
 from __future__ import print_function, division
 
 import itertools
+import copy
 
 import numpy as np
 from numpy.testing import assert_allclose
@@ -53,9 +54,57 @@ def get_K80_process_definition(kappa):
             transition_rates = transition_rates)
 
 
+def run_analysis(scene, pattern_likelihoods, kappa):
+
+    # Copy the scene because we are going to do some surgery.
+    scene = copy.deepcopy(scene)
+
+    # Change the edge rate scaling factors.
+    scene['tree']['edge_rate_scaling_factors'] = [0.28, 0.21, 0.12, 0.09]
+
+    # Define the model to be used for the analysis.
+    analysis_process = get_K80_process_definition(kappa)
+    scene['process_definitions'] = [analysis_process]
+
+    # Define the observation reduction to be used in both requests.
+    npatterns = len(pattern_likelihoods)
+    observation_reduction = dict(
+            observation_indices = range(npatterns),
+            weights = pattern_likelihoods)
+
+    # Request nucleotide transition count expectations.
+    ts_transition_request = dict(
+            property = 'WSNTRAN',
+            observation_reduction = observation_reduction,
+            transition_reduction = dict(
+                row_states = [[i] for i, j, ts, tv in gen_K80() if ts],
+                column_states = [[j] for i, j, ts, tv in gen_K80() if ts],
+                weights = [1 for i, j, ts, tv in gen_K80() if ts]))
+
+    # Request nucleotide transversion count expectations.
+    tv_transition_request = dict(
+            property = 'WSNTRAN',
+            observation_reduction = observation_reduction,
+            transition_reduction = dict(
+                row_states = [[i] for i, j, ts, tv in gen_K80() if tv],
+                column_states = [[j] for i, j, ts, tv in gen_K80() if tv],
+                weights = [1 for i, j, ts, tv in gen_K80() if tv]))
+
+    # Define the requests.
+    requests = [ts_transition_request, tv_transition_request]
+
+    # Run the analysis.
+    j_in = dict(
+            scene = scene,
+            requests = requests)
+    j_out = process_json_in(j_in)
+    print(j_out)
+
+
+
 def main():
 
-    # Define the root prior which is uniform for this whole project.
+    # The root prior for every process in this project is uniform.
     root_prior = dict(
             states = [[0], [1], [2], [3]],
             probabilities = [0.25, 0.25, 0.25, 0.25])
@@ -107,9 +156,12 @@ def main():
     pattern_log_likelihoods = j_out['responses'][0]
     pattern_likelihoods = np.exp(pattern_log_likelihoods)
 
-    print(pattern_likelihoods)
-    print(pattern_likelihoods.sum())
+    # The sum of likelihoods over all patterns should be 1.
+    assert_allclose(pattern_likelihoods.sum(), 1)
 
-    # Get the 
+    # Run an analysis for each of a few values of kappa.
+    for kappa in 1, 2, 4:
+        run_analysis(scene, pattern_likelihoods.tolist(), kappa)
+
 
 main()
