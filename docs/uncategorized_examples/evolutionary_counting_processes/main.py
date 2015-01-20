@@ -16,6 +16,22 @@ from numpy.testing import assert_allclose
 from jsonctmctree.interface import process_json_in
 
 
+_template = """\
++------+-------------------------------+-------------------------------+
+|  k   |           Transitions         |            Transversions      |
++------+--------+-----------+----------+--------+-----------+----------+
+|      | Prior  | iid Post. | CP Post. | Prior  | iid Post. | CP Post. | 
++======+========+===========+==========+========+===========+==========+
+|   1  | {0000} | {0001}    | {0002}   | {0003} | {0004}    | {0005}   |
++------+--------+-----------+----------+--------+-----------+----------+
+|   2  | {0006} | {0007}    | {0008}   | {0009} | {0010}    | {0011}   |
++------+--------+-----------+----------+--------+-----------+----------+
+|   4  | {0012} | {0013}    | {0014}   | {0015} | {0016}    | {0017}   |
++------+--------+-----------+----------+--------+-----------+----------+\
+"""
+
+
+
 def gen_K80():
     # Use the nucleotide order from the Minin and Suchard paper.
     # A, G, C, T
@@ -108,8 +124,11 @@ def run_partitioned_analysis(scene, partitioned_likelihoods, kappa):
     j_out = process_json_in(j_in)
     ts_responses = j_out['responses'][:3]
     tv_responses = j_out['responses'][3:]
-    print('partitioned ts:', np.mean(ts_responses) * 1000)
-    print('partitioned tv:', np.mean(tv_responses) * 1000)
+
+    partitioned_ts = np.mean(ts_responses)
+    partitioned_tv = np.mean(tv_responses)
+
+    return partitioned_ts, partitioned_tv
 
 
 def run_analysis(scene, likelihoods, kappa):
@@ -157,11 +176,7 @@ def run_analysis(scene, likelihoods, kappa):
     j_out = process_json_in(j_in)
     prior_ts, prior_tv = j_out['responses']
 
-    print('prior ts:', prior_ts * 1000)
-    print('prior tv:', prior_tv * 1000)
-
-    print('posterior ts:', posterior_ts * 1000)
-    print('posterior tv:', posterior_tv * 1000)
+    return prior_ts, prior_tv, posterior_ts, posterior_tv
 
 
 def get_analysis_tree():
@@ -247,12 +262,20 @@ def main():
          partitioned_pattern_likelihoods.append(likelihoods)
 
     # Run an analysis for each of a few values of kappa.
+    arr = []
     for kappa in 1, 2, 4:
-        print('kappa:', kappa)
-        run_analysis(scene, pattern_likelihoods, kappa)
-        run_partitioned_analysis(
+        prior_ts, prior_tv, post_ts, post_tv = run_analysis(
+                scene, pattern_likelihoods, kappa)
+        partitioned_ts, partitioned_tv = run_partitioned_analysis(
                 scene, partitioned_pattern_likelihoods, kappa)
-        print()
+        arr.extend((
+                prior_ts, post_ts, partitioned_ts,
+                prior_tv, post_tv, partitioned_tv))
+
+    # Print the table using the template.
+    s = ['{:>6.1f}'.format(x * 1000) for x in arr]
+    rst_table_string = _template.format(*s)
+    print(rst_table_string)
 
 
 main()

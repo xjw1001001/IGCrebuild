@@ -19,3 +19,5 @@ seem to be within the sampling error.
 
 .. literalinclude:: out.txt
    :linenos:
+
+.. include:: minin.table.1.rst
