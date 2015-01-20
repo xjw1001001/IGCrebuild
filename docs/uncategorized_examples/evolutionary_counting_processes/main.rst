@@ -13,14 +13,14 @@ in the limit as the sequence length increases.
 The discrepancies in the reported conditional expectations
 seem to be within the sampling error.
 
-.. literalinclude:: main.py
-   :language: python
-   :linenos:
-
 Original table published by Minin and Suchard:
 
 .. include:: minin.table.1.rst
 
-Reconstructed table from the output of the Python script:
+Reconstructed table from the output of the Python script below:
 
 .. include:: output.table.rst
+
+.. literalinclude:: main.py
+   :language: python
+   :linenos:
