@@ -17,7 +17,10 @@ seem to be within the sampling error.
    :language: python
    :linenos:
 
-.. literalinclude:: out.txt
-   :linenos:
+Original table published by Minin and Suchard:
 
 .. include:: minin.table.1.rst
+
+Reconstructed table from the output of the Python script:
+
+.. include:: output.table.rst
