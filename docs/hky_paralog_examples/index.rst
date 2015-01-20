@@ -11,3 +11,4 @@ possibly with some extra parameters or with some extra constraints.
 
    primate_geneconv_zero_tau/main.rst
    yeast_geneconv_zero_tau/main.rst
+   primate_gene_tree/main.rst
