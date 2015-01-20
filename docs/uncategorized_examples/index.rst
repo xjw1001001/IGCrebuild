@@ -6,3 +6,4 @@ uncategorized examples
 
    tut08/main.rst
    tut11/main.rst
+   evolutionary_counting_processes/main.rst

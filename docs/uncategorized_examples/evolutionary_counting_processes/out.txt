@@ -1,0 +1,24 @@
+kappa: 1
+prior ts: 233.333333333
+prior tv: 466.666666667
+posterior ts: 332.639680842
+posterior tv: 343.202702473
+partitioned ts: 316.262405868
+partitioned tv: 333.244939532
+
+kappa: 2
+prior ts: 350.0
+prior tv: 350.0
+posterior ts: 399.497978383
+posterior tv: 274.809799552
+partitioned ts: 381.73423034
+partitioned tv: 267.238378799
+
+kappa: 4
+prior ts: 466.666666667
+prior tv: 233.333333333
+posterior ts: 464.540688949
+posterior tv: 232.840933085
+partitioned ts: 446.250491996
+partitioned tv: 226.312211058
+
