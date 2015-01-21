@@ -115,6 +115,33 @@ def unpack_acgt(packed_acgt):
     return np.array([a, c, g, t])
 
 
+def pack(pi, kappa, omega, tau, edge_rates):
+    return np.concatenate([
+        pack_acgt(pi),
+        np.log([kappa, omega, tau]),
+        np.log(edge_rates)])
+
+
+def unpack(X):
+    pi = unpack_acgt(X[0:3])
+    misc_params = np.exp(X[3:3+3])
+    kappa, omega, tau = misc_params
+    edge_rates = np.exp(X[6:])
+    return pi, kappa, omega, tau, edge_rates
+
+
+def print_packed(X):
+    pi, kappa, omega, tau, edge_rates = unpack(X)
+    print('pi:', pi)
+    print('kappa:', kappa)
+    print('omega:', omega)
+    print('tau:', tau)
+    print('edge rates:')
+    for rate in edge_rates:
+        print(rate)
+    print()
+
+
 def read_newick(fin):
     # use dendropy to read this newick file
     t = dendropy.Tree(stream=fin, schema='newick')
@@ -298,33 +325,6 @@ def get_geneconv_process_definition(
             column_states = column_states,
             transition_rates = transition_rates)
     return process_definition
-
-
-def pack(pi, kappa, omega, tau, edge_rates):
-    return np.concatenate([
-        pack_acgt(pi),
-        np.log([kappa, omega, tau]),
-        np.log(edge_rates)])
-
-
-def unpack(X):
-    pi = unpack_acgt(X[0:3])
-    misc_params = np.exp(X[3:3+3])
-    kappa, omega, tau = misc_params
-    edge_rates = np.exp(X[6:])
-    return pi, kappa, omega, tau, edge_rates
-
-
-def print_packed(X):
-    pi, kappa, omega, tau, edge_rates = unpack(X)
-    print('pi:', pi)
-    print('kappa:', kappa)
-    print('omega:', omega)
-    print('tau:', tau)
-    print('edge rates:')
-    for rate in edge_rates:
-        print(rate)
-    print()
 
 
 def get_codon_distn_and_root_prior(codon_residue_pairs, pi):
