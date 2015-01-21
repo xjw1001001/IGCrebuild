@@ -300,115 +300,6 @@ def get_geneconv_process_definition(
     return process_definition
 
 
-def old_get_geneconv_process_definition(
-        pi, kappa, omega, tau, codon_distribution, codon_residue_pairs):
-
-    # Compute the MG94 rates (without gene conversion).
-    nstates = 61
-    mg94_rates = get_mg94_rates(
-            pi, kappa, omega, codon_distribution, codon_residue_pairs)
-
-    # Define the MG94 structure and rates.
-    # This is a univariate codon process.
-    # Create a dict that maps an initial codon state to a list of tuple pairs.
-    # Each tuple pair is like (rate, info),
-    # where the rate is an MG94 rate normalized by the expected rate,
-    # and the info is a tuple of the following values:
-    # the initial codon index,
-    # the final codon index,
-    # a nucleotide transition indicator,
-    # a nucleotide transversion indicator,
-    # a nonsynonymous substitution indicator,
-    # a synonymous substitution indicator,
-    # and the index of the final nucleotide state.
-    row_idx_to_aug_info = {i : [] for i in range(nstates)}
-    mg94_infos = list(gen_mg94_structure(codon_residue_pairs))
-    for mg94_rate, mg94_info in zip(mg94_rates, mg94_infos):
-        i, j, ts, tv, non, syn, nt = mg94_info
-        row_idx_to_aug_info[i].append((mg94_rate, mg94_info))
-
-    # Define the gene conversion structure and rates.
-    # This is a di-codon process.
-    row_states = []
-    column_states = []
-    transition_rates = []
-    # Iterate over initial codon pairs.
-    for ia, ib in itertools.product(range(61), repeat=2):
-
-        # Iterate over all substitution transitions for the first codon.
-        # Include the interlocus gene conversion if appropriate.
-        homogenized_to_site_b = False
-        for mg94_rate, info in row_idx_to_aug_info[ia]:
-            i, j, ts, tv, non, syn, nt = info
-            assert_equal(ia, i)
-            ja, jb = j, ib
-            if ja == jb:
-                assert_(not homogenized_to_site_b)
-                homogenized_to_site_b = True
-                rate = tau * (omega * non + syn) + mg94_rate
-            else:
-                rate = mg94_rate
-            row_states.append([ia, ib])
-            column_states.append([ja, jb])
-            transition_rates.append(rate)
-
-        # Iterate over all substitution transitions for the second codon.
-        # Include the interlocus gene conversion if appropriate.
-        homogenized_to_site_a = False
-        for mg94_rate, info in row_idx_to_aug_info[ib]:
-            i, j, ts, tv, non, syn, nt = info
-            assert_equal(ib, i)
-            ja, jb = ia, j
-            if ja == jb:
-                assert_(not homogenized_to_site_a)
-                homogenized_to_site_a = True
-                rate = tau * (omega * non + syn) + mg94_rate
-            else:
-                rate = mg94_rate
-            row_states.append([ia, ib])
-            column_states.append([ja, jb])
-            transition_rates.append(rate)
-
-        # If only one of the homogenizations has occurred,
-        # then this would indicate a bug.
-        if homogenized_to_site_a and not homogenized_to_site_b:
-            raise Exception
-        if homogenized_to_site_b and not homogenized_to_site_a:
-            raise Exception
-
-        # If the initial pair of codons are different from each other,
-        # and if homogenization has not yet occurred,
-        # then add one more interlocus gene conversion in each direction.
-        if ia != ib:
-            if not homogenized_to_site_a and not homogenized_to_site_b:
-
-                # The interlocus gene conversion rate will
-                # depend on whether the residues are the same or not.
-                ia_codon, ia_residue = codon_residue_pairs[ia]
-                ib_codon, ib_residue = codon_residue_pairs[ib]
-                if ia_residue == ib_residue:
-                    rate = tau
-                else:
-                    rate = omega * tau
-
-                # Add interlocus gene conversion in one direction.
-                row_states.append([ia, ib])
-                column_states.append([ib, ib])
-                transition_rates.append(rate)
-
-                # Add interlocus gene conversion in the other direction.
-                row_states.append([ia, ib])
-                column_states.append([ia, ia])
-                transition_rates.append(rate)
-
-    # Assemble the process definition.
-    process_definition = dict(
-            row_states = row_states,
-            column_states = column_states,
-            transition_rates = transition_rates)
-    return process_definition
-
-
 def pack(pi, kappa, omega, tau, edge_rates):
     return np.concatenate([
         pack_acgt(pi),
@@ -644,9 +535,11 @@ def main():
             paralog_to_index,
             fasta_filename,
             newick_filename,
-            ) = initialization_a()
-    use_empirical_pi = False
-    use_uninformative_edge_rates = False
+            ) = initialization_b()
+    use_empirical_pi = True
+    use_uninformative_edge_rates = True
+    #use_empirical_pi = False
+    #use_uninformative_edge_rates = False
 
 
     print('reading the tree...')
