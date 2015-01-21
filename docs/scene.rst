@@ -1,5 +1,3 @@
-
-
 .. _scene:
 
 scene
@@ -10,11 +8,11 @@ jsonctmctree input,
 the other being the array of :ref:`requests`.
 
 The relatively simple scene below
-has been taken from :ref:`example_1`
+has been taken from the :ref:`example_1` example
 and is followed by detailed explanations of the
 types and meanings of its components.
 
-.. literalinclude:: tut00/in00.json
+.. literalinclude:: queue_examples/tut00/in00.json
    :language: json
    :emphasize-lines: 2-26
    :linenos:
