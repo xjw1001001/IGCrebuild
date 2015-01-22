@@ -205,7 +205,7 @@ def gen_mg94_exit_rates(pi, kappa, omega, codon_residue_pairs):
         yield exit_rate
 
 
-def gen_geneconv_structure_by_rows(pi, kappa, omega, tau, codon_residue_pairs):
+def gen_geneconv_structure_by_rows(codon_residue_pairs):
 
     # Define the MG94 structure by rows.
     # This will be used as an ingredient
@@ -285,8 +285,27 @@ def gen_geneconv_structure_by_rows(pi, kappa, omega, tau, codon_residue_pairs):
                 multi_info = [ia, ib], [ia, ia], ts, tv, non, syn, nt, hom
                 info_tuples.append(multi_info)
 
-        # This is a prototype.
         yield multivariate_row_state, info_tuples
+
+
+def get_geneconv_all_transitions_reduction(codon_residue_pairs):
+    # All transitions are treated equally.
+    # The purpose of this function is for re-estimating
+    # edge rate scaling factors.
+    row_states = []
+    column_states = []
+    for initial_state, infos in gen_geneconv_structure_by_rows(
+            codon_residue_pairs):
+        for row_state, column_state, ts, tv, non, syn, nt, hom in infos:
+            row_states.append(row_state)
+            column_states.append(column_state)
+    ntransitions = len(row_states)
+    weights = [1] * ntransitions
+    transition_reduction = dict(
+            row_states = row_states,
+            column_states = column_states,
+            weights = weights)
+    return transition_reduction
 
 
 def get_geneconv_process_definition(
@@ -303,7 +322,7 @@ def get_geneconv_process_definition(
     column_states = []
     transition_rates = []
     for initial_state, infos in gen_geneconv_structure_by_rows(
-            pi, kappa, omega, tau, codon_residue_pairs):
+            codon_residue_pairs):
         for row_state, column_state, ts, tv, non, syn, nt, hom in infos:
             ia, ib = row_state
             ja, jb = column_state
@@ -325,6 +344,50 @@ def get_geneconv_process_definition(
             column_states = column_states,
             transition_rates = transition_rates)
     return process_definition
+
+
+
+def get_geneconv_exit_rates(
+        pi, kappa, omega, tau, codon_distribution, codon_residue_pairs):
+    """
+    Return two values.
+
+    The first value is a list of multivariate states.
+    The second value is a list of exit rates.
+    These exit rates include normalization.
+    First, compute an expected rate for the univariate MG94 process.
+
+    Note that much of this function is copied
+    from get_geneconv_process_definition.
+    That code duplication should probably be cleaned up...
+
+    """
+    mg94_exit_rates = list(gen_mg94_exit_rates(
+        pi, kappa, omega, codon_residue_pairs))
+    mg94_expected_rate = np.dot(codon_distribution, mg94_exit_rates)
+
+    # Next iterate over the inter-locus gene conversion process structure.
+    # For each transition, compute the rate.
+    row_states = []
+    exit_rates = []
+    for initial_state, infos in gen_geneconv_structure_by_rows(
+            codon_residue_pairs):
+        row_states.append(initial_state)
+        exit_rate = 0
+        for row_state, column_state, ts, tv, non, syn, nt, hom in infos:
+            ia, ib = row_state
+            ja, jb = column_state
+            assert_equal(initial_state, row_state)
+            rmut = 0
+            rhom = 0
+            if nt is not None:
+                rmut = (kappa * ts + tv) * (omega * non + syn) * pi[nt]
+            if hom:
+                rhom = (omega * non + syn) * tau
+            transition_rate = (rmut + rhom) / mg94_expected_rate
+            exit_rate += transition_rate
+        exit_rates.append(exit_rate)
+    return row_states, exit_rates
 
 
 def get_codon_distn_and_root_prior(codon_residue_pairs, pi):
@@ -651,10 +714,54 @@ def main():
     print('computing the log likelihood...')
 
     # Ask for the log likelihood, summed over sites.
-    request = dict(property = 'SNNLOGL')
+    log_likelihood_request = dict(property = 'SNNLOGL')
     j_in = dict(
             scene = scene,
-            requests = [request])
+            requests = [log_likelihood_request])
+    j_out = jsonctmctree.interface.process_json_in(j_in)
+    print(j_out)
+
+    print('preparing requests for per-edge conditional expectations...')
+
+    # Iteratively improve the edge rate scaling factors.
+    transition_reduction = get_geneconv_all_transitions_reduction(
+            codon_residue_pairs)
+    trans_request = dict(
+            property = 'SDNTRAN',
+            transition_reduction = transition_reduction)
+    row_states, exit_rates = get_geneconv_exit_rates(
+            pi, kappa, omega, tau, codon_distribution, codon_residue_pairs)
+    dwell_request = dict(
+            property = 'SDWDWEL',
+            state_reduction = dict(
+                states = row_states,
+                weights = exit_rates))
+
+    print('computing per-edge conditional expectations...')
+
+    # Ask for the per-edge summaries.
+    j_in = dict(
+            scene = scene,
+            requests = [trans_request, dwell_request])
+    j_out = jsonctmctree.interface.process_json_in(j_in)
+    print(j_out)
+    trans_response, dwell_response = j_out['responses']
+
+    print('updating edge specific rate scaling factors...')
+
+    # Update the edge rates.
+    edge_rates = [r/d for r, d in zip(trans_response, dwell_response)]
+    print(edge_rates)
+
+    # Update the scene to reflect the edge rates.
+    scene['tree']['edge_rate_scaling_factors'] = edge_rates
+
+    print('checking log likelihood after having updated edge rates...')
+
+    # Check the log likelihood again.
+    j_in = dict(
+            scene = scene,
+            requests = [log_likelihood_request])
     j_out = jsonctmctree.interface.process_json_in(j_in)
     print(j_out)
 
