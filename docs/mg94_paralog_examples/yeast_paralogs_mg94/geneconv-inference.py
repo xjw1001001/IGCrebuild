@@ -541,6 +541,10 @@ def initialization_a():
     fasta_filename = 'YML026C_YDR450W_input.fasta'
     newick_filename = 'collapsed.tree.newick'
 
+    with open(newick_filename) as fin:
+        lines = fin.readlines()
+    edges, edge_rates, name_to_node = read_newick(StringIO(lines[-1]))
+
     return (
             pi,
             kappa,
@@ -549,7 +553,7 @@ def initialization_a():
             suffix_length,
             paralog_to_index,
             fasta_filename,
-            newick_filename,
+            edges, edge_rates, name_to_node,
             )
 
 
@@ -572,6 +576,10 @@ def initialization_b():
     fasta_filename = 'YLR284C_YOR180C_input.fasta'
     newick_filename = 'collapsed.tree.newick'
 
+    with open(newick_filename) as fin:
+        lines = fin.readlines()
+    edges, edge_rates, name_to_node = read_newick(StringIO(lines[-1]))
+
     return (
             pi,
             kappa,
@@ -580,8 +588,120 @@ def initialization_b():
             suffix_length,
             paralog_to_index,
             fasta_filename,
-            newick_filename,
+            edges, edge_rates, name_to_node,
             )
+
+
+def initialization_c():
+    # Check a maximum likelihood estimate.
+
+    # The alignment should have length 268
+    # The log likelihood is reported to have been -7332.408040
+
+    # Initialize some parameter values.
+    pi = np.array([
+        0.296086,
+        0.180724,
+        0.239677,
+        0.283513])
+    kappa = 2.425977
+    omega = 0.093042
+    tau = 0.034246
+
+    name_edges = [
+            ('N0', 'N1'),
+            ('N0', 'kluyveri'),
+            ('N1', 'N2'),
+            ('N1', 'castellii'),
+            ('N2', 'N3'),
+            ('N2', 'bayanus'),
+            ('N3', 'N4'),
+            ('N3', 'kudriavzevii'),
+            ('N4', 'N5'),
+            ('N4', 'mikatae'),
+            ('N5', 'cerevisiae'),
+            ('N5', 'paradoxus'),
+            ]
+
+    edge_rates = [
+            0.133924,
+            3.210920,
+            2.502461,
+            3.104726,
+            0.211283,
+            0.273827,
+            0.191272,
+            0.330035,
+            0.147409,
+            0.419321,
+            0.273393,
+            0.177323,
+            ]
+
+    # Hard-code the paralogs.
+    suffix_length = 7
+    paralog_to_index = {
+            'YLR284C' : 0,
+            'YOR180C' : 1}
+
+    # Define the filenames.
+    #fasta_filename = 'YLR284C_YOR180C_input.fasta'
+    fasta_filename = 'YLR284C_YOR180C_input.mafft'
+
+    # From the max likelihood estimation in this script...
+    """
+    fun: 7360.626603539798
+    x: array([ 0.14984787,  0.20646863, -0.44904532,  0.87683594, -2.37069749,
+    -3.44826449, -1.87450352,  0.89676887, -1.58408024, -1.65766016,
+    -1.91392114, -1.30006072, -1.73237393, -0.85931997, -1.08997892,
+    -1.28911798,  1.12696542,  1.1444429 ])
+    message: 'CONVERGENCE: REL_REDUCTION_OF_F_<=_FACTR*EPSMCH'
+    jac: array([ 0.01828084, -0.00553246,  0.0105756 ,  0.01357603, -0.01382159,
+    -0.00379441, -0.0233467 , -0.00710676, -0.01060768, -0.00939443,
+    -0.02382356,  0.01528633,  0.01251523,  0.00164945,  0.02124769,
+    0.00104945, -0.02824733, -0.0135966 ])
+    nit: 42
+    pi: [ 0.29633654  0.18022641  0.24105549  0.28238156]
+    kappa: 2.40328352409
+    omega: 0.0934155469376
+    tau: 0.0318007792106
+    edge rates:
+    0.153431123185
+    2.45166864942
+    0.205136382065
+    0.190584395306
+    0.147500879782
+    0.272515244115
+    0.176864048665
+    0.423449944962
+    0.336223582479
+    0.275513684225
+    3.08627672427
+    3.14069119913
+    """
+
+    # Get the following things:
+    # edges : sequence of integer pairs
+    # edge_rates : sequence of rates
+    # name_to_node : dict mapping name to node
+    ordered_names = list(set(n for pair in name_edges for n in pair))
+    name_to_node = {n : i for i, n in enumerate(ordered_names)}
+    edges = []
+    for a, b in name_edges:
+        edges.append([name_to_node[a], name_to_node[b]])
+
+    return (
+            pi,
+            kappa,
+            omega,
+            tau,
+            suffix_length,
+            paralog_to_index,
+            fasta_filename,
+            edges, edge_rates, name_to_node,
+            )
+
+
 
 
 def main():
@@ -597,21 +717,16 @@ def main():
             suffix_length,
             paralog_to_index,
             fasta_filename,
-            newick_filename,
-            ) = initialization_b()
-    use_empirical_pi = True
-    use_uninformative_edge_rates = True
-    #use_empirical_pi = False
-    #use_uninformative_edge_rates = False
+            edges, edge_rates, name_to_node,
+            ) = initialization_c()
+    #use_empirical_pi = True
+    #use_uninformative_edge_rates = True
+    use_empirical_pi = False
+    use_uninformative_edge_rates = False
 
 
-    print('reading the tree...')
+    print('building the tree...')
 
-    # Read the tree, including leaf names and branch lengths.
-    # Replace the branch lengths with some uninformative guesses.
-    with open(newick_filename) as fin:
-        lines = fin.readlines()
-    edges, edge_rates, name_to_node = read_newick(StringIO(lines[-1]))
     edge_count = len(edges)
     node_count = edge_count + 1
     if use_uninformative_edge_rates:
@@ -666,6 +781,19 @@ def main():
         observable_nodes.append(name_to_node[name])
         sequences.append(sequence)
 
+
+    print('defining the observed data...')
+
+    # Define the observed data.
+    columns = zip(*sequences)
+    nsites = len(columns)
+    print('number of sites in the alignment:', nsites)
+    observed_data = dict(
+            nodes = observable_nodes,
+            variables = variables,
+            iid_observations = [list(column) for column in columns])
+
+
     if use_empirical_pi:
         print('computing the empirical nucleotide distribution...')
 
@@ -690,14 +818,6 @@ def main():
     process_definition = get_geneconv_process_definition(
             pi, kappa, omega, tau, codon_distribution, codon_residue_pairs)
 
-    print('defining the observed data...')
-
-    # Define the observed data.
-    columns = zip(*sequences)
-    observed_data = dict(
-            nodes = observable_nodes,
-            variables = variables,
-            iid_observations = [list(column) for column in columns])
 
     print('assembling the scene...')
     
