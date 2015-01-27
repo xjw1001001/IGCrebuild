@@ -15,11 +15,109 @@ import copy
 import numpy as np
 import scipy.optimize
 
-__all__ = ['minimize']
+import jsonctmctree.interface
 
-# TODO automated EM steps for edge rate scaling factors.
-# Inspect the process definitions to get the exit rates
-# and the transition sparsity patterns.
+__all__ = ['minimize', 'edge_rate_EM']
+
+
+
+def _get_transition_reduction(process_definition):
+    """
+    Define a transition reduction.
+
+    The reduction will simply count the expected transitions,
+    without distinguishing between transition types.
+
+    """
+    transition_reduction = dict(
+            row_states = process_definition['row_states'],
+            column_states = process_definition['column_states'],
+            weights = [1 for r in process_definition['transition_rates']])
+    return transition_reduction
+
+
+def _get_state_reduction(process_definition):
+    """
+    Define a state reduction.
+
+    This will use the pre-scaling exit rates as weights.
+
+    """
+    row_states = process_definition['row_states']
+    transition_rates = process_definition['transition_rates']
+    transition_count = len(transition_rates)
+    state_to_exit_rate = defaultdict(float)
+    for transition_index in range(transition_count):
+        row_state = tuple(row_states[transition_index])
+        state_to_exit_rate[row_state] += transition_rates[transition_index]
+    states = []
+    exit_rates = []
+    for state, exit_rate in state_to_exit_rate.items():
+        states.append(list(state))
+        exit_rates.append(exit_rate)
+    state_reduction = dict(
+            states = states,
+            weights = exit_rates)
+    return state_reduction
+
+
+def _do_em_iteration(scene, transition_reductions, state_reductions):
+    """
+    For each unique edge_process, request summaries for all edges.
+
+    Parameters
+    ----------
+    scene : jsonctmctree scene dict
+        This dictionary aggregates the statistical model and the observed data.
+    transition_reductions : sequence of transition reduction dicts
+        A transition reduction is provided for each unique edge process.
+    state_reductions : sequence of state reduction dicts
+        A state reduction is provided for each unique edge process.
+
+    Returns
+    -------
+    edge_rates : sequence of floats
+        The edge rate scaling factors calculated in this EM iteration.
+
+    """
+    process_count = scene['process_count']
+    node_count = scene['node_count']
+    edge_count = node_count - 1
+    edge_rates = [None] * edge_count
+    edge_processes = scene['tree']['edge_processes']
+    for i in range(process_count):
+
+        # Extract the transition reduction and the state reduction.
+        # Use these to define expectation requests.
+        trans_request = dict(
+                property = 'SDNTRAN',
+                transition_reduction = transition_reductions[i])
+        dwell_request = dict(
+                property = 'SDWDWEL',
+                state_reduction = state_reductions[i])
+
+        # Compute the expectations.
+        j_in = dict(
+                scene = scene,
+                requests = [trans_request, dwell_request])
+        j_out = jsonctmctree.interface.process_json_in(j_in)
+        trans_response, dwell_response = j_out['responses']
+
+        # Update the edge rates for edges whose associated process index is i.
+        for edge_idx in range(edge_count):
+            if edge_processes[edge_idx] == i:
+                transitions = trans_response[edge_idx]
+                opportunity = dwell_response[edge_idx]
+                edge_rate = transitions / opportunity
+                edge_rates[edge_idx] = edge_rate
+
+    # Assert that every edge rate has been defined.
+    for edge_rate in edge_rates:
+        assert_(edge_rate is not None)
+
+    # Return the new edge rates for this EM iteration.
+    return edge_rates
+
 
 def edge_rate_EM(scene, iterations):
     """
@@ -32,6 +130,11 @@ def edge_rate_EM(scene, iterations):
     of the transition count on an edge divided by the
     expected transition opportunity,
     then this ratio will be 0/0 for those edges.
+
+    Separate reductions are used per unique process.
+    In other words if the process_count is k, then each iteration
+    of this EM will compute k transition expectations
+    and k dwell expectations.
 
     Parameters
     ----------
@@ -46,27 +149,29 @@ def edge_rate_EM(scene, iterations):
     """
     # Copy the scene.
     scene = copy.deepcopy(scene)
-
-    # For each process definition,
-    # compute the total exit rate from each state.
-    # and compute the transition sparsity pattern.
-    state_to_exit_rate_dicts = []
     process_count = scene['process_count']
-    for process in range(process_count):
-        process_definition = scene['process_definitions'][process]
-        row_states = process_definition['row_states']
-        column_states = process_definition['column_states']
-        transition_rates = process_definition['transition_rates']
-        transition_count = len(transition_rates)
-        state_to_exit_rate = defaultdict(float)
-        for transition_index in range(transition_count):
-            row_state = tuple(row_states[transition_index])
-            state_to_exit_rate[row_state] += transition_rates[transition_index]
-        state_to_exit_rate_dicts.append(state_to_exit_rate)
 
-    # Each iteration, compute expectations.
-    for i in range(iterations):
-        pass
+    # For each unique process definition,
+    # get the transition reduction and the state reduction.
+    transition_reductions = []
+    state_reductions = []
+    for process_defn in scene['process_definitions']:
+        transition_reductions.append(_get_transition_reduction(process_defn))
+        state_reductions.append(_get_state_reduction(process_defn))
+
+    # Update edge rates using a few EM iterations.
+    edge_rates = None
+    for em_iteration_idx in range(iterations):
+
+        # If new edge rates are available then update the scene.
+        if edge_rates is not None:
+            scene['tree']['edge_rate_scaling_factors'] = edge_rates
+
+        # Compute new edge rates with a single EM iteration.
+        edge_rates = _do_em_iteration(
+                scene,
+                transition_reductions,
+                state_reductions)
 
     # Return the edge rates from the most recent EM calculation.
     return edge_rates
