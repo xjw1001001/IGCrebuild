@@ -199,7 +199,8 @@ def gen_mg94_exit_rates(pi, kappa, omega, codon_residue_pairs):
     for ia, infos in gen_mg94_structure_by_rows(codon_residue_pairs):
         exit_rate = 0
         for i, j, ts, tv, non, syn, nt in infos:
-            assert_equal(ia, i)
+            # The assert_equal is too slow for this inner loop.
+            #assert_equal(ia, i)
             rate = (kappa * ts + tv) * (omega * non + syn) * pi[nt]
             exit_rate += rate
         yield exit_rate
@@ -225,7 +226,8 @@ def gen_geneconv_structure_by_rows(codon_residue_pairs):
         # Include the interlocus gene conversion if appropriate.
         homogenized_to_site_b = False
         for i, j, ts, tv, non, syn, nt in mg94_by_rows[ia]:
-            assert_equal(ia, i)
+            # The assert_equal is too slow for this inner loop.
+            #assert_equal(ia, i)
             ja, jb = j, ib
             if ja == jb:
                 assert_(not homogenized_to_site_b)
@@ -240,7 +242,8 @@ def gen_geneconv_structure_by_rows(codon_residue_pairs):
         # Include the interlocus gene conversion if appropriate.
         homogenized_to_site_a = False
         for i, j, ts, tv, non, syn, nt in mg94_by_rows[ib]:
-            assert_equal(ib, i)
+            # The assert_equal is too slow for this inner loop.
+            #assert_equal(ib, i)
             ja, jb = ia, j
             if ja == jb:
                 assert_(not homogenized_to_site_a)
@@ -326,7 +329,8 @@ def get_geneconv_process_definition(
         for row_state, column_state, ts, tv, non, syn, nt, hom in infos:
             ia, ib = row_state
             ja, jb = column_state
-            assert_equal(initial_state, row_state)
+            # The assert_equal is too slow for this inner loop.
+            #assert_equal(initial_state, row_state)
             rmut = 0
             rhom = 0
             if nt is not None:
@@ -377,7 +381,8 @@ def get_geneconv_exit_rates(
         for row_state, column_state, ts, tv, non, syn, nt, hom in infos:
             ia, ib = row_state
             ja, jb = column_state
-            assert_equal(initial_state, row_state)
+            # The assert_equal is too slow for this inner loop.
+            #assert_equal(initial_state, row_state)
             rmut = 0
             rhom = 0
             if nt is not None:
@@ -517,7 +522,8 @@ def initialization_a():
     # This is for a questionable log likelihood evaluation.
     # The log likelihood should be about -1513.003.
     # This has been independently checked a few ways,
-    # including with codeml (this is possible because tau=0).
+    # including with codeml (this is possible because tau=0 and because
+    # the branch lengths are fixed).
 
     # Hard-coded ACGT nucleotide mutational distribution.
     pi =  np.array([
@@ -718,12 +724,11 @@ def main():
             paralog_to_index,
             fasta_filename,
             edges, edge_rates, name_to_node,
-            ) = initialization_c()
-    #use_empirical_pi = True
-    #use_uninformative_edge_rates = True
-    use_empirical_pi = False
-    use_uninformative_edge_rates = False
-
+            ) = initialization_b()
+    use_empirical_pi = True
+    use_uninformative_edge_rates = True
+    #use_empirical_pi = False
+    #use_uninformative_edge_rates = False
 
     print('building the tree...')
 
@@ -781,7 +786,6 @@ def main():
         observable_nodes.append(name_to_node[name])
         sequences.append(sequence)
 
-
     print('defining the observed data...')
 
     # Define the observed data.
@@ -792,7 +796,6 @@ def main():
             nodes = observable_nodes,
             variables = variables,
             iid_observations = [list(column) for column in columns])
-
 
     if use_empirical_pi:
         print('computing the empirical nucleotide distribution...')
@@ -884,17 +887,6 @@ def main():
             requests = [log_likelihood_request])
     j_out = jsonctmctree.interface.process_json_in(j_in)
     print(j_out)
-
-    # TODO ... do a few EM-like iterations
-    # to improve the estimates of the edge rate scaling factors.
-    # These iterations can be quite generic.
-    """
-    0) As a function of only the rate matrix,
-       compute the exit rate from each state.
-    1) For each edge, compute the posterior expected number of transitions,
-       of all types.
-    2) For each edge, compute the posterior expected exit rate.
-    """
 
     print('computing the maximum likelihood estimates...')
 
