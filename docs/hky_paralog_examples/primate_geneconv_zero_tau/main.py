@@ -28,7 +28,8 @@ import numpy as np
 from numpy.testing import assert_equal, assert_
 import scipy.optimize
 
-import jsonctmctree.interface
+from jsonctmctree.interface import process_json_in
+from jsonctmctree.extras import optimize_quasi_newton
 
 
 def gen_paragraphs(fin):
@@ -367,7 +368,7 @@ def get_requests(edge_rates, pi, kappa):
         tv_change_request]
 
 
-def pack(pi, kappa, edge_rates):
+def pack_global_params(pi, kappa):
     a, c, g, t = pi
     acgt = pi.sum()
     at = a+t
@@ -376,14 +377,12 @@ def pack(pi, kappa, edge_rates):
     c_div_cg = c / cg
     arr = np.concatenate([
         scipy.special.logit([at, a_div_at, c_div_cg]),
-        np.log([kappa]),
-        np.log(edge_rates),
-        ])
+        np.log([kappa])])
     return arr
 
 
-def unpack(X):
-    nt_info = scipy.special.expit(X[0:3])
+def unpack_global_params(P):
+    nt_info = scipy.special.expit(P[0:3])
     at, a_div_at, c_div_cg = nt_info
     a = a_div_at * at
     t = (1 - a_div_at) * at
@@ -391,60 +390,20 @@ def unpack(X):
     c = c_div_cg * cg
     g = (1 - c_div_cg) * cg
     pi = np.array([a, c, g, t])
-    misc_params = np.exp(X[3:3+1])
-    kappa, = misc_params
-    edge_rates = np.exp(X[4:])
-    return pi, kappa, edge_rates
+    kappa = np.exp(P[-1])
+    return pi, kappa
 
 
-def objective_and_gradient(scene, X):
-    delta = 1e-8
+def _get_process_definitions(P):
+    # This is called within the optimization.
+    pi, kappa = unpack_global_params(P)
+    return [get_joint_hky_process_definition(pi, kappa)]
 
-    # Unpack the parameter values.
-    pi, kappa, edge_rates = unpack(X)
 
-    # Update the scene to reflect the parameter values.
-    scene = copy.deepcopy(scene)
-    defn = get_joint_hky_process_definition(pi, kappa)
-    scene['root_prior'] = get_root_prior(pi)
-    scene['process_definitions'] = [defn]
-    scene['tree']['edge_rate_scaling_factors'] = edge_rates
-
-    # Compute the log likelihood and some gradients.
-    log_likelihood_request = dict(property = "SNNLOGL")
-    edge_gradient_request = dict(property = "SDNDERI")
-    j_in = dict(
-            scene = scene,
-            requests = [
-                log_likelihood_request,
-                edge_gradient_request])
-    j_out = jsonctmctree.interface.process_json_in(j_in)
-    neg_log_likelihood = -j_out['responses'][0]
-    edge_gradient = j_out['responses'][1]
-
-    # This corresponds to 3 degrees of freedom for the nucleotide distribution
-    # plus 1 degree of freedom for kappa.
-    # The edge rate scaling factors do not change over the course
-    # of the finite-differences modifications here.
-    k = 4
-    extra_derivatives = []
-    for i in range(k):
-        X2 = X.copy()
-        X2[i] = X[i] + delta
-        pi, kappa, edge_rates = unpack(X2)
-        defn = get_joint_hky_process_definition(pi, kappa)
-        scene['process_definitions'] = [defn]
-        scene['root_prior'] = get_root_prior(pi)
-        j_in = dict(
-                scene = scene,
-                requests = [log_likelihood_request])
-        j_out = jsonctmctree.interface.process_json_in(j_in)
-        neg_ll = -j_out['responses'][0]
-        deriv = (neg_ll - neg_log_likelihood) / delta
-        extra_derivatives.append(deriv)
-
-    neg_ll_gradient = np.array(extra_derivatives + [-x for x in edge_gradient])
-    return neg_log_likelihood, neg_ll_gradient
+def _get_root_prior(P):
+    # This is called within the optimization.
+    pi, kappa = unpack_global_params(P)
+    return get_root_prior(pi)
 
 
 def main(args):
@@ -537,7 +496,7 @@ def main(args):
         j_in['scene']['tree']['edge_rate_scaling_factors'] = edge_rates
         j_in['scene']['process_definitions'] = [defn]
         j_in['requests'] = get_requests(edge_rates, pi, kappa)
-        j_out = jsonctmctree.interface.process_json_in(j_in)
+        j_out = process_json_in(j_in)
         arr.append(copy.deepcopy(j_out))
     tm_stop = time.time()
     print(
@@ -545,14 +504,24 @@ def main(args):
             'initial iterations:', tm_stop - tm_start)
 
     # Improve the estimates using a numerical search.
-    x0 = pack(pi, kappa, edge_rates)
-    f = partial(objective_and_gradient, scene)
+    P0 = pack_global_params(pi, kappa)
+    B0 = np.log(edge_rates)
     tm_start = time.time()
-    result = scipy.optimize.minimize(f, x0, jac=True, method='L-BFGS-B')
+    verbose = False
+    observation_reduction = None
+    result, P_opt, B_opt = optimize_quasi_newton(
+            verbose,
+            scene,
+            observation_reduction,
+            _get_process_definitions,
+            _get_root_prior,
+            P0, B0)
     tm_stop = time.time()
     print('seconds for quasi-newton search:', tm_stop - tm_start)
-    xopt = result.x
-    pi, kappa, edge_rates = unpack(xopt)
+
+    # Unpack and report the results.
+    pi, kappa = unpack_global_params(P_opt)
+    edge_rates = np.exp(B_opt)
     print('negative log likelihood:', result.fun)
     print('nucleotide distribution:')
     for nt, p in zip('ACGT', pi):

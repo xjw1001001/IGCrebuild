@@ -12,9 +12,10 @@ from __future__ import division, print_function, absolute_import
 import collections
 import functools
 import copy
+import sys
 
 import numpy as np
-from numpy.testing import assert_
+from numpy.testing import assert_equal, assert_
 import scipy.optimize
 
 from . import interface
@@ -367,11 +368,13 @@ def optimize_quasi_newton(
     nB = B0.shape[0]
     X0 = np.concatenate((P0, B0))
     func_and_grad = functools.partial(
+            _mixed_gradient_objective,
             verbose,
             scene,
             observation_reduction,
             get_process_definitions,
             get_root_prior,
             nP, nB)
-    result = scipy.optimize.minimize(func_and_grad, X0, method='L-BFGS-B')
+    result = scipy.optimize.minimize(
+            func_and_grad, X0, jac=True, method='L-BFGS-B')
     return result, result.x[:nP], result.x[-nB:]

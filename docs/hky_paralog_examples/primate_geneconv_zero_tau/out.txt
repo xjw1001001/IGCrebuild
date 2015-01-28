@@ -1,7 +1,7 @@
 number of sites in the alignment: 474
 number of sequences: 9
-seconds for 5 initial iterations: 1.32184290886
-seconds for quasi-newton search: 6.51641511917
+seconds for 5 initial iterations: 1.32465791702
+seconds for quasi-newton search: 7.46569085121
 negative log likelihood: 1734.98978791
 nucleotide distribution:
 A : 0.285686966197
