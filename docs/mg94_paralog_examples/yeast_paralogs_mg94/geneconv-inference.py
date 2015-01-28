@@ -128,6 +128,18 @@ def unpack_global_params(X):
     return pi, kappa, omega, tau
 
 
+def pack_global_params_zerotau(pi, kappa, omega):
+    return np.concatenate([
+        pack_acgt(pi),
+        np.log([kappa, omega])])
+
+
+def unpack_global_params_zerotau(X):
+    pi = unpack_acgt(X[:3])
+    kappa, omega = np.exp(X[3:])
+    return pi, kappa, omega
+
+
 def read_newick(fin):
     # use dendropy to read this newick file
     t = dendropy.Tree(stream=fin, schema='newick')
@@ -372,6 +384,48 @@ def initialization_a():
             )
 
 
+def initialization_a2():
+    # This example apparently has difficulty convering.
+    # Let tau be constrained to zero.
+
+    # Hard-coded ACGT nucleotide mutational distribution.
+    pi =  np.array([
+        0.32427103989856332,
+        0.18666711777554265,
+        0.20116040714181568,
+        0.28790143518407829])
+
+    # Other hard-coded parameter values.
+    kappa = 5.8695382027250913
+    omega = 0.087135949678171815
+    tau = 0
+
+    # Hard-code the paralogs.
+    suffix_length = 7
+    paralog_to_index = {
+            'YML026C' : 0,
+            'YDR450W' : 1}
+
+    # Define the filenames.
+    fasta_filename = 'YML026C_YDR450W_input.mafft'
+    newick_filename = 'collapsed.tree.newick'
+
+    with open(newick_filename) as fin:
+        lines = fin.readlines()
+    edges, edge_rates, name_to_node = read_newick(StringIO(lines[-1]))
+
+    return (
+            pi,
+            kappa,
+            omega,
+            tau,
+            suffix_length,
+            paralog_to_index,
+            fasta_filename,
+            edges, edge_rates, name_to_node,
+            )
+
+
 def initialization_b():
     # This is for a questionable maximum likelihood estimation.
 
@@ -535,6 +589,25 @@ def _get_root_prior(codon_residue_pairs, P):
     return root_prior
 
 
+def _get_process_definitions_zerotau(codon_residue_pairs, P):
+    # This is called within the optimization.
+    tau = 0
+    pi, kappa, omega = unpack_global_params_zerotau(P)
+    codon_distn, root_prior = get_codon_distn_and_root_prior(
+            codon_residue_pairs, pi)
+    defn = get_geneconv_process_definition(
+            pi, kappa, omega, tau, codon_distn, codon_residue_pairs)
+    return [defn]
+
+
+def _get_root_prior_zerotau(codon_residue_pairs, P):
+    # This is called within the optimization.
+    pi, kappa, omega = unpack_global_params_zerotau(P)
+    codon_distn, root_prior = get_codon_distn_and_root_prior(
+            codon_residue_pairs, pi)
+    return root_prior
+
+
 def main():
 
     print('initializing...')
@@ -549,9 +622,10 @@ def main():
             paralog_to_index,
             fasta_filename,
             edges, edge_rates, name_to_node,
-            ) = initialization_b()
+            ) = initialization_a2()
     use_empirical_pi = True
     use_uninformative_edge_rates = True
+    use_zerotau = True
     #use_empirical_pi = False
     #use_uninformative_edge_rates = False
 
@@ -693,7 +767,18 @@ def main():
     print('computing the maximum likelihood estimates...')
 
     # Improve the estimates using a numerical search.
-    P0 = pack_global_params(pi, kappa, omega, tau)
+    if use_zerotau:
+        P0 = pack_global_params_zerotau(pi, kappa, omega)
+        get_process_definitions = partial(
+                _get_process_definitions_zerotau, codon_residue_pairs)
+        get_root_prior = partial(
+                _get_root_prior_zerotau, codon_residue_pairs)
+    else:
+        P0 = pack_global_params(pi, kappa, omega, tau)
+        get_process_definitions = partial(
+                _get_process_definitions, codon_residue_pairs)
+        get_root_prior = partial(
+                _get_root_prior, codon_residue_pairs)
     B0 = np.log(edge_rates)
     verbose = True
     observation_reduction = None
@@ -701,12 +786,16 @@ def main():
             verbose,
             scene,
             observation_reduction,
-            partial(_get_process_definitions, codon_residue_pairs),
-            partial(_get_root_prior, codon_residue_pairs),
+            get_process_definitions,
+            get_root_prior,
             P0, B0)
 
     # Unpack and report the results.
-    pi, kappa, omega, tau = unpack_global_params(P_opt)
+    if use_zerotau:
+        tau = 0
+        pi, kappa, omega = unpack_global_params_zerotau(P_opt)
+    else:
+        pi, kappa, omega, tau = unpack_global_params(P_opt)
     edge_rates = np.exp(B_opt)
     print('pi:', pi)
     print('kappa:', kappa)
