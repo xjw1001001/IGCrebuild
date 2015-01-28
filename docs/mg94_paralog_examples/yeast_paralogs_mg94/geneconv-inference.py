@@ -11,7 +11,8 @@ import scipy.optimize
 
 import dendropy
 
-import jsonctmctree.interface
+from jsonctmctree.interface import process_json_in
+from jsonctmctree.extras import optimize_em, optimize_quasi_newton
 
 
 _code = """
@@ -115,31 +116,16 @@ def unpack_acgt(packed_acgt):
     return np.array([a, c, g, t])
 
 
-def pack(pi, kappa, omega, tau, edge_rates):
+def pack_global_params(pi, kappa, omega, tau):
     return np.concatenate([
         pack_acgt(pi),
-        np.log([kappa, omega, tau]),
-        np.log(edge_rates)])
+        np.log([kappa, omega, tau])])
 
 
-def unpack(X):
-    pi = unpack_acgt(X[0:3])
-    misc_params = np.exp(X[3:3+3])
-    kappa, omega, tau = misc_params
-    edge_rates = np.exp(X[6:])
-    return pi, kappa, omega, tau, edge_rates
-
-
-def print_packed(X):
-    pi, kappa, omega, tau, edge_rates = unpack(X)
-    print('pi:', pi)
-    print('kappa:', kappa)
-    print('omega:', omega)
-    print('tau:', tau)
-    print('edge rates:')
-    for rate in edge_rates:
-        print(rate)
-    print()
+def unpack_global_params(X):
+    pi = unpack_acgt(X[:3])
+    kappa, omega, tau = np.exp(X[3:])
+    return pi, kappa, omega, tau
 
 
 def read_newick(fin):
@@ -291,26 +277,6 @@ def gen_geneconv_structure_by_rows(codon_residue_pairs):
         yield multivariate_row_state, info_tuples
 
 
-def get_geneconv_all_transitions_reduction(codon_residue_pairs):
-    # All transitions are treated equally.
-    # The purpose of this function is for re-estimating
-    # edge rate scaling factors.
-    row_states = []
-    column_states = []
-    for initial_state, infos in gen_geneconv_structure_by_rows(
-            codon_residue_pairs):
-        for row_state, column_state, ts, tv, non, syn, nt, hom in infos:
-            row_states.append(row_state)
-            column_states.append(column_state)
-    ntransitions = len(row_states)
-    weights = [1] * ntransitions
-    transition_reduction = dict(
-            row_states = row_states,
-            column_states = column_states,
-            weights = weights)
-    return transition_reduction
-
-
 def get_geneconv_process_definition(
         pi, kappa, omega, tau, codon_distribution, codon_residue_pairs):
 
@@ -350,51 +316,6 @@ def get_geneconv_process_definition(
     return process_definition
 
 
-
-def get_geneconv_exit_rates(
-        pi, kappa, omega, tau, codon_distribution, codon_residue_pairs):
-    """
-    Return two values.
-
-    The first value is a list of multivariate states.
-    The second value is a list of exit rates.
-    These exit rates include normalization.
-    First, compute an expected rate for the univariate MG94 process.
-
-    Note that much of this function is copied
-    from get_geneconv_process_definition.
-    That code duplication should probably be cleaned up...
-
-    """
-    mg94_exit_rates = list(gen_mg94_exit_rates(
-        pi, kappa, omega, codon_residue_pairs))
-    mg94_expected_rate = np.dot(codon_distribution, mg94_exit_rates)
-
-    # Next iterate over the inter-locus gene conversion process structure.
-    # For each transition, compute the rate.
-    row_states = []
-    exit_rates = []
-    for initial_state, infos in gen_geneconv_structure_by_rows(
-            codon_residue_pairs):
-        row_states.append(initial_state)
-        exit_rate = 0
-        for row_state, column_state, ts, tv, non, syn, nt, hom in infos:
-            ia, ib = row_state
-            ja, jb = column_state
-            # The assert_equal is too slow for this inner loop.
-            #assert_equal(initial_state, row_state)
-            rmut = 0
-            rhom = 0
-            if nt is not None:
-                rmut = (kappa * ts + tv) * (omega * non + syn) * pi[nt]
-            if hom:
-                rhom = (omega * non + syn) * tau
-            transition_rate = (rmut + rhom) / mg94_expected_rate
-            exit_rate += transition_rate
-        exit_rates.append(exit_rate)
-    return row_states, exit_rates
-
-
 def get_codon_distn_and_root_prior(codon_residue_pairs, pi):
     codon_weights = np.zeros(61)
     for i, (codon, r) in enumerate(codon_residue_pairs):
@@ -404,118 +325,6 @@ def get_codon_distn_and_root_prior(codon_residue_pairs, pi):
             states = [[i, i] for i in range(61)],
             probabilities = codon_distn.tolist())
     return codon_distn, root_prior
-
-
-def objective(scene, codon_residue_pairs, X):
-
-    # For more verbosity print the parameter values.
-    print_packed(X)
-
-    # Define the log likelihood request and copy the scene.
-    log_likelihood_request = dict(property = "SNNLOGL")
-    scene = copy.deepcopy(scene)
-
-    # Decode the parameter values from their unbounded
-    # and unconstrained representation.
-    pi, kappa, omega, tau, edge_rates = unpack(X)
-
-    # Compute the codon distribution and root prior.
-    codon_distn, root_prior = get_codon_distn_and_root_prior(
-            codon_residue_pairs, pi)
-
-    # Define the stochastic process.
-    defn = get_geneconv_process_definition(
-            pi, kappa, omega, tau, codon_distn, codon_residue_pairs)
-
-    # Set the edge rates and the process definition.
-    scene['root_prior'] = root_prior
-    scene['tree']['edge_rate_scaling_factors'] = edge_rates
-    scene['process_definitions'] = [defn]
-    j_in = dict(
-            scene = scene,
-            requests = [log_likelihood_request])
-    j_out = jsonctmctree.interface.process_json_in(j_in)
-    ll = j_out['responses'][0]
-
-    print(j_out)
-    print(ll)
-
-    return -ll
-
-
-def objective_and_gradient(scene, codon_residue_pairs, X):
-
-    # For more verbosity print the parameter values.
-    print_packed(X)
-
-    # Initialize the delta for numerical gradient calculation.
-    delta = 1e-6
-
-    #nsites = len(scene['observed_data']['iid_observations'])
-
-    # Define the log likelihood request and the derivatives request,
-    # and copy the scene.
-    log_likelihood_request = dict(property = "SNNLOGL")
-    edge_gradient_request = dict(property = "SDNDERI")
-    scene = copy.deepcopy(scene)
-
-    # Decode the parameter values from their unbounded
-    # and unconstrained representation.
-    # Compute the codon distribution and root prior.
-    # Define the stochastic process.
-    pi, kappa, omega, tau, edge_rates = unpack(X)
-    codon_distn, root_prior = get_codon_distn_and_root_prior(
-            codon_residue_pairs, pi)
-    defn = get_geneconv_process_definition(
-            pi, kappa, omega, tau, codon_distn, codon_residue_pairs)
-
-    # Set the edge rates and the process definition.
-    scene['root_prior'] = root_prior
-    scene['tree']['edge_rate_scaling_factors'] = edge_rates
-    scene['process_definitions'] = [defn]
-    j_in = dict(
-            scene = scene,
-            requests = [
-                log_likelihood_request,
-                edge_gradient_request])
-
-    print('computing log likelihood and analytical derivatives...')
-    j_out = jsonctmctree.interface.process_json_in(j_in)
-    neg_log_likelihood = -j_out['responses'][0]
-    edge_gradient = j_out['responses'][1]
-
-    print(j_out)
-    print(neg_log_likelihood)
-
-    # For each non-edge-specific parameter, compute a numerical derivative.
-    # This is 3 for the degrees of freedom of a nucleotide distribution,
-    # plus 1 each for kappa, omega, and tau.
-    k = 6
-    extra_derivatives = []
-    print('computing finite differences for tree-wide parameters...')
-    for i in range(k):
-        X2 = X.copy()
-        X2[i] += delta
-        pi, kappa, omega, tau, edge_rates = unpack(X2)
-        codon_distn, root_prior = get_codon_distn_and_root_prior(
-                codon_residue_pairs, pi)
-        defn = get_geneconv_process_definition(
-                pi, kappa, omega, tau, codon_distn, codon_residue_pairs)
-        scene['root_prior'] = root_prior
-        scene['tree']['edge_rate_scaling_factors'] = edge_rates
-        scene['process_definitions'] = [defn]
-        j_in = dict(
-                scene = scene,
-                requests = [log_likelihood_request])
-        j_out = jsonctmctree.interface.process_json_in(j_in)
-        neg_ll = -j_out['responses'][0]
-        deriv = (neg_ll - neg_log_likelihood) / delta
-        extra_derivatives.append(deriv)
-        print(neg_ll, deriv)
-    print()
-
-    neg_ll_gradient = np.array(extra_derivatives + [-x for x in edge_gradient])
-    return neg_log_likelihood, neg_ll_gradient
 
 
 def initialization_a():
@@ -708,6 +517,22 @@ def initialization_c():
             )
 
 
+def _get_process_definitions(codon_residue_pairs, P):
+    # This is called within the optimization.
+    pi, kappa, omega, tau = unpack_global_params(P)
+    codon_distn, root_prior = get_codon_distn_and_root_prior(
+            codon_residue_pairs, pi)
+    defn = get_geneconv_process_definition(
+            pi, kappa, omega, tau, codon_distn, codon_residue_pairs)
+    return [defn]
+
+
+def _get_root_prior(codon_residue_pairs, P):
+    # This is called within the optimization.
+    pi, kappa, omega, tau = unpack_global_params(P)
+    codon_distn, root_prior = get_codon_distn_and_root_prior(
+            codon_residue_pairs, pi)
+    return root_prior
 
 
 def main():
@@ -841,42 +666,19 @@ def main():
     j_in = dict(
             scene = scene,
             requests = [log_likelihood_request])
-    j_out = jsonctmctree.interface.process_json_in(j_in)
+    j_out = process_json_in(j_in)
     print(j_out)
 
-    print('preparing requests for per-edge conditional expectations...')
+    print('updating edge specific rate scaling factors using EM...')
 
-    # Iteratively improve the edge rate scaling factors.
-    transition_reduction = get_geneconv_all_transitions_reduction(
-            codon_residue_pairs)
-    trans_request = dict(
-            property = 'SDNTRAN',
-            transition_reduction = transition_reduction)
-    row_states, exit_rates = get_geneconv_exit_rates(
-            pi, kappa, omega, tau, codon_distribution, codon_residue_pairs)
-    dwell_request = dict(
-            property = 'SDWDWEL',
-            state_reduction = dict(
-                states = row_states,
-                weights = exit_rates))
-
-    print('computing per-edge conditional expectations...')
-
-    # Ask for the per-edge summaries.
-    j_in = dict(
-            scene = scene,
-            requests = [trans_request, dwell_request])
-    j_out = jsonctmctree.interface.process_json_in(j_in)
-    print(j_out)
-    trans_response, dwell_response = j_out['responses']
-
-    print('updating edge specific rate scaling factors...')
-
-    # Update the edge rates.
-    edge_rates = [r/d for r, d in zip(trans_response, dwell_response)]
-    print(edge_rates)
+    # Use the generic EM edge rate scaling factor updating function.
+    observation_reduction = None
+    em_iterations = 1
+    edge_rates = optimize_em(scene, observation_reduction, em_iterations)
 
     # Update the scene to reflect the edge rates.
+    print('updated edge rate scaling factors:')
+    print(edge_rates)
     scene['tree']['edge_rate_scaling_factors'] = edge_rates
 
     print('checking log likelihood after having updated edge rates...')
@@ -885,22 +687,35 @@ def main():
     j_in = dict(
             scene = scene,
             requests = [log_likelihood_request])
-    j_out = jsonctmctree.interface.process_json_in(j_in)
+    j_out = process_json_in(j_in)
     print(j_out)
 
     print('computing the maximum likelihood estimates...')
 
-    # Compute the maximum likelihood estimates.
-    jac = True
-    f = partial(objective_and_gradient, scene, codon_residue_pairs)
-    x0 = pack(pi, kappa, omega, tau, edge_rates)
-    print('beginning the search...')
-    result = scipy.optimize.minimize(f, x0, jac=jac, method='L-BFGS-B')
+    # Improve the estimates using a numerical search.
+    P0 = pack_global_params(pi, kappa, omega, tau)
+    B0 = np.log(edge_rates)
+    verbose = True
+    observation_reduction = None
+    result, P_opt, B_opt = optimize_quasi_newton(
+            verbose,
+            scene,
+            observation_reduction,
+            partial(_get_process_definitions, codon_residue_pairs),
+            partial(_get_root_prior, codon_residue_pairs),
+            P0, B0)
 
-    print(result)
-    xopt = result.x
-
-    print_packed(xopt)
+    # Unpack and report the results.
+    pi, kappa, omega, tau = unpack_global_params(P_opt)
+    edge_rates = np.exp(B_opt)
+    print('pi:', pi)
+    print('kappa:', kappa)
+    print('omega:', omega)
+    print('tau:', tau)
+    print('edge rates:')
+    for rate in edge_rates:
+        print(rate)
+    print()
 
 
 main()
