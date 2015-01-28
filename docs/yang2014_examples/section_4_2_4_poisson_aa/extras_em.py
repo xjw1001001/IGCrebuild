@@ -32,7 +32,7 @@ def main():
     scene['tree']['edge_rate_scaling_factors'] = rates
 
     # Update rates according to EM.
-    rates = optimize_em(j_in['scene'], observation_reduction, 4)
+    rates = optimize_em(j_in['scene'], observation_reduction, 3)
 
     # Show the log likelihood
     scene['tree']['edge_rate_scaling_factors'] = rates
