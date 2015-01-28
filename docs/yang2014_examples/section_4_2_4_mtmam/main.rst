@@ -15,7 +15,7 @@ The conditional expected number of transitions per edge
 divided by the conditional expected exit rate from each state
 can be used to iteratively update the parameters corresponding to
 edge-specific rate scaling factors,
-reaching the -14,558.59 log likelihood after seven iterations.
+reaching the -14,558.59 log likelihood after six iterations.
 This is an expectation maximization.
 
 .. literalinclude:: em.py
@@ -25,3 +25,11 @@ This is an expectation maximization.
 .. literalinclude:: em_out.json
    :language: json
    :linenos:
+
+And using the generic edge rate EM in the 'extras' module:
+
+.. literalinclude:: em_extras.py
+   :language: python
+   :linenos:
+
+.. literalinclude:: em_extras.out
