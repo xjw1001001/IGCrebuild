@@ -40,7 +40,7 @@ of equality or inequality among amino acids at alignment columns.
 The conditional expected number of transitions per edge 
 can be used to iteratively update the parameters corresponding to
 edge-specific rate scaling factors,
-reaching the -16,566.60 log likelihood after four iterations.
+reaching the -16,566.60 log likelihood after three iterations.
 This is an expectation maximization.
 
 .. literalinclude:: em.py
