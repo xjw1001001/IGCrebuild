@@ -9,13 +9,15 @@ an unconstrained vector in n-dimensional Euclidean space.
 """
 from __future__ import division, print_function, absolute_import
 
+import collections
 import functools
 import copy
 
 import numpy as np
+from numpy.testing import assert_
 import scipy.optimize
 
-import .interface
+from . import interface
 
 __all__ = ['optimize_quasi_newton', 'optimize_em']
 
@@ -46,7 +48,7 @@ def _get_state_reduction(process_definition):
     row_states = process_definition['row_states']
     transition_rates = process_definition['transition_rates']
     transition_count = len(transition_rates)
-    state_to_exit_rate = defaultdict(float)
+    state_to_exit_rate = collections.defaultdict(float)
     for transition_index in range(transition_count):
         row_state = tuple(row_states[transition_index])
         state_to_exit_rate[row_state] += transition_rates[transition_index]
@@ -61,7 +63,11 @@ def _get_state_reduction(process_definition):
     return state_reduction
 
 
-def _do_em_iteration(scene, transition_reductions, state_reductions):
+def _do_em_iteration(
+        scene,
+        observation_reduction,
+        transition_reductions,
+        state_reductions):
     """
     For each unique edge_process, request summaries for all edges.
 
@@ -69,6 +75,8 @@ def _do_em_iteration(scene, transition_reductions, state_reductions):
     ----------
     scene : jsonctmctree scene dict
         This dictionary aggregates the statistical model and the observed data.
+    observation_reduction : dict defining site-specific weights, or None.
+        A reduction over observations, or None for an unweighted summation.
     transition_reductions : sequence of transition reduction dicts
         A transition reduction is provided for each unique edge process.
     state_reductions : sequence of state reduction dicts
@@ -89,18 +97,28 @@ def _do_em_iteration(scene, transition_reductions, state_reductions):
 
         # Extract the transition reduction and the state reduction.
         # Use these to define expectation requests.
-        trans_request = dict(
-                property = 'SDNTRAN',
-                transition_reduction = transition_reductions[i])
-        dwell_request = dict(
-                property = 'SDWDWEL',
-                state_reduction = state_reductions[i])
+        if observation_reduction is not None:
+            trans_request = dict(
+                    property = 'WDNTRAN',
+                    observation_reduction = observation_reduction,
+                    transition_reduction = transition_reductions[i])
+            dwell_request = dict(
+                    property = 'WDWDWEL',
+                    observation_reduction = observation_reduction,
+                    state_reduction = state_reductions[i])
+        else:
+            trans_request = dict(
+                    property = 'SDNTRAN',
+                    transition_reduction = transition_reductions[i])
+            dwell_request = dict(
+                    property = 'SDWDWEL',
+                    state_reduction = state_reductions[i])
 
         # Compute the expectations.
         j_in = dict(
                 scene = scene,
                 requests = [trans_request, dwell_request])
-        j_out = jsonctmctree.interface.process_json_in(j_in)
+        j_out = interface.process_json_in(j_in)
         trans_response, dwell_response = j_out['responses']
 
         # Update the edge rates for edges whose associated process index is i.
@@ -119,7 +137,7 @@ def _do_em_iteration(scene, transition_reductions, state_reductions):
     return edge_rates
 
 
-def optimize_em(scene, iterations):
+def optimize_em(scene, observation_reduction, iterations):
     """
     Update edge rate scaling factors using EM.
 
@@ -140,6 +158,10 @@ def optimize_em(scene, iterations):
     ----------
     scene : jsonctmctree scene dict
         This dictionary aggregates the statistical model and the observed data.
+    observation_reduction : dict defining site-specific weights, or None.
+        A reduction over observations, or None for an unweighted summation.
+    iterations : integer
+        Do this many EM iterations.
 
     Returns
     -------
@@ -170,8 +192,10 @@ def optimize_em(scene, iterations):
         # Compute new edge rates with a single EM iteration.
         edge_rates = _do_em_iteration(
                 scene,
+                observation_reduction,
                 transition_reductions,
-                state_reductions)
+                state_reductions,
+                )
 
     # Return the edge rates from the most recent EM calculation.
     return edge_rates
@@ -180,6 +204,7 @@ def optimize_em(scene, iterations):
 def _mixed_gradient_objective(
         verbose,
         scene,
+        observation_reduction,
         get_process_definitions,
         get_root_prior,
         nP, nB, X):
@@ -191,6 +216,9 @@ def _mixed_gradient_objective(
         Extra information is printed if this is True.
     scene : jsonctmctree scene dict
         This dictionary aggregates the statistical model and the observed data.
+    observation_reduction : dict defining site-specific weights, or None
+        A reduction over observations, or None.
+        If this is None then an unweighted summation will be used instead.
     get_process_definitions : user-provided function f(P)
         Returns a list of process definition dicts given the global parameters.
         The global parameters use the unbounded transformation.
@@ -235,8 +263,16 @@ def _mixed_gradient_objective(
     scene['tree']['edge_rate_scaling_factors'] = edge_rates
 
     # Define the log likelihood request and the gradient request.
-    log_likelihood_request = dict(property = 'SNNLOGL')
-    derivatives_request = dict(property = 'SDNLOGL')
+    if observation_reduction is not None:
+        log_likelihood_request = dict(
+                property = 'WNNLOGL',
+                observation_reduction = observation_reduction)
+        derivatives_request = dict(
+                property = 'WDNDERI',
+                observation_reduction = observation_reduction)
+    else:
+        log_likelihood_request = dict(property = 'SNNLOGL')
+        derivatives_request = dict(property = 'SDNDERI')
     requests = [log_likelihood_request, derivatives_request]
 
     # Create the jsonctmctree input dict,
@@ -247,7 +283,7 @@ def _mixed_gradient_objective(
 
     # Compute the negative log likelihood
     # and the part of its gradient related to branch lengths.
-    j_out = jsonctmctree.interface.process_json_in(j_in)
+    j_out = interface.process_json_in(j_in)
     responses = j_out['responses']
     neg_log_likelihood = -responses[0]
     dydB = [-x for x in responses[1]]
@@ -267,7 +303,7 @@ def _mixed_gradient_objective(
         j_in = dict(
                 scene = scene,
                 requests = [log_likelihood_request])
-        j_out = jsonctmctree.interface.process_json_in(j_in)
+        j_out = interface.process_json_in(j_in)
         negative_log_likelihood_i = -j_out['responses'][0]
         deriv = (negative_log_likelihood_i - neg_log_likelihood) / delta
         dydP.append(deriv)
@@ -287,6 +323,7 @@ def _mixed_gradient_objective(
 def optimize_quasi_newton(
         verbose,
         scene,
+        observation_reduction,
         get_process_definitions,
         get_root_prior,
         P0, B0):
@@ -299,6 +336,9 @@ def optimize_quasi_newton(
         Extra information is printed if this is True.
     scene : jsonctmctree scene dict
         This dictionary aggregates the statistical model and the observed data.
+    observation_reduction : dict defining site-specific weights, or None
+        A reduction over observations, or None.
+        If this is None then an unweighted summation will be used instead.
     get_process_definitions : user-provided function f(P)
         Returns a list of process definition dicts given the global parameters.
         The global parameters use the unbounded transformation.
@@ -328,7 +368,10 @@ def optimize_quasi_newton(
     X0 = np.concatenate((P0, B0))
     func_and_grad = functools.partial(
             verbose,
-            scene, get_process_definitions, get_root_prior,
+            scene,
+            observation_reduction,
+            get_process_definitions,
+            get_root_prior,
             nP, nB)
     result = scipy.optimize.minimize(func_and_grad, X0, method='L-BFGS-B')
     return result, result.x[:nP], result.x[-nB:]

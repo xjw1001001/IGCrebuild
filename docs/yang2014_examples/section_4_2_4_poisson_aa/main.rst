@@ -51,4 +51,12 @@ This is an expectation maximization.
    :language: json
    :linenos:
 
+And using the 'extras' module:
+
+.. literalinclude:: extras_em.py
+   :language: python
+   :linenos:
+
+.. literalinclude:: extras_em.out
+
 
