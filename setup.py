@@ -16,9 +16,9 @@ from distutils.core import setup
 
 setup(
         name='jsonctmctree',
-        version='0.1',
+        version='0.2.0',
         description=DOCLINES[0],
-        author='alex',
+        author='jsonctmctree authors',
         url='https://github.com/argriffing/jsonctmctree/',
         download_url='https://github.com/argriffing/jsonctmctree/',
         packages=['jsonctmctree'],
