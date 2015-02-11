@@ -1,6 +1,9 @@
 queueing theory
 ---------------
 
+.. image:: diagram.png
+
+
 These examples involve processes where the states are integers
 that increase or decrease stochastically by one step at a time,
 over continuous time.
@@ -13,9 +16,6 @@ this is called a pure-death process.
 
 In some of the examples a complication that may be unusual
 in traditional queueing theory is considered: a branching timeline.
-
-
-.. image:: http://upload.wikimedia.org/wikipedia/commons/6/60/Poiuy.png
 
 
 .. toctree::
