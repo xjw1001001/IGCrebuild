@@ -15,6 +15,9 @@ In some of the examples a complication that may be unusual
 in traditional queueing theory is considered: a branching timeline.
 
 
+.. image:: http://upload.wikimedia.org/wikipedia/commons/6/60/Poiuy.png
+
+
 .. toctree::
    :maxdepth: 2
 
