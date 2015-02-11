@@ -1,7 +1,7 @@
 queueing theory
 ---------------
 
-.. image:: diagram.png
+.. image:: diagram.svg
 
 
 These examples involve processes where the states are integers
