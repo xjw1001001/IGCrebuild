@@ -45,10 +45,15 @@ def main():
             ts, d, 'skyblue')
     plt.ylabel("Time-averaged Expected sojourn time")
     plt.xlabel("Time")
+
+    # Use a transparent legend frame.
     plt.legend(
             lines,
             ('State 1', 'State 2', 'State 3', 'State 4 (absorbing)'),
-            loc='center right')
+            loc='center right',
+            framealpha=0)
+
+    # Use a transparent background for the figure.
     plt.savefig('out00.svg', transparent=True)
 
 main()
