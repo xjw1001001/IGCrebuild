@@ -12,3 +12,7 @@ htmlcov
 # log files
 *.log
 
+
+# Stuff related to docs...
+docs/_build
+docs/_ext

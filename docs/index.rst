@@ -33,10 +33,7 @@ reference
    scene.rst
    reductions.rst
    property_table.rst
-   queue_examples/index.rst
-   yang2014_examples/index.rst
-   hky_paralog_examples/index.rst
-   uncategorized_examples/index.rst
+   examples/index.rst
    warts.rst
    about_the_docs.rst
    properties.rst
