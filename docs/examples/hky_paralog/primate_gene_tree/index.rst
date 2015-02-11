@@ -1,5 +1,5 @@
-primate HKY85
-=============
+PAML primate HKY85
+==================
 
 This example just uses PAML to estimate parameters
 of an HKY85 process and compute a log likelihood,
