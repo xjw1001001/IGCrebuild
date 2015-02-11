@@ -1,5 +1,5 @@
-examples of HKY paralog analysis
---------------------------------
+HKY paralog analysis
+--------------------
 
 These examples are taken from the analysis of variants of HKY models
 of nucleotide evolution of paralogous genes,

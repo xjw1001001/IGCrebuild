@@ -1,7 +1,5 @@
-.. _example_9:
-
-example 9
-=========
+HKY+geneconv inference
+======================
 
 An example of a molecular model of evolution of gene duplicates
 using the following molecular data from primates.
@@ -45,6 +43,3 @@ using a finite differences approximation.
 
 .. literalinclude:: out01.txt
    :linenos:
-
-
-

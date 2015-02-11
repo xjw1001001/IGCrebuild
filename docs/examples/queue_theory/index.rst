@@ -1,5 +1,5 @@
-examples from queueing theory
------------------------------
+queueing theory
+---------------
 
 These examples involve processes where the states are integers
 that increase or decrease stochastically by one step at a time,

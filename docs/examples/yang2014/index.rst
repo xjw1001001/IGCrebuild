@@ -1,5 +1,5 @@
-examples from Yang 2014
------------------------
+Yang 2014 Molecular Evolution
+-----------------------------
 
 This section includes implementations of examples (but not problem sets) from
 `Molecular Evolution: A Statistical Approach`__
