@@ -1,10 +1,9 @@
-.. _example_12:
-
-example 12
-==========
+tolerance switching process
+===========================
 
 Compute log likelihood and posterior transition
-expectations for a strange multivariate model.
+expectations for a multivariate CTMC in which binary variables control
+the set of allowed states of a jointly evolving discrete variable.
 
 .. literalinclude:: in00.json
    :language: json
