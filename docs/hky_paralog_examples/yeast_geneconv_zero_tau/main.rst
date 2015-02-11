@@ -16,6 +16,10 @@ with the additional constraint that paralogous branches of the gene tree
 have identical lengths.
 There is no molecular clock constraint.
 
+
+EM-like initialization plus quasi-Newton
+----------------------------------------
+
 The maximum likelihood search has two phases.
 The first phase is an ad-hoc iterative procedure that tries to find
 reasonable guesses of the parameter values,
@@ -37,4 +41,15 @@ finite-difference approximations.
    :linenos:
 
 .. literalinclude:: out.txt
+   :linenos:
+
+
+EM for edge lengths only
+------------------------
+
+.. literalinclude:: inference02.py
+   :language: python
+   :linenos:
+
+.. literalinclude:: out02.txt
    :linenos:
