@@ -1,5 +1,5 @@
-HKY+geneconv inference
-======================
+HKY+IGC free tau
+================
 
 An example of a molecular model of evolution of gene duplicates
 using the following molecular data from primates.
