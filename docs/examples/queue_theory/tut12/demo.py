@@ -49,6 +49,6 @@ def main():
             lines,
             ('State 1', 'State 2', 'State 3', 'State 4 (absorbing)'),
             loc='center right')
-    plt.savefig('out00.svg')
+    plt.savefig('out00.svg', transparent=True)
 
 main()
