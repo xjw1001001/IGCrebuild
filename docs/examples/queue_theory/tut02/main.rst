@@ -62,7 +62,7 @@ and it also shows the probability distribution
 over states at the end of the unit time interval.
 The interpretation of this distribution is that
 after a time interval of length 1 has elapsed,
-there is a 79% chance of remaining in state 2,
+there is a 78% chance of remaining in state 2,
 an 18% chance of having progressed to only state 1,
 and a 4% chance of having progressed all the way to
 the absorbing state 0.
