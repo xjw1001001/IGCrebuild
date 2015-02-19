@@ -103,45 +103,67 @@ def main():
     # These include the log likelihood
     # and the sum of transition count expectations.
     log_likelihood_request = dict(property = 'DNNLOGL')
-    
-    observations = [
-                # these three are custom requests
-                [0, 0, 0, 10],
-                [6, 0, 0, 4],
-                [4, 0, 0, 6],
-                # these satisfy the constraint x0 == 4 and x3 > 2.
-                [4, 0, 0, 6],
-                [4, 1, 0, 5],
-                [4, 0, 1, 5],
-                [4, 2, 0, 4],
-                [4, 1, 1, 4],
-                [4, 0, 2, 4],
-                [4, 3, 0, 3],
-                [4, 2, 1, 3],
-                [4, 1, 2, 3],
-                [4, 0, 3, 3]]
+
+    # Just get likelihoods for all possible observations.
+    observations = list(gen_discrete_simplex(10, 4))
+    obs_to_idx = dict((tuple(x), i) for i, x in enumerate(observations))
 
     for t in 10, 25:
         print('t:', t)
-        scene = get_scene(t, observations)
+        print('-----')
+        print()
 
-        # Get the per-site log likelihoods.
+        # Get the per-state log likelihoods.
+        scene = get_scene(t, observations)
         j_in = {
                 "scene" : scene,
                 "requests" : [log_likelihood_request],
                 }
         j_out = jsonctmctree.interface.process_json_in(j_in)
-
-        # Compute the probabilities by exponentiating the log likelihoods.
         log_likelihoods = j_out['responses'][0]
         likelihoods = np.exp(log_likelihoods)
+
         print('custom state probability requests:')
-        for i in range(3):
-            print(observations[i], likelihoods[i], sep='\t')
+        for obs in (
+                (0, 0, 0, 10),
+                (6, 0, 0, 4),
+                (4, 0, 0, 6)):
+            p = likelihoods[obs_to_idx[obs]]
+            print(list(obs), p, sep='\t')
+        print()
+
         print('cumulative probabilities for constrained states:')
-        csum = np.cumsum(likelihoods[3:])
-        for i in range(3, len(observations)):
-            print(observations[i], likelihoods[i], csum[i-3], sep='\t')
+        cumulative = 0
+        for obs in (
+                (4, 0, 0, 6),
+                (4, 1, 0, 5),
+                (4, 0, 1, 5),
+                (4, 2, 0, 4),
+                (4, 1, 1, 4),
+                (4, 0, 2, 4),
+                (4, 3, 0, 3),
+                (4, 2, 1, 3),
+                (4, 1, 2, 3),
+                (4, 0, 3, 3)):
+            p = likelihoods[obs_to_idx[obs]]
+            cumulative += p
+            print(list(obs), p, cumulative, sep='\t')
+        print()
+        
+        for variable in range(4):
+            print('marginal distribution of variable %d:' % (variable + 1))
+            distn = np.zeros(11)
+            for obs in observations:
+                p = likelihoods[obs_to_idx[tuple(obs)]]
+                distn[obs[variable]] += p
+            for i, m in enumerate(distn):
+                print(i, m, sep='\t')
+            mu = np.dot(distn, range(11))
+            var = np.dot(distn, np.square(np.arange(11) - mu))
+            std = np.sqrt(var)
+            print('expected value:', mu)
+            print('standard deviation:', std)
+            print()
         print()
 
 
