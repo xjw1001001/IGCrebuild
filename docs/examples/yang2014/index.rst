@@ -1,6 +1,9 @@
 Yang 2014 Molecular Evolution
 -----------------------------
 
+.. image:: k80.svg
+    :alt: state diagram of K80 model of DNA evolution
+
 This section includes implementations of examples (but not problem sets) from
 `Molecular Evolution: A Statistical Approach`__
 by Ziheng Yang, 2014, Oxford University Press.
