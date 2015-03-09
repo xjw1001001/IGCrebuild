@@ -7,6 +7,7 @@
 
 from CodonGeneconFunc import *
 import argparse
+from jsonctmctree.extras import optimize_em
 import ast
 
 class ReCodonGeneconv:
@@ -19,6 +20,10 @@ class ReCodonGeneconv:
         self.ll          = 0.0          # Store current log-likelihood
         self.Force       = Force        # parameter constraints only works on self.x not on x_clock which should be translated into self.x first
         self.clock       = clock        # molecular clock control
+
+        self.logzero     = -15.0        # used to avoid log(0), replace log(0) with -15
+        self.infinity    = 1e6          # used to avoid -inf in gradiance calculation of the clock case
+        self.minlogblen  = -9.0         # log value, used for bond constraint on branch length estimates in get_mle() function
 
         # Tree topology related variable
         self.tree         = None        # store the tree dictionary used for json likelihood package parsing
@@ -64,8 +69,9 @@ class ReCodonGeneconv:
         self.prior_distribution     = None
 
         # Expected_Geneconv Events
-        self.GeneconvTransRed = None    # dictionary of Geneconv transition matrix used for json parsing
-        self.ExpectedGeneconv = None    # dictionary storing expected number of geneconv events on each branch
+        self.GeneconvTransRed  = None    # dictionary of Geneconv transition matrix used for json parsing
+        self.ExpectedGeneconv  = None    # dictionary storing expected number of geneconv events on each branch
+        self.ExpectedDwellTime = None    # dictionary storing expected total dwell time of heterogeneous states of each branch same order as self.edge_list
 
         # Initialize all parameters
         self.initialize_parameters()
@@ -197,13 +203,13 @@ class ReCodonGeneconv:
             self.x_process = np.log(np.array([count[0] + count[2], count[0] / (count[0] + count[2]), count[1] / (count[1] + count[3]),
                                   self.kappa, self.tau]))
 
-        self.x_rates = np.log(np.array([ self.edge_to_blen[edge] for edge in self.edge_to_blen.keys()]))
+        self.x_rates = np.log(np.array([ 0.01 * self.edge_to_blen[edge] for edge in self.edge_to_blen.keys()]))
         self.x = np.concatenate((self.x_process, self.x_rates))
 
 
         if self.clock:   # set-up x_clock if it's a clock model
             l = len(self.edge_to_blen) / 2 + 1               # number of leaves
-            self.x_Lr = np.log(np.ones((l)) * 0.9)
+            self.x_Lr = np.log(np.ones((l)) * 0.6)
             self.x_clock = np.concatenate((self.x_process, self.x_Lr))
             self.unpack_x_clock()
 
@@ -235,12 +241,12 @@ class ReCodonGeneconv:
         # Always start from the root and internal-tip branch first
         for i in range(len(internal_branch)):
             edge = internal_branch[i]
-            self.x_rates[2 * i] = np.log(self.blen_from_clock(edge))
+            self.x_rates[2 * i] = (np.log(self.blen_from_clock(edge)) if self.blen_from_clock(edge) > 0 else self.logzero)
             edge = leaf_branch[i]
-            self.x_rates[2 * i + 1] = np.log(self.blen_from_clock(edge))
+            self.x_rates[2 * i + 1] = (np.log(self.blen_from_clock(edge)) if self.blen_from_clock(edge) > 0 else self.logzero)
         for j in range(len(leaf_branch[i + 1:])):
             edge = leaf_branch[i + 1 + j]
-            self.x_rates[ - len(leaf_branch[i + 1:]) + j] = np.log(self.blen_from_clock(edge))
+            self.x_rates[ - len(leaf_branch[i + 1:]) + j] = (np.log(self.blen_from_clock(edge)) if self.blen_from_clock(edge) > 0 else self.logzero)
         # update self.x so that all parameters can be updated by update_by_x
         self.x = np.concatenate((self.x_process, self.x_rates))
         
@@ -678,9 +684,18 @@ class ReCodonGeneconv:
                           + sum(edge_derives))
 
         for i in range(2, len(self.x_Lr)):  # r(i-1)
-            Lr_derives.append( edge_to_derives[('N' + str(i - 2), 'N' + str(i - 1))] * self.x_Lr[i] / (self.x_Lr[i] - 1) # 
+            if self.x_Lr[i] < 1:  # when no inf could happen in the transformation
+                Lr_derives.append( edge_to_derives[('N' + str(i - 2), 'N' + str(i - 1))] * (self.x_Lr[i] / (self.x_Lr[i] - 1))# 
                                + sum([edge_to_derives[internal_branch[j]] for j in range(i - 1, len(internal_branch))])  # only sum over nodes decendent from node i-1
                                + sum([edge_to_derives[leaf_branch[j]] for j in range(i - 1, len(leaf_branch))]))  # only sum over nodes decendent from node i-1
+            else:  # get numerical derivative instead when inf happens
+                ll = self._loglikelihood2()[0]
+                self.x_clock[i + len(other_derives)] += 1e-8
+                self.update_by_x_clock()
+                l = self._loglikelihood2()[0]
+                Lr_derives.append((l - ll) / 1e-8)
+                self.x_clock[i + len(other_derives)] -= 1e-8
+                self.update_by_x_clock()
 
         #TODO: Need to change the two sums if using general tree
 
@@ -694,30 +709,95 @@ class ReCodonGeneconv:
 
         return f, g_clock
 
+    def objective_wo_derivative(self, display, x):
+        if self.clock:
+            self.update_by_x_clock(x)
+            ll = self._loglikelihood2()[0]
+        else:
+            self.update_by_x(x)
+            ll = self._loglikelihood2()[0]
 
-    def get_mle(self, display = True):
+        if display:
+            print 'log likelihood = ', ll
+            if self.clock:
+                print 'Current x_clock array = ', self.x_clock
+            else:
+                print 'Current x array = ', self.x
+
+        return -ll
+        
+    def get_mle(self, display = True, derivative = True, em_iterations = 3):
+        if em_iterations > 0:
+            ll = self._loglikelihood2()
+            # http://jsonctmctree.readthedocs.org/en/latest/examples/hky_paralog/yeast_geneconv_zero_tau/index.html#em-for-edge-lengths-only
+            observation_reduction = None
+            self.x_rates = np.log(optimize_em(self.get_scene(), observation_reduction, em_iterations))
+            self.x = np.concatenate((self.x_process, self.x_rates))
+            if self.clock:
+                self.update_x_clock_by_x()
+                self.update_by_x_clock()
+            else:
+                self.update_by_x()
+                
+            if display:
+                print 'log-likelihood = ', ll
+                print 'updating blen length using EM'
+                print 'current log-likelihood = ', self._loglikelihood2()
+        else:
+            if self.clock:
+                self.update_by_x_clock()
+            else:
+                self.update_by_x()
+
         bnds = [(None, -0.05)] * 3
         if not self.clock:
             self.update_by_x()
-            f = partial(self.objective_and_gradient, display)
+            if derivative:
+                f = partial(self.objective_and_gradient, display)
+            else:
+                f = partial(self.objective_wo_derivative, display)
             guess_x = self.x            
-            bnds.extend([(None, None)] * (len(self.x) - 3))
+            edge_bnds = [(None, None)] * (len(self.x) - 3)
+            edge_bnds[1] = (self.minlogblen, None)
+            bnds.extend(edge_bnds)
             
         else:
             self.update_by_x_clock()  # TODO: change force for blen in x_clock
-            f = partial(self.Clock_wrap, display)
+            if derivative:
+                f = partial(self.Clock_wrap, display)
+            else:
+                f = partial(self.objective_wo_derivative, display)
             guess_x = self.x_clock
             bnds.extend([(None, None)] * (len(self.x_clock) - 2 - (len(self.edge_to_blen) / 2 + 1)))
             bnds.extend([(-10, 0.0)] * (len(self.edge_to_blen) / 2))        
-
-        result = scipy.optimize.minimize(f, guess_x, jac = True, method = 'L-BFGS-B', bounds = bnds)
+        if derivative:
+            result = scipy.optimize.minimize(f, guess_x, jac = True, method = 'L-BFGS-B', bounds = bnds)
+        else:
+            result = scipy.optimize.minimize(f, guess_x, jac = False, method = 'L-BFGS-B', bounds = bnds)
         print (result)
         return result
 
+    def update_x_clock_by_x(self):
+        Lr = []
+        x_rates = np.exp(self.x_rates)
+        for i in range(len(self.edge_list) / 2 - 1):
+            elist = {self.edge_list[a]:x_rates[a] for a in range(len(self.edge_list)) if self.edge_list[a][0] == 'N' + str(i)}
+            elenlist = [elist[t] for t in elist]
+            if i == 0:
+                Lr.append(max(elenlist))
+                Lr.append(0.9)
+                Lr.append(1 - min(elenlist) / max(elenlist))
+            else:
+                Lr.append(1 - min(elenlist) / max(elenlist))
+        self.Lr = np.log(Lr)
+        self.x_clock = np.concatenate((self.x_process, self.Lr))
+ 
     def get_geneconvTransRed(self, get_rate = False):
         row_states = []
         column_states = []
+        proportions = []
         if self.Model == 'MG94':
+            Qbasic = self.get_MG94Basic()
             for i, pair in enumerate(product(self.codon_nonstop, repeat = 2)):
                 ca, cb = pair
                 sa = self.codon_to_state[ca]
@@ -728,11 +808,21 @@ class ReCodonGeneconv:
                 # (ca, cb) to (ca, ca)
                 row_states.append((sa, sb))
                 column_states.append((sa, sa))
+                Qb = Qbasic[sb, sa]
+                if isNonsynonymous(cb, ca, self.codon_table):
+                    Tgeneconv = self.tau * self.omega
+                else:
+                    Tgeneconv = self.tau
+                proportions.append(Tgeneconv / (Qb + Tgeneconv) if (Qb + Tgeneconv) >0 else 0.0)
+
                 # (ca, cb) to (cb, cb)
                 row_states.append((sa, sb))
                 column_states.append((sb, sb))
+                Qb = Qbasic[sa, sb]
+                proportions.append(Tgeneconv / (Qb + Tgeneconv) if (Qb + Tgeneconv) >0 else 0.0)
             
         elif self.Model == 'HKY':
+            Qbasic = self.get_HKYBasic()
             for i, pair in enumerate(product('ACGT', repeat = 2)):
                 na, nb = pair
                 sa = self.nt_to_state[na]
@@ -743,12 +833,17 @@ class ReCodonGeneconv:
                 # (na, nb) to (na, na)
                 row_states.append((sa, sb))
                 column_states.append((sa, sa))
+                GeneconvRate = get_HKYGeneconvRate(pair, na + na, Qbasic, self.tau)
+                proportions.append(self.tau / GeneconvRate if GeneconvRate > 0 else 0.0)
+                
 
                 # (na, nb) to (nb, nb)
                 row_states.append((sa, sb))
                 column_states.append((sb, sb))
-
-        return {'row_states' : row_states, 'column_states' : column_states, 'weights' : np.ones(len(row_states))}
+                GeneconvRate = get_HKYGeneconvRate(pair, nb + nb, Qbasic, self.tau)
+                proportions.append(self.tau / GeneconvRate if GeneconvRate > 0 else 0.0)
+                
+        return {'row_states' : row_states, 'column_states' : column_states, 'weights' : proportions}
 
 
     def _ExpectedNumGeneconv(self, package = 'new', display = False):
@@ -770,8 +865,116 @@ class ReCodonGeneconv:
         else:
             print 'Need to implement this for old package'
 
+    def _ExpectedHetDwellTime(self, package = 'new', display = False):
+
+        if package == 'new':
+            scene = self.get_scene()
+            if self.Model == 'MG94':
+                heterogeneous_states = [(a, b) for (a, b) in list(product(range(len(self.codon_to_state)), repeat = 2)) if a != b]
+            elif self.Model == 'HKY':
+                heterogeneous_states = [(a, b) for (a, b) in list(product(range(len(self.nt_to_state)), repeat = 2)) if a != b]
+            dwell_request = [dict(
+                property = 'SDWDWEL',
+                state_reduction = dict(
+                    states = heterogeneous_states,
+                    weights = [2] * len(heterogeneous_states)
+                )
+            )]
+            
+            j_in = {
+                'scene' : scene,
+                'requests' : dwell_request,
+                }        
+            j_out = jsonctmctree.interface.process_json_in(j_in)
+
+            status = j_out['status']
+            ExpectedDwellTime = {self.edge_list[i] : j_out['responses'][0][i] for i in range(len(self.edge_list))}
+            return ExpectedDwellTime
+        else:
+            print 'Need to implement this for old package'
+
+    def _ExpectedDirectionalNumGeneconv(self, package = 'new', display = False):
+        DirectionalNumGeneconvRed = self.get_directionalNumGeneconvRed()
+        if package == 'new':
+            scene = self.get_scene()
+            requests = [{'property' : 'SDNTRAN', 'transition_reduction' : i} for i in DirectionalNumGeneconvRed]
+            assert(len(requests) == 2)  # should be exactly 2 requests
+            j_in = {
+                'scene' : scene,
+                'requests' : requests
+                }            
+            j_out = jsonctmctree.interface.process_json_in(j_in)
+            status = j_out['status']
+            ExpectedDirectionalNumGeneconv = {self.edge_list[i] : [j_out['responses'][j][i] for j in range(2)] for i in range(len(self.edge_list))}
+            return ExpectedDirectionalNumGeneconv
+        else:
+            print 'Need to implement this for old package'
+
+            
+    def get_directionalNumGeneconvRed(self):
+        row12_states = []
+        column12_states = []
+        proportions12 = []
+        
+        row21_states = []
+        column21_states = []
+        proportions21 = []
+        if self.Model == 'MG94':
+            Qbasic = self.get_MG94Basic()
+            for i, pair in enumerate(product(self.codon_nonstop, repeat = 2)):
+                ca, cb = pair
+                sa = self.codon_to_state[ca]
+                sb = self.codon_to_state[cb]
+                if ca == cb:
+                    continue
+                
+                # (ca, cb) to (ca, ca)
+                row12_states.append((sa, sb))
+                column12_states.append((sa, sa))
+                Qb = Qbasic[sb, sa]
+                if isNonsynonymous(cb, ca, self.codon_table):
+                    Tgeneconv = self.tau * self.omega
+                else:
+                    Tgeneconv = self.tau
+                proportions12.append(Tgeneconv / (Qb + Tgeneconv) if (Qb + Tgeneconv) >0 else 0.0)
+
+                # (ca, cb) to (cb, cb)
+                row21_states.append((sa, sb))
+                column21_states.append((sb, sb))
+                Qb = Qbasic[sa, sb]
+                proportions21.append(Tgeneconv / (Qb + Tgeneconv) if (Qb + Tgeneconv) >0 else 0.0)
+            
+        elif self.Model == 'HKY':
+            Qbasic = self.get_HKYBasic()
+            for i, pair in enumerate(product('ACGT', repeat = 2)):
+                na, nb = pair
+                sa = self.nt_to_state[na]
+                sb = self.nt_to_state[nb]
+                if na == nb:
+                    continue
+
+                # (na, nb) to (na, na)
+                row12_states.append((sa, sb))
+                column12_states.append((sa, sa))
+                GeneconvRate = get_HKYGeneconvRate(pair, na + na, Qbasic, self.tau)
+                proportions12.append(self.tau / GeneconvRate if GeneconvRate > 0 else 0.0)
+                
+
+                # (na, nb) to (nb, nb)
+                row21_states.append((sa, sb))
+                column21_states.append((sb, sb))
+                GeneconvRate = get_HKYGeneconvRate(pair, nb + nb, Qbasic, self.tau)
+                proportions21.append(self.tau / GeneconvRate if GeneconvRate > 0 else 0.0)
+                
+        return [{'row_states' : row12_states, 'column_states' : column12_states, 'weights' : proportions12},
+                {'row_states' : row21_states, 'column_states' : column21_states, 'weights' : proportions21}]
+        
+
     def get_ExpectedNumGeneconv(self):
         self.ExpectedGeneconv = self._ExpectedNumGeneconv()
+
+    def get_ExpectedHetDwellTime(self):
+        self.ExpectedDwellTime = self._ExpectedHetDwellTime()
     
     def save_to_file(self, file_name = None, path = './'):
         if file_name == None:
@@ -790,6 +993,7 @@ class ReCodonGeneconv:
             edge_to_blen = self.edge_to_blen,
             edge_list = self.edge_list,
             ExpectedGeneconv = self.ExpectedGeneconv,
+            ExpectedDwellTime = self.ExpectedDwellTime,
             ll    = self.ll,
             newicktree = self.newicktree,
             alignment_file = self.seqloc,
@@ -799,37 +1003,63 @@ class ReCodonGeneconv:
             )
         pickle.dump(save_info, open(save_file, 'wb+'))  # use pickle to save the class which can be easily reconstructed by pickle.load()
 
+    def numerical_Clock_derivative(self):
+        ll = self._loglikelihood2()[0]
+        Clock_drv = []
+        for i in range(len(self.x_clock)):
+            self.x_clock[i] += 1e-8
+            self.update_by_x_clock()
+            l = self._loglikelihood2()[0]
+            Clock_drv.append((l - ll) / 1e-8)
+            self.x_clock[i] -= 1e-8
+            self.update_by_x_clock()
+        return Clock_drv
+
 def main(args):
     paralog = [args.paralog1, args.paralog2]
     alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
     path = './NewPackageNewRun/'
+    omega_guess = 0.1
 
     print 'Now calculate MLE for pair', paralog
-    x = np.array([-0.64353555, -0.48264002, -0.93307917,  1.76977596, -2.44028574,
-        1.19617746, -3.90910406, -3.87159909, -4.30005794, -6.28014701,
-       -2.83555499, -3.29056063, -2.92359461, -3.49891453, -3.97438916,
-       -3.10701318, -4.59465356, -2.01786889])
     
     if hasattr(args, 'Force'):
         Force = args.Force
+        Force_hky = None
         if Force != None:
             path += 'Force_'
+            Force_hky = {4:0.0}
     else:
         Force = None
+        Force_hky = None
+
+    test_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = False)
+    result_hky = test_hky.get_mle(display = False)
+    test_hky.get_ExpectedNumGeneconv()
+    test_hky.get_ExpectedHetDwellTime()
+    test_hky.save_to_file(path = path)
+
+    test2_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
+    result2_hky = test2_hky.get_mle(display = False)
+    test2_hky.get_ExpectedNumGeneconv()
+    test2_hky.get_ExpectedHetDwellTime()
+    test2_hky.save_to_file(path = path)
+
 
     test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)
+    x = np.concatenate((test_hky.x_process[:-1], np.log([omega_guess]), test_hky.x_process[-1:], test_hky.x_rates))
     test.update_by_x(x)
     
-    result = test.get_mle(display = True)
+    result = test.get_mle(display = True, em_iterations = 1)
     test.get_ExpectedNumGeneconv()
+    test.get_ExpectedHetDwellTime()
     test.save_to_file(path = path)
 
-    x_clock = np.array([-0.64430238, -0.48627304, -0.93852343, 1.76793238, -2.45061608, 1.23836258,
-                  -2.11088631, -0.15313429, -0.23202426, -0.63091448, -0.25441366, -0.20629961,-0.23301088])
     test2 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
+    x_clock = np.concatenate((test2_hky.x_process[:-1], np.log([omega_guess]), test2_hky.x_process[-1:], test2_hky.x_Lr))
     test2.update_by_x_clock(x_clock)
-    result = test2.get_mle(display = True)
+    result = test2.get_mle(display = True, em_iterations = 1)
     test2.get_ExpectedNumGeneconv()
     test2.save_to_file(path = path)
     
@@ -842,59 +1072,109 @@ if __name__ == '__main__':
 ##    
 ##    main(parser.parse_args())
 
-    paralog1 = 'YML026C'
-    paralog2 = 'YDR450W'
-    #paralog1 = 'ECP'
-    #paralog2 = 'EDN'
-
-    Force    = {5:0.0}
-
+    paralog1 = 'YNL069C'
+    paralog2 = 'YIL133C'
+    #paralog1 = 'YML026C'
+    #paralog2 = 'YDR450W'
+##    path = './NewPackageNewRun/'
+####    paralog1 = 'ECP'
+####    paralog2 = 'EDN'
+####
+##    Force    = {5:0.0}
+####
     paralog = [paralog1, paralog2]
-    alignment_file = '../PairsAlignemt/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     #alignment_file = '../data/cleaned_input_data.fasta'
+    #alignment_file = '../data/cleanedfasta.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
     #newicktree = '../data/input_tree.newick'
-    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)#, nnsites = 5)
-    #test.get_mle(display = False)
-    #test.get_ExpectedNumGeneconv()
-    #print test.ExpectedGeneconv
-    x = np.array([-0.64353555, -0.48264002, -0.93307917,  1.76977596, -2.44028574, 1.19617746,
-                   -3.90910406, -2.01786889,  # N0
-                   -2.92359461, -2.83555499,  # N1
-                   -4.30005794, -3.29056063,  # N2
-                   -4.59465356, -3.49891453,  # N3
-                   -6.28014701, -3.10701318,  # N4
-                   -3.87159909, -3.97438916]) # N5
-                 
-    test.update_by_x(x = x)
 
-    print test._loglikelihood()  # should be -1513.0033676643861
+    x = np.array([-0.72980621, -0.56994663, -0.96216856,  1.73940961, -1.71054117,  0.54387332,
+                  -1.33866266, -3.47424374, -1.68831105, -1.80543811, -3.62520339, -2.69364618,
+                  -4.41935536, -2.61416486, -3.63272477, -2.78779654, -3.17653234, -3.95894103])
 
+    x_clock = np.array([-0.69711204, -0.49848498, -1.33603066,  1.861808,   -2.21507185,  5.23430255,
+                        -5.82838102, -0.07656569, -1.56484193, -0.18590612, -0.16381505, -0.41778555,
+                        -0.18178853])
 
-##    paralog1 = 'YDR502C'
-##    paralog2 = 'YLR180W'
+    test3 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = True)
+    test3.update_by_x(x)
+    #test3.update_by_x_clock(x_clock)
+    #print test3._loglikelihood2()
+    #test3.get_mle(display = True, em_iterations = 0)
+####    test3.save_to_file(path = path)
+##    
+##    test4 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
+##    test4.update_by_x_clock(x_clock)
+##    test4.get_mle(display = True)
+##    test4.save_to_file(path = path)
+    
+##    #test.get_ExpectedNumGeneconv()
+##    #print test.ExpectedGeneconv
+####    x = np.array([-0.64353555, -0.48264002, -0.93307917,  1.76977596, -2.44028574, 1.19617746,
+####                   -3.90910406, -2.01786889,  # N0
+####                   -2.92359461, -2.83555499,  # N1
+####                   -4.30005794, -3.29056063,  # N2
+####                   -4.59465356, -3.49891453,  # N3
+####                   -6.28014701, -3.10701318,  # N4
+####                   -3.87159909, -3.97438916]) # N5
+####                 
+####    test.update_by_x(x = x)
+####    test.get_mle(display = True)
+####    test.save_to_file(path = path)
+####
+####    # MG94 Force nonclock
+####    test2 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False, nnsites = 157)
+####    test2.update_by_x(x = test.x)
+####    test2.get_mle(display = True)
+####    test2.save_to_file(path = path)
+####
+####    # MG94 clock
+####    test3 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = True, nnsites = 157)
+####    test3.update_by_x_clock(x_clock = test.x_clock)
+####    test3.get_mle(display = True)
+####    test3.save_to_file(path = path)
+####
+####    # MG94 nonclock
+####    test4 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = False, nnsites = 157)
+####    test4.update_by_x(x = test3.x)
+####    test4.get_mle(display = True)
+####    test4.save_to_file(path = path)
+##
+##    print test._loglikelihood()  # should be -1513.0033676643861
+##    test.get_mle(False)
+##    test.get_ExpectedHetDwellTime()
+##    test.get_ExpectedNumGeneconv()
+##
+##    for i in test.edge_list:
+##        if test.ExpectedDwellTime[i] != 0:
+##            print i, test.ExpectedGeneconv[i]/(test.ExpectedDwellTime[i] * test.edge_to_blen[i])
 ##
 ##
-##    Force    = {5:0.0}
-##
-##    paralog = [paralog1, paralog2]
-##    alignment_file = '../PairsAlignemt/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-##
-##    newicktree = '../PairsAlignemt/YeastTree.newick'
-##    test2 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = False)#, nnsites = 5)
-##
-##
-##    x = np.array([-0.76374179, -0.56512517, -0.8661595 ,  1.33286957, -3.12679708, -0.55435137,
-##                  -1.59080985, -1.35214307,   # N0
-##                  -1.48481827, -0.5117971 ,   # N1
-##                  -2.4550277 , -2.02888192,   # N2
-##                  -2.47147681, -1.7627708 ,   # N3
-##                  -2.62667816, -1.64821228,   # N4
-##                  -2.38731535, -2.41097359])  # N5
-##                  
-##    test2.update_by_x(x = x)
-##
-##    print test2._loglikelihood()
+####    paralog1 = 'YDR502C'
+####    paralog2 = 'YLR180W'
+####
+####
+####    Force    = {5:0.0}
+####
+####    paralog = [paralog1, paralog2]
+####    alignment_file = '../PairsAlignemt/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+####
+####    newicktree = '../PairsAlignemt/YeastTree.newick'
+####    test2 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = False)#, nnsites = 5)
+####
+####
+####    x = np.array([-0.76374179, -0.56512517, -0.8661595 ,  1.33286957, -3.12679708, -0.55435137,
+####                  -1.59080985, -1.35214307,   # N0
+####                  -1.48481827, -0.5117971 ,   # N1
+####                  -2.4550277 , -2.02888192,   # N2
+####                  -2.47147681, -1.7627708 ,   # N3
+####                  -2.62667816, -1.64821228,   # N4
+####                  -2.38731535, -2.41097359])  # N5
+####                  
+####    test2.update_by_x(x = x)
+####
+####    print test2._loglikelihood()
+####        
 ##        
-        
-        
+##        

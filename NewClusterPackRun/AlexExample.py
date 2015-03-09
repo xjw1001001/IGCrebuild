@@ -141,10 +141,10 @@ def main():
             rows.append(row)
     columns = [list(x) for x in zip(*rows)]
 
-    distn = [0.27637130801687765, 0.25410220346929202, 0.19456165025785283, 0.27496483825597751]
+    distn = [0.25, 0.25, 0.25, 0.25]
     rates = [1, 1, 1, 1, 1, 1, 1, 1]
-    kappa = 1.2
-    tau = 1.4
+    kappa = 2.0
+    tau = 3.0
     process_defn, root_prior = get_process_defn_and_prior(distn, kappa, tau)
     scene = {
             "node_count" : 9,
@@ -179,4 +179,4 @@ def main():
     for r in rates:
         print('  ', r)
 
-#main()
+main()

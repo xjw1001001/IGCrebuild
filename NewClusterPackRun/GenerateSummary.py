@@ -9,17 +9,17 @@ def get_summary(p_file, output_label = False):
     else:
         t.update_by_x(res['x'])
 
-    nEdge = len(t.edge_to_blen)  # number of edges
-    l = nEdge / 2 + 1               # number of leaves
-    k = l - 1   # number of internal nodes. The notation here is inconsistent with Alex's for trying to match my notes.
-
-    leaf_branch = [edge for edge in t.edge_to_blen.keys() if edge[0][0] == 'N' and str.isdigit(edge[0][1:]) and not str.isdigit(edge[1][1:])]
-    out_group_branch = [edge for edge in leaf_branch if edge[0] == 'N0' and not str.isdigit(edge[1][1:])] [0]
-    internal_branch = [x for x in t.edge_to_blen.keys() if not x in leaf_branch]
-    assert(len(internal_branch) == k-1)  # check if number of internal branch is one less than number of internal nodes
-
-    leaf_branch.sort(key = lambda node: int(node[0][1:]))  # sort the list by the first node number in increasing order
-    internal_branch.sort(key = lambda node: int(node[0][1:]))  # sort the list by the first node number in increasing order
+##    nEdge = len(t.edge_to_blen)  # number of edges
+##    l = nEdge / 2 + 1               # number of leaves
+##    k = l - 1   # number of internal nodes. The notation here is inconsistent with Alex's for trying to match my notes.
+##
+##    leaf_branch = [edge for edge in t.edge_to_blen.keys() if edge[0][0] == 'N' and str.isdigit(edge[0][1:]) and not str.isdigit(edge[1][1:])]
+##    out_group_branch = [edge for edge in leaf_branch if edge[0] == 'N0' and not str.isdigit(edge[1][1:])] [0]
+##    internal_branch = [x for x in t.edge_to_blen.keys() if not x in leaf_branch]
+##    assert(len(internal_branch) == k-1)  # check if number of internal branch is one less than number of internal nodes
+##
+##    leaf_branch.sort(key = lambda node: int(node[0][1:]))  # sort the list by the first node number in increasing order
+##    internal_branch.sort(key = lambda node: int(node[0][1:]))  # sort the list by the first node number in increasing order
     
     out = [t.nsites, res['ll']]
     out.extend(t.pi)
@@ -33,15 +33,40 @@ def get_summary(p_file, output_label = False):
 
     k = len(label)  # record the length of non-blen parameters
 
-    for i in range(len(internal_branch)):
-        label.extend([internal_branch[i], leaf_branch[i]])
-    label.extend(leaf_branch[i + 1:])
+    label.extend(res['edge_list'])
+
+##    for i in range(len(internal_branch)):
+##        label.extend([internal_branch[i], leaf_branch[i]])
+##    label.extend(leaf_branch[i + 1:])
     
 ##    if t.Model == 'HKY':
 ##        out.extend([t.edge_to_blen[label[j]] for j in range(k, len(label))])
 ##    elif t.Model == 'MG94':
 ##        out.extend([t.edge_to_blen[label[j]] for j in range(k, len(label))])
     out.extend([t.edge_to_blen[label[j]] for j in range(k, len(label))])
+
+    if res.has_key('ExpectedGeneconv'):
+        t.ExpectedGeneconv = res['ExpectedGeneconv']
+    if res.has_key('ExpectedDwellTime'):
+        t.ExpectedDwellTime = res['ExpectedDwellTime']
+
+    if not t.ExpectedGeneconv:
+        t.get_ExpectedNumGeneconv()
+
+    if not t.ExpectedDwellTime:
+        t.get_ExpectedHetDwellTime()
+
+    label.extend([ (a, b, 'tau') for (a, b) in res['edge_list']])
+    out.extend([t.ExpectedGeneconv[i] / (t.edge_to_blen[i] * t.ExpectedDwellTime[i]) if t.ExpectedDwellTime[i] != 0 else 0 for i in res['edge_list']])
+
+
+    # Now add directional # of geneconv events
+    ExpectedDirectionalNumGeneconv = t._ExpectedDirectionalNumGeneconv()
+    label.extend([ (a, b, '1->2') for (a, b) in res['edge_list']])
+    out.extend([ExpectedDirectionalNumGeneconv[i][0] for i in res['edge_list']])
+    label.extend([ (a, b, '2->1') for (a, b) in res['edge_list']])
+    out.extend([ExpectedDirectionalNumGeneconv[i][1] for i in res['edge_list']])
+
 
     for i in range(k, len(label)):
         label[i] = '(' + ','.join(label[i]) + ')'
@@ -51,8 +76,6 @@ def get_summary(p_file, output_label = False):
     else:
         return out
 
-def get_expectednum_summary(p_file, output_label = False):
-    print
 
 def get_mass_summary(pairs, pair_path, model, summary_file, unfinished_list_file, clock = True, force = False):
     summary_mat = []
@@ -91,14 +114,62 @@ def get_mass_summary(pairs, pair_path, model, summary_file, unfinished_list_file
         
 
 if __name__ == '__main__':
-    p_file = './NewPackageNewRun/HKY_YAL056W_YOR371C_clock.p'
-    p_file = './NewPackageNewRun/HKY_YLR406C_YDL075W_clock.p'
-    p_file = './NewPackageNewRun/Force_MG94_YML026C_YDR450W_clock.p'
-    p_file = './NewPackageNewRun/MG94_YML026C_YDR450W_clock.p'
-    res = pickle.load(open(p_file, 'r'))
-    print res.keys()
-    #print 'X = ', res['x']
+##    p_file = './NewPackageNewRun/HKY_YAL056W_YOR371C_clock.p'
+##    p_file = './NewPackageNewRun/HKY_YLR406C_YDL075W_clock.p'
+##    p_file = './NewPackageNewRun/Force_MG94_YML026C_YDR450W_clock.p'
+##    p_file = './NewPackageNewRun/MG94_YML026C_YDR450W_clock.p'
+##    res = pickle.load(open(p_file, 'r'))
+##    print res.keys()
+##    #print 'X = ', res['x']
     
+
+    #pairs = [['YDR502C', 'YLR180W']]
+    pairs = [['ECP','EDN']]
+
+#          Primate Dataset
+
+################################################################################################################################################
+
+##    # HKY clock model 
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/OldResults01222015/', model = 'HKY', summary_file = './NewPackageNewRun/HKY_clock_summary_Primate.txt',
+##                     unfinished_list_file = './NewPackageNewRun/HKY_clock_unfinished_Primate.txt', clock = True, force = False)
+##
+##    # HKY nonclock model 
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/OldResults01222015/', model = 'HKY', summary_file = './NewPackageNewRun/HKY_nonclock_summary_Primate.txt',
+##                     unfinished_list_file = './NewPackageNewRun/HKY_nonclock_unfinished_Primate.txt', clock = False, force = False)
+##
+##    # HKY clock model (force tau = 0)
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/OldResults01222015/', model = 'HKY', summary_file = './NewPackageNewRun/Force_HKY_clock_summary_Primate.txt',
+##                     unfinished_list_file = './NewPackageNewRun/Force_HKY_clock_unfinished_Primate.txt', clock = True, force = True)
+##
+##    # HKY nonclock model (force tau = 0)
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/OldResults01222015/', model = 'HKY', summary_file = './NewPackageNewRun/Force_HKY_nonclock_summary_Primate.txt',
+##                     unfinished_list_file = './NewPackageNewRun/Force_HKY_nonclock_unfinished_Primate.txt', clock = False, force = True)
+##                
+##################################################################################################################################################
+##
+##    # MG94 clock model 
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/OldResults01222015/', model = 'MG94', summary_file = './NewPackageNewRun/MG94_clock_summary_Primate.txt',
+##                     unfinished_list_file = './NewPackageNewRun/MG94_clock_unfinished_Primate.txt', clock = True, force = False)
+##
+##    # MG94 nonclock model 
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/OldResults01222015/', model = 'MG94', summary_file = './NewPackageNewRun/MG94_nonclock_summary_Primate.txt',
+##                     unfinished_list_file = './NewPackageNewRun/MG94_nonclock_unfinished_Primate.txt', clock = False, force = False)
+##
+##    # MG94 clock model (force tau = 0)
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/OldResults01222015/', model = 'MG94', summary_file = './NewPackageNewRun/Force_MG94_clock_summary_Primate.txt',
+##                     unfinished_list_file = './NewPackageNewRun/Force_MG94_clock_unfinished_Primate.txt', clock = True, force = True)
+##
+##    # MG94 nonclock model (force tau = 0)
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/OldResults01222015/', model = 'MG94', summary_file = './NewPackageNewRun/Force_MG94_nonclock_summary_Primate.txt',
+##                     unfinished_list_file = './NewPackageNewRun/Force_MG94_nonclock_unfinished_Primate.txt', clock = False, force = True)
+##                
+
+
+#
+#          Yeast Datasets
+#
+
     pairs = []
     with open('../All_Pairs.txt', 'r') as f:
         for line in f.readlines():
@@ -107,7 +178,7 @@ if __name__ == '__main__':
 
 ##################################################################################################################################################
 
-##    # HKY clock model 
+##    # HKY clock model
 ##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/HKY_clock_summary.txt',
 ##                     unfinished_list_file = './NewPackageNewRun/HKY_clock_unfinished.txt', clock = True, force = False)
 ##
@@ -123,21 +194,22 @@ if __name__ == '__main__':
 ##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'HKY', summary_file = './NewPackageNewRun/Force_HKY_nonclock_summary.txt',
 ##                     unfinished_list_file = './NewPackageNewRun/Force_HKY_nonclock_unfinished.txt', clock = False, force = True)
                 
-##################################################################################################################################################
+####################################################################################################################################################
+##
+##    # MG94 clock model
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/MG94_clock_summary.txt',
+##                     unfinished_list_file = './NewPackageNewRun/MG94_clock_unfinished.txt', clock = True, force = False)
 
-    # MG94 clock model 
-    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/MG94_clock_summary.txt',
-                     unfinished_list_file = './NewPackageNewRun/MG94_clock_unfinished.txt', clock = True, force = False)
+##    # MG94 nonclock model 
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/MG94_nonclock_summary.txt',
+##                     unfinished_list_file = './NewPackageNewRun/MG94_nonclock_unfinished.txt', clock = False, force = False)
 
-    # MG94 nonclock model 
-    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/MG94_nonclock_summary.txt',
-                     unfinished_list_file = './NewPackageNewRun/MG94_nonclock_unfinished.txt', clock = False, force = False)
-
-    # MG94 clock model (force tau = 0)
-    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/Force_MG94_clock_summary.txt',
-                     unfinished_list_file = './NewPackageNewRun/Force_MG94_clock_unfinished.txt', clock = True, force = True)
+##    # MG94 clock model (force tau = 0)
+##    get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/Force_MG94_clock_summary.txt',
+##                     unfinished_list_file = './NewPackageNewRun/Force_MG94_clock_unfinished.txt', clock = True, force = True)
 
     # MG94 nonclock model (force tau = 0)
     get_mass_summary(pairs, pair_path = './NewPackageNewRun/', model = 'MG94', summary_file = './NewPackageNewRun/Force_MG94_nonclock_summary.txt',
                      unfinished_list_file = './NewPackageNewRun/Force_MG94_nonclock_unfinished.txt', clock = False, force = True)
-                
+##                
+##

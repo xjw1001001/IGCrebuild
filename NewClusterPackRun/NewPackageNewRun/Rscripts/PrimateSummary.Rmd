@@ -1,0 +1,101 @@
+---
+title: "PrimateSummary"
+author: "Xiang Ji"
+date: "January 18, 2015"
+output: html_document
+---
+
+1, Read in tables
+```{r}
+rm(list=ls())  # clean up workspace
+path <- "/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/OldResults02112015/"
+summary.list <- c( "HKY_nonclock_summary",
+                  "HKY_clock_summary",
+                  "MG94_clock_summary",
+                  "MG94_nonclock_summary", 
+                  "Force_HKY_clock_summary", 
+                  "Force_HKY_nonclock_summary",
+                  "Force_MG94_clock_summary", 
+                  "Force_MG94_nonclock_summary"
+                  )
+for (target.summary in summary.list){
+  summary_file <- paste(path, target.summary, '_Primate.txt', sep = '')
+  all <- readLines(summary_file, n = -1)
+  col.names <- strsplit(all[1], ' ')[[1]][-1]
+  row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+  summary_mat <- as.matrix(read.table(summary_file, 
+                                        row.names = row.names, 
+                                        col.names = col.names))
+  assign(target.summary, summary_mat)
+}
+
+# HKY Model Summarys
+ECP.EDN.HKY <- cbind(HKY_nonclock_summary, HKY_clock_summary, 
+                     Force_HKY_nonclock_summary, Force_HKY_clock_summary)
+ECP.EDN.HKY.colnames <- c("nonclock", "clock", 
+                          "force nonclock", "force clock")
+colnames(ECP.EDN.HKY) <- ECP.EDN.HKY.colnames
+
+ECP.EDN.HKY
+
+# MG94 Models
+ECP.EDN.MG94 <- cbind(MG94_nonclock_summary, MG94_clock_summary, 
+                     Force_MG94_nonclock_summary, Force_MG94_clock_summary)
+ECP.EDN.MG94.colnames <- c("nonclock", "clock", 
+                          "force nonclock", "force clock")
+colnames(ECP.EDN.MG94) <- ECP.EDN.MG94.colnames
+
+ECP.EDN.MG94
+
+
+```
+
+
+=========================================
+
+
+Now, plot posterior expected Number of geneconv events from paralog 1 to paralog2 / paralog2 to paralog 1 of each pair
+
+Each plot is for each pair of paralogs under one model with each point representing one branch
+
+```{r}
+#HKY nonclock
+  i <- 1
+  rows <- 27:32
+  paralog <- strsplit(colnames(HKY_nonclock_summary)[i], split = "_")[[1]]
+  plot(HKY_nonclock_summary[rows, i],  HKY_nonclock_summary[rows + 8, i],
+       xlab = paste(paralog[1], paralog[2], sep = " -> "),
+       ylab = paste(paralog[2], paralog[1], sep = " -> "),
+       main = paste(colnames(HKY_nonclock_summary)[i], " HKY Non clock"))
+  abline(a = 0, b = 1)
+
+
+#HKY clock
+
+  paralog <- strsplit(colnames(HKY_clock_summary)[i], split = "_")[[1]]
+  plot(HKY_clock_summary[rows, i],  HKY_clock_summary[rows + 8, i],
+       xlab = paste(paralog[1], paralog[2], sep = " -> "),
+       ylab = paste(paralog[2], paralog[1], sep = " -> "),
+       main = paste(colnames(HKY_clock_summary)[i], " HKY Clock"))
+  abline(a = 0, b = 1)
+
+#MG94 Non-clock
+
+  rows <- 28:33
+  paralog <- strsplit(colnames(MG94_nonclock_summary)[i], split = "_")[[1]]
+  plot(MG94_nonclock_summary[rows, i],  MG94_nonclock_summary[rows + 8, i],
+       xlab = paste(paralog[1], paralog[2], sep = " -> "),
+       ylab = paste(paralog[2], paralog[1], sep = " -> "),
+       main = paste(colnames(MG94_nonclock_summary)[i], " MG94 Non clock"))
+  abline(a = 0, b = 1)
+
+#MG94 clock
+
+  paralog <- strsplit(colnames(MG94_clock_summary)[i], split = "_")[[1]]
+  plot(MG94_clock_summary[rows, i],  MG94_clock_summary[rows + 8, i],
+       xlab = paste(paralog[1], paralog[2], sep = " -> "),
+       ylab = paste(paralog[2], paralog[1], sep = " -> "),
+       main = paste(colnames(MG94_clock_summary)[i], " MG94 Clock"))
+  abline(a = 0, b = 1)
+
+```

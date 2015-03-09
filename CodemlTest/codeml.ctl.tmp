@@ -1,5 +1,5 @@
-      seqfile = /Users/xji3/Genconv/CodemlTest/YML026C_YDR450W_input.fasta
-     treefile = /Users/xji3/Genconv/CodemlTest/YeastTree.newick
+      seqfile = /Users/xji3/Genconv/CodemlTest/input_data_compare_paml.fasta
+     treefile = /Users/xji3/Genconv/CodemlTest/input_tree_compare_paml.newick
       outfile = mlc
 
         noisy = 9
@@ -9,7 +9,7 @@
 
       seqtype = 1
     CodonFreq = 0
-      estFreq = 1
+      estFreq = 0
 
         ndata = 1
         clock = 0
@@ -34,10 +34,10 @@
 
 
 
-    fix_kappa = 1
-        kappa = 5.86954
-    fix_omega = 1
-        omega = 0.087136
+    fix_kappa = 0
+        kappa = 2
+    fix_omega = 0
+        omega = 0.4
 
     fix_alpha = 1
         alpha = 0
@@ -49,5 +49,5 @@
 
    Small_Diff = 5e-7
     cleandata = 0
-  fix_blength = 2
+  fix_blength = 0
        method = 0
