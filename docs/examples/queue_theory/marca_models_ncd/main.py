@@ -1,6 +1,8 @@
 """
 The NCD example from marca_doc.ps.
 
+http://www4.ncsu.edu/~billy/MARCA/marca_doc.ps
+
 """
 from __future__ import print_function, division, absolute_import
 
