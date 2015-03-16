@@ -11,7 +11,7 @@ This R script is used for generating summary plot for the Geneconv project
 ```{r}
 rm(list=ls())  # clean up workspace
 #path <- "/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/OldResults01152015/"
-path <- "/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/OldResults02112015/"
+path <- "/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/OldResults03112015/"
 #path <- "G:/Geneconv/NewClusterPackRun/NewPackageNewRun/"
 #HKY_clock_summary <- "HKY_clock_summary"
 summary.list <- c( "HKY_nonclock_summary",

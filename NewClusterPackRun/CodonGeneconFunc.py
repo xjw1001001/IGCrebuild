@@ -48,7 +48,6 @@ def get_HKYGeneconvRate(pair_from, pair_to, Qbasic, tau):
         else:
             return Qb
     print ('Warning: Check get_HKYGeneconvRate Func. You should not see this.')
-        
 
 def get_MG94BasicRate(ca, cb, pi, kappa, omega, codon_table):
     dif = [ii for ii in range(3) if ca[ii] != cb[ii]]

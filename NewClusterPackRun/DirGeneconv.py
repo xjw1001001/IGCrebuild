@@ -800,81 +800,6 @@ class DirGeneconv:
         self.x_clock = np.concatenate((self.x_process, self.Lr))
         
  
-    def get_geneconvTransRed(self, get_rate = False):
-        row_states = []
-        column_states = []
-        proportions = []
-        if self.Model == 'MG94':
-            Qbasic = self.get_MG94Basic()
-            for i, pair in enumerate(product(self.codon_nonstop, repeat = 2)):
-                ca, cb = pair
-                sa = self.codon_to_state[ca]
-                sb = self.codon_to_state[cb]
-                if ca == cb:
-                    continue
-                
-                # (ca, cb) to (ca, ca)
-                row_states.append((sa, sb))
-                column_states.append((sa, sa))
-                Qb = Qbasic[sb, sa]
-                if isNonsynonymous(cb, ca, self.codon_table):
-                    Tgeneconv12 = self.tau[0] * self.omega
-                    Tgeneconv21 = self.tau[1] * self.omega
-                else:
-                    Tgeneconv12 = self.tau[0]
-                    Tgeneconv21 = self.tau[1]
-                proportions.append(Tgeneconv12 / (Qb + Tgeneconv12) if (Qb + Tgeneconv12) >0 else 0.0)
-
-                # (ca, cb) to (cb, cb)
-                row_states.append((sa, sb))
-                column_states.append((sb, sb))
-                Qb = Qbasic[sa, sb]
-                proportions.append(Tgeneconv21 / (Qb + Tgeneconv21) if (Qb + Tgeneconv21) >0 else 0.0)
-            
-        elif self.Model == 'HKY':
-            Qbasic = self.get_HKYBasic()
-            for i, pair in enumerate(product('ACGT', repeat = 2)):
-                na, nb = pair
-                sa = self.nt_to_state[na]
-                sb = self.nt_to_state[nb]
-                if na == nb:
-                    continue
-
-                # (na, nb) to (na, na)
-                row_states.append((sa, sb))
-                column_states.append((sa, sa))
-                GeneconvRate = get_HKYGeneconvRate(pair, na + na, Qbasic, self.tau[0])
-                proportions.append(self.tau[0] / GeneconvRate if GeneconvRate > 0 else 0.0)
-                
-
-                # (na, nb) to (nb, nb)
-                row_states.append((sa, sb))
-                column_states.append((sb, sb))
-                GeneconvRate = get_HKYGeneconvRate(pair, nb + nb, Qbasic, self.tau[1])
-                proportions.append(self.tau[1] / GeneconvRate if GeneconvRate > 0 else 0.0)
-                
-        return {'row_states' : row_states, 'column_states' : column_states, 'weights' : proportions}
-
-
-    def _ExpectedNumGeneconv(self, package = 'new', display = False):
-        if self.GeneconvTransRed is None:
-            self.GeneconvTransRed = self.get_geneconvTransRed()
-
-        if package == 'new':
-            scene = self.get_scene()
-            requests = [{'property' : 'SDNTRAN', 'transition_reduction' : self.GeneconvTransRed}]
-            j_in = {
-                'scene' : scene,
-                'requests' : requests
-                }        
-            j_out = jsonctmctree.interface.process_json_in(j_in)
-
-            status = j_out['status']
-            ExpectedGeneconv = {self.edge_list[i] : j_out['responses'][0][i] for i in range(len(self.edge_list))}
-            return ExpectedGeneconv
-        else:
-            print 'Need to implement this for old package'
-
     def _ExpectedHetDwellTime(self, package = 'new', display = False):
 
         if package == 'new':
@@ -983,7 +908,7 @@ class DirGeneconv:
         
 
     def get_ExpectedNumGeneconv(self):
-        self.ExpectedGeneconv = self._ExpectedNumGeneconv()
+        self.ExpectedGeneconv = self._ExpectedDirectionalNumGeneconv()
 
     def get_ExpectedHetDwellTime(self):
         self.ExpectedDwellTime = self._ExpectedHetDwellTime()
@@ -1032,6 +957,7 @@ def main(args):
     alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
     path = './NewPackageNewRun/'
+    omega_guess = 0.1
 
     print 'Now calculate MLE for pair', paralog
 
@@ -1063,7 +989,7 @@ def main(args):
     test2_hky.save_to_file(path = path)
 
     test = DirGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)
-    x = np.concatenate((test_hky.x_process[:-2], np.log([1.1]), test_hky.x_process[-2:], test_hky.x_rates))
+    x = np.concatenate((test_hky.x_process[:-2], np.log([omega_guess]), test_hky.x_process[-2:], test_hky.x_rates))
     test.update_by_x(x)
     
     result = test.get_mle(display = True)
@@ -1072,7 +998,7 @@ def main(args):
     test.save_to_file(path = path)
 
     test2 = DirGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
-    x_clock = np.concatenate((test2_hky.x_process[:-2], np.log([1.1]), test2_hky.x_process[-2:], test2_hky.x_Lr))
+    x_clock = np.concatenate((test2_hky.x_process[:-2], np.log([omega_guess]), test2_hky.x_process[-2:], test2_hky.x_Lr))
     test2.update_by_x_clock(x_clock)
     result = test2.get_mle(display = True)
     test2.get_ExpectedNumGeneconv()
@@ -1080,31 +1006,31 @@ def main(args):
     
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
-    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
-    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
-    
-    main(parser.parse_args())
-
-##    paralog1 = 'YLR406C'
-##    paralog2 = 'YDL075W'
-##    paralog1 = 'YER131W'
-##    paralog2 = 'YGL189C'
-########    paralog1 = 'YNL301C'
-########    paralog2 = 'YOL120C'
-########
-########    path = './NewPackageNewRun/'
-########    paralog1 = 'ECP'
-########    paralog2 = 'EDN'
-########
-##    paralog = [paralog1, paralog2]
-##    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-##    newicktree = '../PairsAlignemt/YeastTree.newick'
-##    Force    = {5:0.0, 6:0.0}
-##    Force = None
+##    parser = argparse.ArgumentParser()
+##    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
+##    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
+##    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
 ##    
-##    test = DirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force, clock = True)
+##    main(parser.parse_args())
+
+    paralog1 = 'YLR406C'
+    paralog2 = 'YDL075W'
+    paralog1 = 'YER131W'
+    paralog2 = 'YGL189C'
+######    paralog1 = 'YNL301C'
+######    paralog2 = 'YOL120C'
+######
+######    path = './NewPackageNewRun/'
+######    paralog1 = 'ECP'
+######    paralog2 = 'EDN'
+######
+    paralog = [paralog1, paralog2]
+    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    newicktree = '../PairsAlignemt/YeastTree.newick'
+    Force    = {5:0.0, 6:0.0}
+    Force = None
+    
+    test = DirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force, clock = True)
 ####    x_clock = np.array([-0.65655139, -0.48443265, -0.93353299,  1.91457768, -2.42152556,  0.45292941,
 ####  0.98102602, -1.39706555, -0.13152144, -0.86854455,  0.   ,       0.        ,  0.,
 ####  0.        ])

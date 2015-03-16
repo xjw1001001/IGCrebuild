@@ -8,18 +8,6 @@ def get_summary(p_file, output_label = False):
         t.update_by_x_clock(res['x_clock'])
     else:
         t.update_by_x(res['x'])
-
-##    nEdge = len(t.edge_to_blen)  # number of edges
-##    l = nEdge / 2 + 1               # number of leaves
-##    k = l - 1   # number of internal nodes. The notation here is inconsistent with Alex's for trying to match my notes.
-##
-##    leaf_branch = [edge for edge in t.edge_to_blen.keys() if edge[0][0] == 'N' and str.isdigit(edge[0][1:]) and not str.isdigit(edge[1][1:])]
-##    out_group_branch = [edge for edge in leaf_branch if edge[0] == 'N0' and not str.isdigit(edge[1][1:])] [0]
-##    internal_branch = [x for x in t.edge_to_blen.keys() if not x in leaf_branch]
-##    assert(len(internal_branch) == k-1)  # check if number of internal branch is one less than number of internal nodes
-##
-##    leaf_branch.sort(key = lambda node: int(node[0][1:]))  # sort the list by the first node number in increasing order
-##    internal_branch.sort(key = lambda node: int(node[0][1:]))  # sort the list by the first node number in increasing order
     
     out = [t.nsites, res['ll']]
     out.extend(t.pi)

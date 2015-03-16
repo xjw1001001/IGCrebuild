@@ -1,5 +1,5 @@
 #!/bin/bash
-python GenerateIndvidualSummary.py --paralog1 YML026C --paralog2 YDR450W --force False --clock True --model MG94 --sump ./NewPackageNewRun/ --pairp ./NewPackageNewRun/
-python GenerateIndvidualSummary.py --paralog1 YML026C --paralog2 YDR450W --force False --clock False --model MG94 --sump ./NewPackageNewRun/ --pairp ./NewPackageNewRun/
-python GenerateIndvidualSummary.py --paralog1 YML026C --paralog2 YDR450W --force True --clock True --model MG94 --sump ./NewPackageNewRun/ --pairp ./NewPackageNewRun/
-python GenerateIndvidualSummary.py --paralog1 YML026C --paralog2 YDR450W --force True --clock False --model MG94 --sump ./NewPackageNewRun/ --pairp ./NewPackageNewRun/
+python GenerateIndvidualSummary.py --paralog1 YML026C --paralog2 YDR450W --no-force --clock --model MG94 --sump ./NewPackageNewRun/ --pairp ./NewPackageNewRun/
+python GenerateIndvidualSummary.py --paralog1 YML026C --paralog2 YDR450W --no-force --no-clock --model MG94 --sump ./NewPackageNewRun/ --pairp ./NewPackageNewRun/
+python GenerateIndvidualSummary.py --paralog1 YML026C --paralog2 YDR450W --force --clock --model MG94 --sump ./NewPackageNewRun/ --pairp ./NewPackageNewRun/
+python GenerateIndvidualSummary.py --paralog1 YML026C --paralog2 YDR450W --force --no-clock --model MG94 --sump ./NewPackageNewRun/ --pairp ./NewPackageNewRun/
