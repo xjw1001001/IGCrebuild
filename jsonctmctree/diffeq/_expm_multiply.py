@@ -1,6 +1,17 @@
-"""Compute the action of the matrix exponential.
 """
+Compute the action of the matrix exponential.
 
+This function is intended to be instrumented with various diagnostics.
+For example, we might want to know the number of matrix-vector products
+that have been computed within the calculation.
+Or we might want to add a new diagnostic function that guesses
+the number of matrix-vector products that would be performed.
+Maybe we would want to expose the calculation of the two integers
+computed by fragment 3.1 separately from the subsequent calculation.
+This separation would allow calculations that are deemed to be too
+computationally intensive to be aborted.
+
+"""
 from __future__ import division, print_function, absolute_import
 
 import numpy as np
@@ -9,6 +20,9 @@ import scipy.linalg
 import scipy.sparse.linalg
 from scipy.sparse.linalg import LinearOperator, aslinearoperator
 from scipy.linalg.lapack import get_lapack_funcs
+
+from ._onenormest import _onenormest_core
+# _onenormest_core(A, AT, t, itmax)
 
 __all__ = ['expm_multiply']
 
