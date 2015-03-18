@@ -60,6 +60,37 @@ def _ident_like(A):
         return np.eye(A.shape[0], A.shape[1], dtype=A.dtype)
 
 
+def compute_(A, B):
+    """
+    This is the first step of a two-part calculation of expm-multiply.
+
+    """
+    if len(A.shape) != 2 or A.shape[0] != A.shape[1]:
+        raise ValueError('expected A to be like a square matrix')
+    if A.shape[1] != B.shape[0]:
+        raise ValueError('the matrices A and B have incompatible shapes')
+    ident = _ident_like(A)
+    n = A.shape[0]
+    if len(B.shape) == 1:
+        n0 = 1
+    elif len(B.shape) == 2:
+        n0 = B.shape[1]
+    else:
+        raise ValueError('expected B to be like a matrix or a vector')
+    u_d = 2**-53
+    tol = u_d
+    mu = _trace(A) / float(n)
+    A = A - mu * ident
+    A_1_norm = _exact_1_norm(A)
+    if t*A_1_norm == 0:
+        m_star, s = 0, 1
+    else:
+        ell = 2
+        norm_info = LazyOperatorNormInfo(t*A, A_1_norm=t*A_1_norm, ell=ell)
+        m_star, s = _fragment_3_1(norm_info, n0, tol, ell=ell)
+    return m_star, s
+
+
 def expm_multiply(A, B, start=None, stop=None, num=None, endpoint=None):
     """
     Compute the action of the matrix exponential of A on B.
