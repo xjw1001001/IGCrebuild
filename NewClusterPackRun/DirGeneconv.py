@@ -952,6 +952,75 @@ class DirGeneconv:
             self.update_by_x_clock()
         return Clock_drv
 
+    def get_individual_summary(self, summary_path):
+        if not self.Force:
+            prefix_summary = summary_path + 'Dir_' + model + '_'
+        else:
+            prefix_summary = summary_path + 'Force_Dir_' + model + '_'
+            
+
+        if self.clock:
+            suffix_summary = '_clock_summary.txt'
+        else:
+            suffix_summary = '_nonclock_summary.txt'    
+
+        summary_file = prefix_summary + '_'.join(pair) + suffix_summary
+        res = self.get_summary(True)
+        summary = np.matrix(res[0])
+        label = res[1]
+            
+        footer = ' '.join(label)  # row labels
+        np.savetxt(open(summary_file, 'w+'), summary.T, delimiter = ' ', footer = footer)
+
+
+    def get_summary(p_file, output_label = False):
+       
+        out = [self.nsites, res['ll']]
+        out.extend(self.pi)
+        
+        if self.Model == 'HKY': # HKY model doesn't have omega parameter
+            out.extend([self.kappa])
+            label = ['length', 'll','pi_a', 'pi_c', 'pi_g', 'pi_t', 'kappa', 'tau12', 'tau21']
+            out.extend(self.tau)
+        elif self.Model == 'MG94':
+            out.extend([self.kappa, self.omega])
+            label = ['length', 'll','pi_a', 'pi_c', 'pi_g', 'pi_t', 'kappa', 'omega', 'tau12', 'tau21']
+            out.extend(self.tau)
+
+        k = len(label)  # record the length of non-blen parameters
+
+        label.extend(self.edge_list)
+
+        out.extend([self.edge_to_blen[label[j]] for j in range(k, len(label))])
+
+        if not self.ExpectedGeneconv:
+            self.get_ExpectedNumGeneconv()
+
+        if not self.ExpectedDwellTime:
+            self.get_ExpectedHetDwellTime()
+
+        label.extend([ (a, b, 'tau') for (a, b) in self.edge_list])
+        out.extend([self.ExpectedGeneconv[i] / (self.edge_to_blen[i] * self.ExpectedDwellTime[i]) if self.ExpectedDwellTime[i] != 0 else 0 for i in self.edge_list])
+
+
+        # Now add directional # of geneconv events
+        ExpectedDirectionalNumGeneconv = self._ExpectedDirectionalNumGeneconv()
+        label.extend([ (a, b, '1->2') for (a, b) in self.edge_list])
+        out.extend([ExpectedDirectionalNumGeneconv[i][0] for i in self.edge_list])
+        label.extend([ (a, b, '2->1') for (a, b) in self.edge_list])
+        out.extend([ExpectedDirectionalNumGeneconv[i][1] for i in self.edge_list])
+
+
+        for i in range(k, len(label)):
+            label[i] = '(' + ','.join(label[i]) + ')'
+
+        if output_label:
+            return out, label
+        else:
+            return out
+
+
+
 def main(args):
     paralog = [args.paralog1, args.paralog2]
     alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
@@ -981,56 +1050,60 @@ def main(args):
     test_hky.get_ExpectedNumGeneconv()
     test_hky.get_ExpectedHetDwellTime()
     test_hky.save_to_file(path = path)
+    test_hky.get_individual_summary(summary_path = path)
 
     test2_hky = DirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
     result2_hky = test2_hky.get_mle(display = False)
     test2_hky.get_ExpectedNumGeneconv()
     test2_hky.get_ExpectedHetDwellTime()
     test2_hky.save_to_file(path = path)
+    test2_hky.get_individual_summary(summary_path = path)
 
     test = DirGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)
     x = np.concatenate((test_hky.x_process[:-2], np.log([omega_guess]), test_hky.x_process[-2:], test_hky.x_rates))
     test.update_by_x(x)
     
-    result = test.get_mle(display = True)
+    result = test.get_mle(display = True, em_iterations = 1)
     test.get_ExpectedNumGeneconv()
     test.get_ExpectedHetDwellTime()
     test.save_to_file(path = path)
+    test.get_individual_summary(summary_path = path)
 
     test2 = DirGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
-    x_clock = np.concatenate((test2_hky.x_process[:-2], np.log([omega_guess]), test2_hky.x_process[-2:], test2_hky.x_Lr))
-    test2.update_by_x_clock(x_clock)
-    result = test2.get_mle(display = True)
+    #x_clock = np.concatenate((test2_hky.x_process[:-2], np.log([omega_guess]), test2_hky.x_process[-2:], test2_hky.x_Lr))
+    #test2.update_by_x_clock(x_clock)
+    result = test2.get_mle(display = True, em_iterations = 1)
     test2.get_ExpectedNumGeneconv()
     test2.save_to_file(path = path)
+    test2.get_individual_summary(summary_path = path)
     
 
 if __name__ == '__main__':
-##    parser = argparse.ArgumentParser()
-##    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
-##    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
-##    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
-##    
-##    main(parser.parse_args())
-
-    paralog1 = 'YLR406C'
-    paralog2 = 'YDL075W'
-    paralog1 = 'YER131W'
-    paralog2 = 'YGL189C'
-######    paralog1 = 'YNL301C'
-######    paralog2 = 'YOL120C'
-######
-######    path = './NewPackageNewRun/'
-######    paralog1 = 'ECP'
-######    paralog2 = 'EDN'
-######
-    paralog = [paralog1, paralog2]
-    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-    newicktree = '../PairsAlignemt/YeastTree.newick'
-    Force    = {5:0.0, 6:0.0}
-    Force = None
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
+    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
+    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
     
-    test = DirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force, clock = True)
+    main(parser.parse_args())
+
+##    paralog1 = 'YLR406C'
+##    paralog2 = 'YDL075W'
+##    paralog1 = 'YER131W'
+##    paralog2 = 'YGL189C'
+########    paralog1 = 'YNL301C'
+########    paralog2 = 'YOL120C'
+########
+########    path = './NewPackageNewRun/'
+########    paralog1 = 'ECP'
+########    paralog2 = 'EDN'
+########
+##    paralog = [paralog1, paralog2]
+##    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+##    newicktree = '../PairsAlignemt/YeastTree.newick'
+##    Force    = {5:0.0, 6:0.0}
+##    Force = None
+##    
+##    test = DirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force, clock = True)
 ####    x_clock = np.array([-0.65655139, -0.48443265, -0.93353299,  1.91457768, -2.42152556,  0.45292941,
 ####  0.98102602, -1.39706555, -0.13152144, -0.86854455,  0.   ,       0.        ,  0.,
 ####  0.        ])

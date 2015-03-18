@@ -41,7 +41,7 @@ def summary_from_ind(pairs, summary_path, model, summary_file, unfinished_list_f
     np.savetxt(open(summary_file, 'w+'), t.T, delimiter = ' ', header = header, footer = footer)
 
 if __name__ == '__main__':
-    summary_path = '/Users/xji3/FromCluster03162015/NewPackageNewRun/'
+    summary_path = '/Users/xji3/FromCluster03172015/NewPackageNewRun/'
     model = 'MG94'
     pairs = []
     with open('../All_Pairs.txt', 'r') as f:

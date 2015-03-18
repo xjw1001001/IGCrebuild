@@ -1,5 +1,29 @@
 import numpy as np
 import os
+from GenerateIndividualgBGCSummary import get_individual_summary
+
+def get_mass_summary(pairs, pair_path, model, summary_path, clock, force, directional):
+    summary_mat = []
+    unfinished_list = []
+    finished_list = []
+
+    if force:
+        prefix = pair_path + 'Force_Dir_' + model + '_'
+    else:
+        prefix = pair_path + 'Dir_' + model + '_'
+
+    if clock:
+        suffix = '_clock.p'
+    else:
+        suffix = '_nonclock.p'
+
+    label = []
+    for pair in pairs:
+        p_file = prefix + '_'.join(pair) + suffix
+        if os.path.isfile(p_file):
+            get_individual_summary(pair, pair_path, model, summary_path, clock, force, directional)
+
+
 
 def summary_from_ind(pairs, summary_path, model, summary_file, unfinished_list_file, clock, force, directional):
     summary_mat = []
@@ -47,7 +71,7 @@ def summary_from_ind(pairs, summary_path, model, summary_file, unfinished_list_f
     np.savetxt(open(summary_file, 'w+'), t.T, delimiter = ' ', header = header, footer = footer)
 
 if __name__ == '__main__':
-    summary_path = '/Users/xji3/FromCluster03162015/NewPackageNewRun/'
+    summary_path = '/Users/xji3/FromCluster03172015/NewPackageNewRun/'
     model = 'MG94'
     pairs = []
     with open('../All_Pairs.txt', 'r') as f:
@@ -75,4 +99,43 @@ if __name__ == '__main__':
     # MG94 directional nonclock model 
     summary_from_ind(pairs, summary_path, model, summary_file = summary_path + 'Dir_gBGC_MG94_nonclock_summary.txt',
                      unfinished_list_file = summary_path + 'Dir_gBGC_MG94_nonclock_unfinished.txt',
+                     clock = False, force = False, directional = True)
+
+####################################################################################################################################################
+
+    model = 'HKY'
+##    # HKY clock model
+##    get_mass_summary(pairs, summary_path, model, summary_path = summary_path,
+##                     clock = True, force = False, directional = False)
+##
+##    # MG94 nonclock model 
+##    get_mass_summary(pairs, summary_path, model, summary_path = summary_path,
+##                     clock = False, force = False, directional = False)
+##
+##    # MG94 directional clock model
+##    get_mass_summary(pairs, summary_path, model, summary_path = summary_path,
+##                     clock = True, force = False, directional = True)
+##
+##    # MG94 directional nonclock model 
+##    get_mass_summary(pairs, summary_path, model, summary_path = summary_path,
+##                     clock = False, force = False, directional = True)
+
+    # HKY clock model
+    summary_from_ind(pairs, summary_path, model, summary_file = summary_path + 'gBGC_HKY_clock_summary.txt',
+                     unfinished_list_file = summary_path + 'gBGC_HKY_clock_unfinished.txt',
+                     clock = True, force = False, directional = False)
+
+    # HKY nonclock model 
+    summary_from_ind(pairs, summary_path, model, summary_file = summary_path + 'gBGC_HKY_nonclock_summary.txt',
+                     unfinished_list_file = summary_path + 'gBGC_HKY_nonclock_unfinished.txt',
+                     clock = False, force = False, directional = False)
+
+    # HKY directional clock model
+    summary_from_ind(pairs, summary_path, model, summary_file = summary_path + 'Dir_gBGC_HKY_clock_summary.txt',
+                     unfinished_list_file = summary_path + 'Dir_gBGC_HKY_clock_unfinished.txt',
+                     clock = True, force = False, directional = True)
+
+    # HKY directional nonclock model 
+    summary_from_ind(pairs, summary_path, model, summary_file = summary_path + 'Dir_gBGC_HKY_nonclock_summary.txt',
+                     unfinished_list_file = summary_path + 'Dir_gBGC_HKY_nonclock_unfinished.txt',
                      clock = False, force = False, directional = True)

@@ -10,22 +10,35 @@ This R script is used for generating summary plot for the Geneconv project
 1, Read in tables
 ```{r}
 rm(list=ls())  # clean up workspace
-#path <- "/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/OldResults01152015/"
-path <- "/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/OldResults03112015/"
+path.HKY <- "/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/"
+path.MG94 <- "/Users/xji3/FromCluster03172015/NewPackageNewRun/"
 #path <- "G:/Geneconv/NewClusterPackRun/NewPackageNewRun/"
 #HKY_clock_summary <- "HKY_clock_summary"
-summary.list <- c( "HKY_nonclock_summary",
-                  "HKY_clock_summary",
+summary.list.MG94 <- c( 
                   "MG94_clock_summary",
                   "MG94_nonclock_summary", 
-                  "Force_HKY_clock_summary", 
                   "Force_MG94_clock_summary", 
-                  "Force_MG94_nonclock_summary",
+                  "Force_MG94_nonclock_summary"
+                  )
+summary.list.HKY <- c( "HKY_nonclock_summary",
+                  "HKY_clock_summary",
+                  "Force_HKY_clock_summary", 
                  "Force_HKY_nonclock_summary"
                   )
 #summary.list <- c("Force_MG94_clock_summary")
-for (target.summary in summary.list){
-  summary_file <- paste(path, target.summary, '.txt', sep = '')
+for (target.summary in summary.list.MG94){
+  summary_file <- paste(path.MG94, target.summary, '.txt', sep = '')
+  all <- readLines(summary_file, n = -1)
+  col.names <- strsplit(all[1], ' ')[[1]][-1]
+  row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+  summary_mat <- as.matrix(read.table(summary_file, 
+                                        row.names = row.names, 
+                                        col.names = col.names))
+  assign(target.summary, summary_mat)
+}
+
+for (target.summary in summary.list.HKY){
+  summary_file <- paste(path.HKY, target.summary, '.txt', sep = '')
   all <- readLines(summary_file, n = -1)
   col.names <- strsplit(all[1], ' ')[[1]][-1]
   row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
@@ -36,9 +49,14 @@ for (target.summary in summary.list){
 }
 
 # read in directional model summary
-path.dir <- "/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/"
-for (target.summary in summary.list){
-  summary_file <- paste(path.dir, "Dir_" , target.summary, '.txt', sep = '')
+summary.list.Dir <- c( 
+                  "MG94_clock_summary",
+                  "MG94_nonclock_summary",
+                  "HKY_nonclock_summary",
+                  "HKY_clock_summary"
+                  )
+for (target.summary in summary.list.Dir){
+  summary_file <- paste(path.MG94, "Dir_" , target.summary, '.txt', sep = '')
   all <- readLines(summary_file, n = -1)
   col.names <- strsplit(all[1], ' ')[[1]][-1]
   row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
@@ -47,7 +65,47 @@ for (target.summary in summary.list){
                                         col.names = col.names))
   assign(paste("Dir_", target.summary, sep = ''), summary_mat)
   write.table(gsub("_", ".", paste("Dir_", target.summary, sep = '')), 
-              paste(path.dir, "Dir_", target.summary, sep = ''))
+              paste(path.MG94, "Dir_", target.summary, sep = ''))
+}
+
+# read in gBGC model summary
+summary.list.gBGC <- c( 
+                  "MG94_clock_summary",
+                  "MG94_nonclock_summary",
+                  "HKY_nonclock_summary",
+                  "HKY_clock_summary"
+                  )
+for (target.summary in summary.list.gBGC){
+  summary_file <- paste(path.MG94, "gBGC_" , target.summary, '.txt', sep = '')
+  all <- readLines(summary_file, n = -1)
+  col.names <- strsplit(all[1], ' ')[[1]][-1]
+  row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+  summary_mat <- as.matrix(read.table(summary_file, 
+                                        row.names = row.names, 
+                                        col.names = col.names))
+  assign(paste("gBGC_", target.summary, sep = ''), summary_mat)
+  write.table(gsub("_", ".", paste("gBGC_", target.summary, sep = '')), 
+              paste(path.MG94, "gBGC_", target.summary, sep = ''))
+}
+
+# read in Dir gBGC model summary
+summary.list.gBGC <- c( 
+                  "MG94_clock_summary",
+                  "MG94_nonclock_summary",
+                  "HKY_nonclock_summary",
+                  "HKY_clock_summary"
+                  )
+for (target.summary in summary.list.gBGC){
+  summary_file <- paste(path.MG94, "Dir_gBGC_" , target.summary, '.txt', sep = '')
+  all <- readLines(summary_file, n = -1)
+  col.names <- strsplit(all[1], ' ')[[1]][-1]
+  row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+  summary_mat <- as.matrix(read.table(summary_file, 
+                                        row.names = row.names, 
+                                        col.names = col.names))
+  assign(paste("Dir_gBGC_", target.summary, sep = ''), summary_mat)
+  write.table(gsub("_", ".", paste("Dir_gBGC_", target.summary, sep = '')), 
+              paste(path.MG94, "Dir_gBGC_", target.summary, sep = ''))
 }
 
 ```
@@ -65,10 +123,10 @@ HKY.nonclock.filtered <- HKY_nonclock_summary[, HKY.pair.names]
 HKY.Force.clock.filtered <- Force_HKY_clock_summary[, HKY.pair.names]
 HKY.Force.nonclock.filtered <- Force_HKY_nonclock_summary[, HKY.pair.names]
 
-write.table(HKY.clock.filtered, paste( path, "HKY_clock_filtered", sep = ""))
-write.table(HKY.nonclock.filtered, paste( path, "HKY_nonclock_filtered", sep = ""))
-write.table(HKY.Force.clock.filtered, paste( path, "HKY_Force_clock_filtered", sep = ""))
-write.table(HKY.Force.nonclock.filtered, paste( path, "HKY_Force_nonclock_filtered", sep = ""))
+write.table(HKY.clock.filtered, paste( path.HKY, "HKY_clock_filtered", sep = ""))
+write.table(HKY.nonclock.filtered, paste( path.HKY, "HKY_nonclock_filtered", sep = ""))
+write.table(HKY.Force.clock.filtered, paste( path.HKY, "HKY_Force_clock_filtered", sep = ""))
+write.table(HKY.Force.nonclock.filtered, paste( path.HKY, "HKY_Force_nonclock_filtered", sep = ""))
 
 
 
@@ -82,10 +140,10 @@ MG94.nonclock.filtered <- MG94_nonclock_summary[, MG94.pair.names]
 MG94.Force.clock.filtered <- Force_MG94_clock_summary[, MG94.pair.names]
 MG94.Force.nonclock.filtered <- Force_MG94_nonclock_summary[, MG94.pair.names]
 
-write.table(MG94.clock.filtered, paste( path, "MG94_clock_filtered", sep = ""))
-write.table(MG94.nonclock.filtered, paste( path, "MG94_nonclock_filtered", sep = ""))
-write.table(MG94.Force.clock.filtered, paste( path, "MG94_Force_clock_filtered", sep = ""))
-write.table(MG94.Force.nonclock.filtered, paste( path, "MG94_Force_nonclock_filtered", sep = ""))
+write.table(MG94.clock.filtered, paste( path.MG94, "MG94_clock_filtered", sep = ""))
+write.table(MG94.nonclock.filtered, paste( path.MG94, "MG94_nonclock_filtered", sep = ""))
+write.table(MG94.Force.clock.filtered, paste( path.MG94, "MG94_Force_clock_filtered", sep = ""))
+write.table(MG94.Force.nonclock.filtered, paste( path.MG94, "MG94_Force_nonclock_filtered", sep = ""))
 ```
 
 

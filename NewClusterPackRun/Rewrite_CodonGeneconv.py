@@ -1015,6 +1015,70 @@ class ReCodonGeneconv:
             self.update_by_x_clock()
         return Clock_drv
 
+    def get_summary(self, output_label = False):
+        out = [self.nsites, res['ll']]
+        out.extend(self.pi)
+        if self.Model == 'HKY': # HKY model doesn't have omega parameter
+            out.extend([self.kappa, self.tau])
+            label = ['length', 'll','pi_a', 'pi_c', 'pi_g', 'pi_t', 'kappa', 'tau']
+        elif self.Model == 'MG94':
+            out.extend([self.kappa, self.omega, self.tau])
+            label = ['length', 'll','pi_a', 'pi_c', 'pi_g', 'pi_t', 'kappa', 'omega', 'tau']
+
+        k = len(label)  # record the length of non-blen parameters
+
+        label.extend(self.edge_list)
+
+        out.extend([self.edge_to_blen[label[j]] for j in range(k, len(label))])
+
+        if not self.ExpectedGeneconv:
+            self.get_ExpectedNumGeneconv()
+
+        if not self.ExpectedDwellTime:
+            self.get_ExpectedHetDwellTime()
+
+        label.extend([ (a, b, 'tau') for (a, b) in self.edge_list])
+        out.extend([self.ExpectedGeneconv[i] / (self.edge_to_blen[i] * self.ExpectedDwellTime[i]) if self.ExpectedDwellTime[i] != 0 else 0 for i in self.edge_list])
+
+
+        # Now add directional # of geneconv events
+        ExpectedDirectionalNumGeneconv = self._ExpectedDirectionalNumGeneconv()
+        label.extend([ (a, b, '1->2') for (a, b) in self.edge_list])
+        out.extend([ExpectedDirectionalNumGeneconv[i][0] for i in self.edge_list])
+        label.extend([ (a, b, '2->1') for (a, b) in self.edge_list])
+        out.extend([ExpectedDirectionalNumGeneconv[i][1] for i in self.edge_list])
+
+
+        for i in range(k, len(label)):
+            label[i] = '(' + ','.join(label[i]) + ')'
+
+        if output_label:
+            return out, label
+        else:
+            return out        
+
+    def get_individual_summary(self, summary_path):
+        if not self.Force:
+            prefix_summary = summary_path + model + '_'
+        else:
+            prefix_summary = summary_path + 'Force_' + model + '_'
+            
+
+        if self.clock:
+            suffix_summary = '_clock_summary.txt'
+        else:
+            suffix_summary = '_nonclock_summary.txt'    
+
+        summary_file = prefix_summary + '_'.join(self.paralog) + suffix_summary
+        res = self.get_summary(True)
+        summary = np.matrix(res[0])
+        label = res[1]
+            
+        footer = ' '.join(label)  # row labels
+        np.savetxt(open(summary_file, 'w+'), summary.T, delimiter = ' ', footer = footer)
+
+
+
 def main(args):
     paralog = [args.paralog1, args.paralog2]
     alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
@@ -1039,12 +1103,14 @@ def main(args):
     test_hky.get_ExpectedNumGeneconv()
     test_hky.get_ExpectedHetDwellTime()
     test_hky.save_to_file(path = path)
+    test_hky.get_individual_summary(summary_path = path)
 
     test2_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
     result2_hky = test2_hky.get_mle(display = False)
     test2_hky.get_ExpectedNumGeneconv()
     test2_hky.get_ExpectedHetDwellTime()
     test2_hky.save_to_file(path = path)
+    test2_hky.get_individual_summary(summary_path = path)
 
 
     test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)
@@ -1055,6 +1121,7 @@ def main(args):
     test.get_ExpectedNumGeneconv()
     test.get_ExpectedHetDwellTime()
     test.save_to_file(path = path)
+    test.get_individual_summary(summary_path = path)
 
     test2 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
     x_clock = np.concatenate((test2_hky.x_process[:-1], np.log([omega_guess]), test2_hky.x_process[-1:], test2_hky.x_Lr))
@@ -1062,46 +1129,47 @@ def main(args):
     result = test2.get_mle(display = True, em_iterations = 1)
     test2.get_ExpectedNumGeneconv()
     test2.save_to_file(path = path)
+    test2.get_individual_summary(summary_path = path)
     
 
 if __name__ == '__main__':
-##    parser = argparse.ArgumentParser()
-##    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
-##    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
-##    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
-##    
-##    main(parser.parse_args())
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
+    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
+    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
+    
+    main(parser.parse_args())
 
-    paralog1 = 'YNL069C'
-    paralog2 = 'YIL133C'
-    #paralog1 = 'YML026C'
-    #paralog2 = 'YDR450W'
-##    path = './NewPackageNewRun/'
-####    paralog1 = 'ECP'
-####    paralog2 = 'EDN'
-####
-##    Force    = {5:0.0}
-####
-    paralog = [paralog1, paralog2]
-    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-    #alignment_file = '../data/cleaned_input_data.fasta'
-    #alignment_file = '../data/cleanedfasta.fasta'
-    newicktree = '../PairsAlignemt/YeastTree.newick'
-    #newicktree = '../data/input_tree.newick'
-
-    x = np.array([-0.72980621, -0.56994663, -0.96216856,  1.73940961, -1.71054117,  0.54387332,
-                  -1.33866266, -3.47424374, -1.68831105, -1.80543811, -3.62520339, -2.69364618,
-                  -4.41935536, -2.61416486, -3.63272477, -2.78779654, -3.17653234, -3.95894103])
-
-    x_clock = np.array([-0.69711204, -0.49848498, -1.33603066,  1.861808,   -2.21507185,  5.23430255,
-                        -5.82838102, -0.07656569, -1.56484193, -0.18590612, -0.16381505, -0.41778555,
-                        -0.18178853])
-
-    test3 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = True)
-    test3.update_by_x(x)
-    #test3.update_by_x_clock(x_clock)
-    #print test3._loglikelihood2()
-    #test3.get_mle(display = True, em_iterations = 0)
+##    paralog1 = 'YNL069C'
+##    paralog2 = 'YIL133C'
+##    #paralog1 = 'YML026C'
+##    #paralog2 = 'YDR450W'
+####    path = './NewPackageNewRun/'
+######    paralog1 = 'ECP'
+######    paralog2 = 'EDN'
+######
+####    Force    = {5:0.0}
+######
+##    paralog = [paralog1, paralog2]
+##    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+##    #alignment_file = '../data/cleaned_input_data.fasta'
+##    #alignment_file = '../data/cleanedfasta.fasta'
+##    newicktree = '../PairsAlignemt/YeastTree.newick'
+##    #newicktree = '../data/input_tree.newick'
+##
+##    x = np.array([-0.72980621, -0.56994663, -0.96216856,  1.73940961, -1.71054117,  0.54387332,
+##                  -1.33866266, -3.47424374, -1.68831105, -1.80543811, -3.62520339, -2.69364618,
+##                  -4.41935536, -2.61416486, -3.63272477, -2.78779654, -3.17653234, -3.95894103])
+##
+##    x_clock = np.array([-0.69711204, -0.49848498, -1.33603066,  1.861808,   -2.21507185,  5.23430255,
+##                        -5.82838102, -0.07656569, -1.56484193, -0.18590612, -0.16381505, -0.41778555,
+##                        -0.18178853])
+##
+##    test3 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = True)
+##    test3.update_by_x(x)
+##    #test3.update_by_x_clock(x_clock)
+##    #print test3._loglikelihood2()
+##    #test3.get_mle(display = True, em_iterations = 0)
 ####    test3.save_to_file(path = path)
 ##    
 ##    test4 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
