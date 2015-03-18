@@ -8,6 +8,7 @@ import numpy as np
 import scipy.linalg
 import scipy.sparse.linalg
 from scipy.sparse.linalg import LinearOperator, aslinearoperator
+from scipy.linalg.lapack import get_lapack_funcs
 
 __all__ = ['expm_multiply']
 
@@ -175,16 +176,23 @@ def _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol=None, balance=False):
     if tol is None:
         u_d = 2 ** -53
         tol = u_d
+
+    # Get the lapack function for computing matrix norms.
+    lange, = get_lapack_funcs(('lange',), (B,))
+
     F = B
     eta = np.exp(t*mu / float(s))
     for i in range(s):
-        c1 = _exact_inf_norm(B)
+        #c1 = _exact_inf_norm(B)
+        c1 = lange('i', B)
         for j in range(m_star):
             coeff = t / float(s*(j+1))
             B = coeff * A.dot(B)
-            c2 = _exact_inf_norm(B)
+            #c2 = _exact_inf_norm(B)
+            c2 = lange('i', B)
             F = F + B
-            if c1 + c2 <= tol * _exact_inf_norm(F):
+            #if c1 + c2 <= tol * _exact_inf_norm(F):
+            if c1 + c2 <= tol * lange('i', F):
                 break
             c1 = c2
         F = eta * F

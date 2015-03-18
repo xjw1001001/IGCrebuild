@@ -15,6 +15,9 @@ import scipy.linalg
 import scipy.sparse.linalg
 from scipy.sparse import coo_matrix
 
+from .diffeq import expm_multiply
+
+
 __all__ = [
         'PadeExpm', 'EigenExpm', 'ActionExpm',
         'ExplicitExpmFrechet',
@@ -148,7 +151,7 @@ class ActionExpm(object):
         if self.debug:
             (A.dot(np.identity(n))).tofile('A.txt')
             B.tofile('B.txt')
-        return scipy.sparse.linalg.expm_multiply(A, B)
+        return expm_multiply(A, B)
 
     def expm_rmul(self, rate_scaling_factor, A):
         """
@@ -218,7 +221,7 @@ class ImplicitExpmFrechetBase(object):
 
         """
         AA = np.vstack((A, A))
-        BB = scipy.sparse.linalg.expm_multiply(self.F * rate_scaling_factor, AA)
+        BB = expm_multiply(self.F * rate_scaling_factor, AA)
         PA = BB[self.nstates:]
         KA = BB[:self.nstates] - PA
         return PA, KA
