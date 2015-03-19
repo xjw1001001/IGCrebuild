@@ -11,6 +11,10 @@ computed by fragment 3.1 separately from the subsequent calculation.
 This separation would allow calculations that are deemed to be too
 computationally intensive to be aborted.
 
+TODO: Re-use more intermediate calculations when computing
+multiple expm(t*A).dot(B) for multiple irregularly spaced
+values of t.
+
 """
 from __future__ import division, print_function, absolute_import
 
@@ -18,6 +22,7 @@ import numpy as np
 
 import scipy.linalg
 import scipy.sparse.linalg
+from scipy.sparse import isspmatrix
 from scipy.sparse.linalg import LinearOperator, aslinearoperator
 from scipy.linalg.lapack import get_lapack_funcs
 
@@ -60,35 +65,116 @@ def _ident_like(A):
         return np.eye(A.shape[0], A.shape[1], dtype=A.dtype)
 
 
-def compute_(A, B):
+class ExpmSystem(object):
+    """
+    Compute expm_multiply(A, B) with more informative intermediate steps.
+
+    For now do not optimize for multiple scaling factors of A.
+
+    """
+    def __init__(self, A, B):
+        if len(A.shape) != 2 or A.shape[0] != A.shape[1]:
+            raise ValueError('expected A to be like a square matrix')
+
+        # Precompute the mean of the trace of A.
+        self.mu = _trace(A) / float(A.shape[0])
+
+        # Subtract this mean from each diagonal entry of A.
+        # Require that sparsity is preserved.
+        ident = _ident_like(A)
+        self.A_mod = A - mu * ident
+        if isspmatrix(A) != isspmatrix(self.A_mod):
+            raise RuntimeError('sparsity has not been preserved')
+
+        # Store the B matrix.
+        self.B = B
+
+        self.m = None
+        self.s = None
+
+    def compute_iteration_counts(self):
+
+        # For now do not use a separate coefficient.
+        t = 1.0
+
+        # Compute the number of columns of B.
+        if len(B.shape) == 1:
+            n0 = 1
+        elif len(B.shape) == 2:
+            n0 = B.shape[1]
+        else:
+            raise ValueError('expected B to be like a matrix or a vector')
+
+        # Compute the exact 1-norm of the modified matrix.
+        # This does not yet depend on the coefficient.
+        a1 = _exact_1_norm(self.A_mod)
+        if a1 == 0:
+            m_star, s = 0, 1
+        else:
+            ell = 2
+            norm_info = LazyOperatorNormInfo(self.A_mod, A_1_norm=a1, ell=ell)
+            m_star, s = _fragment_3_1(norm_info, B_ncols, tol, ell=ell)
+        return m_star, s
+
+
+def compute_iteration_counts(A, t, B_ncols):
     """
     This is the first step of a two-part calculation of expm-multiply.
+
+    Parameters
+    ----------
+    A : transposable linear operator
+        The operator whose exponential is of interest.
+    t : floating point or complex number
+        The coefficient of the square matrix A in the matrix exponential.
+    B_ncols : int
+        The number of columns of the rhs.
+
+    Returns
+    -------
+    best_m : int
+        Related to bounds for error control.
+    best_s : int
+        Amount of scaling.
 
     """
     if len(A.shape) != 2 or A.shape[0] != A.shape[1]:
         raise ValueError('expected A to be like a square matrix')
-    if A.shape[1] != B.shape[0]:
-        raise ValueError('the matrices A and B have incompatible shapes')
     ident = _ident_like(A)
     n = A.shape[0]
-    if len(B.shape) == 1:
-        n0 = 1
-    elif len(B.shape) == 2:
-        n0 = B.shape[1]
-    else:
-        raise ValueError('expected B to be like a matrix or a vector')
     u_d = 2**-53
     tol = u_d
     mu = _trace(A) / float(n)
+
+    # Subtract a scaled identity matrix, requiring that sparsity is preserved.
+    A_was_sparse = scipy.sparse.isspmatrix(A)
     A = A - mu * ident
+    if A_was_sparse != scipy.sparse.isspmatrix(A):
+        raise RuntimeError('sparsity has not been preserved')
+
     A_1_norm = _exact_1_norm(A)
     if t*A_1_norm == 0:
         m_star, s = 0, 1
     else:
         ell = 2
         norm_info = LazyOperatorNormInfo(t*A, A_1_norm=t*A_1_norm, ell=ell)
-        m_star, s = _fragment_3_1(norm_info, n0, tol, ell=ell)
+        m_star, s = _fragment_3_1(norm_info, B_ncols, tol, ell=ell)
     return m_star, s
+
+
+def expm_multiply_ex(A_mod, t, B, mu, m, s):
+    """
+    This is the second step of a two-part calculation of expm_multiply.
+
+    Compute expm(t * A).dot(B).
+    The mean of the trace of A is mu.
+    A_mod is A - mu * I.
+
+    """
+    blocksize = 2
+    itmax = 5
+    Y = _expm_multiply_simple_core(A, B, t, mu, m, s)
+    _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol=None, balance=False):
 
 
 def expm_multiply(A, B, start=None, stop=None, num=None, endpoint=None):
@@ -215,6 +301,10 @@ def _expm_multiply_simple(A, B, t=1.0, balance=False):
 def _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol=None, balance=False):
     """
     A helper function.
+
+    This is similar to algorithm 3.2 except with some values
+    having been pre-calculated, including mu, m_star, and s.
+
     """
     if balance:
         raise NotImplementedError
