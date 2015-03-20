@@ -739,7 +739,7 @@ class DirGeneconv:
 
         return -ll
         
-    def get_mle(self, display = True, derivative = True, em_iterations = 3):
+    def get_mle(self, display = True, derivative = True, em_iterations = 3, method = 'BFGS'):
         ll = self._loglikelihood2()
         # http://jsonctmctree.readthedocs.org/en/latest/examples/hky_paralog/yeast_geneconv_zero_tau/index.html#em-for-edge-lengths-only
         observation_reduction = None
@@ -776,13 +776,25 @@ class DirGeneconv:
             guess_x = self.x_clock
             bnds.extend([(None, None)] * (len(self.x_clock) - 2 - (len(self.edge_to_blen) / 2 + 1)))
             bnds.extend([(-10, 0.0)] * (len(self.edge_to_blen) / 2))
-        
-        if derivative:
-            result = scipy.optimize.minimize(f, guess_x, jac = True, method = 'L-BFGS-B', bounds = bnds)
-        else:
-            result = scipy.optimize.minimize(f, guess_x, jac = False, method = 'L-BFGS-B', bounds = bnds)
+
+        if method == 'BFGS':
+            if derivative:
+                result = scipy.optimize.minimize(f, guess_x, jac = True, method = 'L-BFGS-B', bounds = bnds)
+            else:
+                result = scipy.optimize.minimize(f, guess_x, jac = False, method = 'L-BFGS-B', bounds = bnds)
+        elif method == 'basin-hopping':
+            if derivative:
+                result = scipy.optimize.basinhopping(f, guess_x, minimizer_kwargs = {'method':'L-BFGS-B', 'jac':True, 'bounds':bnds}, niter = 10, callback = self.check_boundary)
+            else:
+                result = scipy.optimize.basinhopping(f, guess_x, minimizer_kwargs = {'method':'L-BFGS-B', 'jac':False, 'bounds':bnds}, niter = 10, callback = self.check_boundary)
+
         print (result)
         return result
+
+    def check_boundary(self, x, f, accepted):
+        print("at minimum %.4f accepted %d" % (f, int(accepted)))
+        return self.edge_to_blen[self.edge_list[1]] > np.exp(self.minlogblen)
+
 
     def update_x_clock_by_x(self):
         Lr = []
@@ -954,9 +966,9 @@ class DirGeneconv:
 
     def get_individual_summary(self, summary_path):
         if not self.Force:
-            prefix_summary = summary_path + 'Dir_' + model + '_'
+            prefix_summary = summary_path + 'Dir_' + self.Model + '_'
         else:
-            prefix_summary = summary_path + 'Force_Dir_' + model + '_'
+            prefix_summary = summary_path + 'Force_Dir_' + self.Model + '_'
             
 
         if self.clock:
@@ -964,7 +976,7 @@ class DirGeneconv:
         else:
             suffix_summary = '_nonclock_summary.txt'    
 
-        summary_file = prefix_summary + '_'.join(pair) + suffix_summary
+        summary_file = prefix_summary + '_'.join(self.paralog) + suffix_summary
         res = self.get_summary(True)
         summary = np.matrix(res[0])
         label = res[1]
@@ -973,9 +985,9 @@ class DirGeneconv:
         np.savetxt(open(summary_file, 'w+'), summary.T, delimiter = ' ', footer = footer)
 
 
-    def get_summary(p_file, output_label = False):
+    def get_summary(self, output_label = False):
        
-        out = [self.nsites, res['ll']]
+        out = [self.nsites, self.ll]
         out.extend(self.pi)
         
         if self.Model == 'HKY': # HKY model doesn't have omega parameter
@@ -1000,7 +1012,7 @@ class DirGeneconv:
             self.get_ExpectedHetDwellTime()
 
         label.extend([ (a, b, 'tau') for (a, b) in self.edge_list])
-        out.extend([self.ExpectedGeneconv[i] / (self.edge_to_blen[i] * self.ExpectedDwellTime[i]) if self.ExpectedDwellTime[i] != 0 else 0 for i in self.edge_list])
+        out.extend([sum(self.ExpectedGeneconv[i]) / (self.edge_to_blen[i] * self.ExpectedDwellTime[i]) if self.ExpectedDwellTime[i] != 0 else 0 for i in self.edge_list])
 
 
         # Now add directional # of geneconv events
@@ -1026,6 +1038,7 @@ def main(args):
     alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
     path = './NewPackageNewRun/'
+    summary_path = './NewPackageNewRun/'
     omega_guess = 0.1
 
     print 'Now calculate MLE for pair', paralog
@@ -1049,15 +1062,15 @@ def main(args):
     result_hky = test_hky.get_mle(display = False)
     test_hky.get_ExpectedNumGeneconv()
     test_hky.get_ExpectedHetDwellTime()
+    test_hky.get_individual_summary(summary_path = summary_path)
     test_hky.save_to_file(path = path)
-    test_hky.get_individual_summary(summary_path = path)
 
     test2_hky = DirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
     result2_hky = test2_hky.get_mle(display = False)
     test2_hky.get_ExpectedNumGeneconv()
     test2_hky.get_ExpectedHetDwellTime()
+    test2_hky.get_individual_summary(summary_path = summary_path)
     test2_hky.save_to_file(path = path)
-    test2_hky.get_individual_summary(summary_path = path)
 
     test = DirGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)
     x = np.concatenate((test_hky.x_process[:-2], np.log([omega_guess]), test_hky.x_process[-2:], test_hky.x_rates))
@@ -1066,16 +1079,16 @@ def main(args):
     result = test.get_mle(display = True, em_iterations = 1)
     test.get_ExpectedNumGeneconv()
     test.get_ExpectedHetDwellTime()
+    test.get_individual_summary(summary_path = summary_path)
     test.save_to_file(path = path)
-    test.get_individual_summary(summary_path = path)
 
     test2 = DirGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
     #x_clock = np.concatenate((test2_hky.x_process[:-2], np.log([omega_guess]), test2_hky.x_process[-2:], test2_hky.x_Lr))
     #test2.update_by_x_clock(x_clock)
     result = test2.get_mle(display = True, em_iterations = 1)
     test2.get_ExpectedNumGeneconv()
+    test2.get_individual_summary(summary_path = summary_path)
     test2.save_to_file(path = path)
-    test2.get_individual_summary(summary_path = path)
     
 
 if __name__ == '__main__':
@@ -1104,6 +1117,7 @@ if __name__ == '__main__':
 ##    Force = None
 ##    
 ##    test = DirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force, clock = True)
+##    test.get_mle(False, False, 1, 'basin-hopping')
 ####    x_clock = np.array([-0.65655139, -0.48443265, -0.93353299,  1.91457768, -2.42152556,  0.45292941,
 ####  0.98102602, -1.39706555, -0.13152144, -0.86854455,  0.   ,       0.        ,  0.,
 ####  0.        ])

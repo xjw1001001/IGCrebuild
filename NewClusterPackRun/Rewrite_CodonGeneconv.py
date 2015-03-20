@@ -548,6 +548,7 @@ class ReCodonGeneconv:
             raise Exception('Encountered some problem in the calculation of log likelihood and its derivatives')
 
         ll, edge_derivs = j_ll['log_likelihood'], j_ll['edge_derivatives']
+        self.ll = ll
 
         return ll, edge_derivs
 
@@ -573,6 +574,7 @@ class ReCodonGeneconv:
         status = j_out['status']
     
         ll = j_out['responses'][0]
+        self.ll = ll
         if edge_derivative:
             edge_derivs = j_out['responses'][1]
         else:
@@ -725,8 +727,33 @@ class ReCodonGeneconv:
                 print 'Current x array = ', self.x
 
         return -ll
+
+    def objective_wo_derivative_global(self, display, x):
+        x_transform = []
+        if self.clock:
+            x_transform.extend(x[:3])
+            x_transform.extend([-np.log(y) for y in x[3 : (len(self.x_process) + 1)]])
+            x_transform.extend(x[(len(self.x_process) + 1) :])
+            
+            self.update_by_x_clock(np.log(x_transform))
+            ll = self._loglikelihood2()[0]
+        else:
+            x_transform.extend(x[:3])
+            x_transform.extend([-np.log(y) for y in x[3 : ]])
+                               
+            self.update_by_x(np.log(x_transform))
+            ll = self._loglikelihood2()[0]
+
+        if display:
+            print 'log likelihood = ', ll
+            if self.clock:
+                print 'Current x_clock array = ', self.x_clock
+            else:
+                print 'Current x array = ', self.x
+
+        return -ll
         
-    def get_mle(self, display = True, derivative = True, em_iterations = 3):
+    def get_mle(self, display = True, derivative = True, em_iterations = 3, method = 'BFGS'):
         if em_iterations > 0:
             ll = self._loglikelihood2()
             # http://jsonctmctree.readthedocs.org/en/latest/examples/hky_paralog/yeast_geneconv_zero_tau/index.html#em-for-edge-lengths-only
@@ -769,14 +796,37 @@ class ReCodonGeneconv:
                 f = partial(self.objective_wo_derivative, display)
             guess_x = self.x_clock
             bnds.extend([(None, None)] * (len(self.x_clock) - 2 - (len(self.edge_to_blen) / 2 + 1)))
-            bnds.extend([(-10, 0.0)] * (len(self.edge_to_blen) / 2))        
-        if derivative:
-            result = scipy.optimize.minimize(f, guess_x, jac = True, method = 'L-BFGS-B', bounds = bnds)
-        else:
-            result = scipy.optimize.minimize(f, guess_x, jac = False, method = 'L-BFGS-B', bounds = bnds)
+            bnds.extend([(-10, 0.0)] * (len(self.edge_to_blen) / 2))
+        if method == 'BFGS':
+            if derivative:
+                result = scipy.optimize.minimize(f, guess_x, jac = True, method = 'L-BFGS-B', bounds = bnds)
+            else:
+                result = scipy.optimize.minimize(f, guess_x, jac = False, method = 'L-BFGS-B', bounds = bnds)
+        elif method == 'differential_evolution':
+            f = partial(self.objective_wo_derivative_global, display)
+            if self.clock:
+                bnds = [(0.0, 1.0)] * len(self.x_clock)
+            else:
+                bnds = [(0.0, 1.0)] * len(self.x)
+    
+            result = scipy.optimize.differential_evolution(f, bnds, callback = self.check_boundary_differential_evolution)
+        elif method == 'basin-hopping':
+            if derivative:
+                result = scipy.optimize.basinhopping(f, guess_x, minimizer_kwargs = {'method':'L-BFGS-B', 'jac':True, 'bounds':bnds}, niter = 10, callback = self.check_boundary)
+            else:
+                result = scipy.optimize.basinhopping(f, guess_x, minimizer_kwargs = {'method':'L-BFGS-B', 'jac':False, 'bounds':bnds}, niter = 10, callback = self.check_boundary)
+            
         print (result)
         return result
+    def check_boundary(self, x, f, accepted):
+        print("at minimum %.4f accepted %d" % (f, int(accepted)))
+        return self.edge_to_blen[self.edge_list[1]] > np.exp(self.minlogblen)
 
+    def check_boundary_differential_evolution(self, x, convergence):
+        print("at lnL %.4f convergence fraction %d" % (self.ll, convergence))
+        #return self.edge_to_blen[self.edge_list[1]] > np.exp(self.minlogblen)
+
+    
     def update_x_clock_by_x(self):
         Lr = []
         x_rates = np.exp(self.x_rates)
@@ -1016,7 +1066,7 @@ class ReCodonGeneconv:
         return Clock_drv
 
     def get_summary(self, output_label = False):
-        out = [self.nsites, res['ll']]
+        out = [self.nsites, self.ll]
         out.extend(self.pi)
         if self.Model == 'HKY': # HKY model doesn't have omega parameter
             out.extend([self.kappa, self.tau])
@@ -1059,9 +1109,9 @@ class ReCodonGeneconv:
 
     def get_individual_summary(self, summary_path):
         if not self.Force:
-            prefix_summary = summary_path + model + '_'
+            prefix_summary = summary_path + self.Model + '_'
         else:
-            prefix_summary = summary_path + 'Force_' + model + '_'
+            prefix_summary = summary_path + 'Force_' + self.Model + '_'
             
 
         if self.clock:
@@ -1084,6 +1134,7 @@ def main(args):
     alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
     path = './NewPackageNewRun/'
+    summary_path = './NewPackageNewRun/'
     omega_guess = 0.1
 
     print 'Now calculate MLE for pair', paralog
@@ -1098,38 +1149,38 @@ def main(args):
         Force = None
         Force_hky = None
 
-    test_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = False)
-    result_hky = test_hky.get_mle(display = False)
-    test_hky.get_ExpectedNumGeneconv()
-    test_hky.get_ExpectedHetDwellTime()
-    test_hky.save_to_file(path = path)
-    test_hky.get_individual_summary(summary_path = path)
-
-    test2_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
-    result2_hky = test2_hky.get_mle(display = False)
-    test2_hky.get_ExpectedNumGeneconv()
-    test2_hky.get_ExpectedHetDwellTime()
-    test2_hky.save_to_file(path = path)
-    test2_hky.get_individual_summary(summary_path = path)
-
-
-    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)
-    x = np.concatenate((test_hky.x_process[:-1], np.log([omega_guess]), test_hky.x_process[-1:], test_hky.x_rates))
-    test.update_by_x(x)
-    
-    result = test.get_mle(display = True, em_iterations = 1)
-    test.get_ExpectedNumGeneconv()
-    test.get_ExpectedHetDwellTime()
-    test.save_to_file(path = path)
-    test.get_individual_summary(summary_path = path)
+##    test_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = False)
+##    result_hky = test_hky.get_mle(display = False)
+##    test_hky.get_ExpectedNumGeneconv()
+##    test_hky.get_ExpectedHetDwellTime()
+##    test_hky.get_individual_summary(summary_path = summary_path)
+##    test_hky.save_to_file(path = path)
+##
+##    test2_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
+##    result2_hky = test2_hky.get_mle(display = False)
+##    test2_hky.get_ExpectedNumGeneconv()
+##    test2_hky.get_ExpectedHetDwellTime()
+##    test2_hky.get_individual_summary(summary_path = summary_path)
+##    test2_hky.save_to_file(path = path)
+##
+##
+##    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)
+##    x = np.concatenate((test_hky.x_process[:-1], np.log([omega_guess]), test_hky.x_process[-1:], test_hky.x_rates))
+##    test.update_by_x(x)
+##    
+##    result = test.get_mle(display = True, em_iterations = 1)
+##    test.get_ExpectedNumGeneconv()
+##    test.get_ExpectedHetDwellTime()
+##    test.get_individual_summary(summary_path = summary_path)
+##    test.save_to_file(path = path)
 
     test2 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
-    x_clock = np.concatenate((test2_hky.x_process[:-1], np.log([omega_guess]), test2_hky.x_process[-1:], test2_hky.x_Lr))
-    test2.update_by_x_clock(x_clock)
+    #x_clock = np.concatenate((test2_hky.x_process[:-1], np.log([omega_guess]), test2_hky.x_process[-1:], test2_hky.x_Lr))
+    #test2.update_by_x_clock(x_clock)
     result = test2.get_mle(display = True, em_iterations = 1)
     test2.get_ExpectedNumGeneconv()
+    test2.get_individual_summary(summary_path = summary_path)
     test2.save_to_file(path = path)
-    test2.get_individual_summary(summary_path = path)
     
 
 if __name__ == '__main__':
@@ -1142,6 +1193,8 @@ if __name__ == '__main__':
 
 ##    paralog1 = 'YNL069C'
 ##    paralog2 = 'YIL133C'
+##    paralog1 = 'YBL087C'
+##    paralog2 = 'YER117W'
 ##    #paralog1 = 'YML026C'
 ##    #paralog2 = 'YDR450W'
 ####    path = './NewPackageNewRun/'
@@ -1165,7 +1218,10 @@ if __name__ == '__main__':
 ##                        -5.82838102, -0.07656569, -1.56484193, -0.18590612, -0.16381505, -0.41778555,
 ##                        -0.18178853])
 ##
-##    test3 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = True)
+##    test3 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = True)
+##    #test3.get_mle(False, False, 1, 'differential_evolution')
+##    test3.get_mle(False, False, 1, 'basin-hopping')
+    
 ##    test3.update_by_x(x)
 ##    #test3.update_by_x_clock(x_clock)
 ##    #print test3._loglikelihood2()

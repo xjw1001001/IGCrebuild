@@ -331,7 +331,7 @@ class gBGCDirGeneconv(DirGeneconv):
 
     def get_summary(self, output_label = False):
         
-        out = [self.nsites, res['ll']]
+        out = [self.nsites, self.ll]
         out.extend(self.pi)
 
         if self.Model == 'HKY': # HKY model doesn't have omega parameter
@@ -356,10 +356,7 @@ class gBGCDirGeneconv(DirGeneconv):
             self.get_ExpectedHetDwellTime()
 
         label.extend([ (a, b, 'tau') for (a, b) in self.edge_list])
-        if directional:
-            out.extend([sum(self.ExpectedGeneconv[i]) / (self.edge_to_blen[i] * self.ExpectedDwellTime[i]) if self.ExpectedDwellTime[i] != 0 else 0 for i in self.edge_list])
-        else:
-            out.extend([self.ExpectedGeneconv[i] / (self.edge_to_blen[i] * self.ExpectedDwellTime[i]) if self.ExpectedDwellTime[i] != 0 else 0 for i in self.edge_list])
+        out.extend([sum(self.ExpectedGeneconv[i]) / (self.edge_to_blen[i] * self.ExpectedDwellTime[i]) if self.ExpectedDwellTime[i] != 0 else 0 for i in self.edge_list])
 
 
         # Now add directional # of geneconv events
@@ -381,9 +378,9 @@ class gBGCDirGeneconv(DirGeneconv):
     def get_individual_summary(self, summary_path):
 
         if self.Force:
-            prefix_summary = summary_path + 'Force_gBGC_Dir_' + model + '_'
+            prefix_summary = summary_path + 'Force_gBGC_Dir_' + self.Model + '_'
         else:
-            prefix_summary = summary_path + 'gBGC_Dir_' + model + '_'
+            prefix_summary = summary_path + 'gBGC_Dir_' + self.Model + '_'
 
 
         if self.clock:
@@ -391,7 +388,7 @@ class gBGCDirGeneconv(DirGeneconv):
         else:
             suffix_summary = '_nonclock_summary.txt'    
 
-        summary_file = prefix_summary + '_'.join(pair) + suffix_summary
+        summary_file = prefix_summary + '_'.join(self.paralog) + suffix_summary
         res = self.get_summary(True)
         summary = np.matrix(res[0])
         label = res[1]
@@ -408,6 +405,7 @@ def main(args):
     alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
     path = './NewPackageNewRun/'
+    summary_path = './NewPackageNewRun/'
     omega_guess = 0.1
 
     print 'Now calculate MLE for pair', paralog
@@ -417,13 +415,13 @@ def main(args):
 
     test_hky = gBGCDirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = False)
     result_hky = test_hky.get_mle(display = False)
-    test_hky.get_individual_summary(summary_path = path)
+    test_hky.get_individual_summary(summary_path = summary_path)
     test_hky.save_to_file(path = path)
     
 
     test2_hky = gBGCDirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
     result2_hky = test2_hky.get_mle(display = False)
-    test2_hky.get_individual_summary(summary_path = path)
+    test2_hky.get_individual_summary(summary_path = summary_path)
     test2_hky.save_to_file(path = path)
 
     test = gBGCDirGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)
@@ -431,14 +429,14 @@ def main(args):
     #test.update_by_x(x)
     
     result = test.get_mle(display = True, em_iterations = 1)
-    test.get_individual_summary(summary_path = path)
+    test.get_individual_summary(summary_path = summary_path)
     test.save_to_file(path = path)
 
     test2 = gBGCDirGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
     #x_clock = np.concatenate((test2_hky.x_process[:-3], np.log([omega_guess]), test2_hky.x_process[-3:], test2_hky.x_Lr))
     #test2.update_by_x_clock(x_clock)
     result = test2.get_mle(display = True, em_iterations = 1)
-    test2.get_individual_summary(summary_path = path)
+    test2.get_individual_summary(summary_path = summary_path)
     test2.save_to_file(path = path)
     
     

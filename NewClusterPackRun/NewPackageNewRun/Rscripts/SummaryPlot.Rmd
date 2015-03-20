@@ -11,7 +11,9 @@ This R script is used for generating summary plot for the Geneconv project
 ```{r}
 rm(list=ls())  # clean up workspace
 path.HKY <- "/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/"
-path.MG94 <- "/Users/xji3/FromCluster03172015/NewPackageNewRun/"
+path.MG94 <- "/Users/xji3/FromCluster03192015/NewPackageNewRun/"
+path.HKY <- path.MG94
+#path.MG94 = path.HKY
 #path <- "G:/Geneconv/NewClusterPackRun/NewPackageNewRun/"
 #HKY_clock_summary <- "HKY_clock_summary"
 summary.list.MG94 <- c( 
@@ -160,6 +162,15 @@ First, show the loglikelihood improvement for each model with/without tau
 (MG94.nonclock.filtered - MG94.Force.nonclock.filtered)[2,]
 # # MG94 clock
 (MG94.clock.filtered - MG94.Force.clock.filtered)[2,]
+```
+
+Then, show loglikelihood improvement for other nested models
+
+```{r}
+# HKY nonclock & clock
+(HKY.nonclock.filtered[2, ] - HKY.clock.filtered[2,])
+# MG94 nonclock & clock
+(MG94.nonclock.filtered[2, ] - MG94.clock.filtered[2,])
 ```
 
 Then, show the edge specific tau estimates (posterior expected number of geneconv events / posterior expected time in heterogeneous states of each branch)

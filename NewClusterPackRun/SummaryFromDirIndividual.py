@@ -62,14 +62,18 @@ def get_mass_summary(pairs, pair_path, model, summary_path, clock = True, force 
         if os.path.isfile(p_file):
             get_individual_summary(pair, pair_path, model, summary_path, clock, force)
 
+
 if __name__ == '__main__':
-    summary_path = '/Users/xji3/FromCluster03172015/NewPackageNewRun/'
+    summary_path = '/Users/xji3/FromCluster03192015/NewPackageNewRun/'
     model = 'MG94'
     pairs = []
-    with open('../All_Pairs.txt', 'r') as f:
+    all_pairs = '../All_Pairs.txt'
+    jeff_pairs = './Jeff_pairs_list.txt'
+    with open(jeff_pairs, 'r') as f:
         for line in f.readlines():
             pairs.append(line.replace('\n','').split('_'))
-    pairs.remove(['YLR028C', 'YMR120C'])
+    if ['YLR028C', 'YMR120C'] in pairs:
+        pairs.remove(['YLR028C', 'YMR120C'])
 
 ####################################################################################################################################################
 ##

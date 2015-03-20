@@ -41,13 +41,16 @@ def summary_from_ind(pairs, summary_path, model, summary_file, unfinished_list_f
     np.savetxt(open(summary_file, 'w+'), t.T, delimiter = ' ', header = header, footer = footer)
 
 if __name__ == '__main__':
-    summary_path = '/Users/xji3/FromCluster03172015/NewPackageNewRun/'
+    summary_path = '/Users/xji3/FromCluster03192015/NewPackageNewRun/'
     model = 'MG94'
     pairs = []
-    with open('../All_Pairs.txt', 'r') as f:
+    all_pairs = '../All_Pairs.txt'
+    jeff_pairs = './Jeff_pairs_list.txt'
+    with open(jeff_pairs, 'r') as f:
         for line in f.readlines():
             pairs.append(line.replace('\n','').split('_'))
-    pairs.remove(['YLR028C', 'YMR120C'])
+    if ['YLR028C', 'YMR120C'] in pairs:
+        pairs.remove(['YLR028C', 'YMR120C'])
 
 ####################################################################################################################################################
 
@@ -70,4 +73,24 @@ if __name__ == '__main__':
                      unfinished_list_file = summary_path + 'Force_MG94_nonclock_unfinished.txt',
                      clock = False, force = True)
                 
+####################################################################################################################################################
+    model = 'HKY'
+    # HKY clock model
+    summary_from_ind(pairs, summary_path, model, summary_file = summary_path + 'HKY_clock_summary.txt',
+                     unfinished_list_file = summary_path + 'HKY_clock_unfinished.txt',
+                     clock = True, force = False)
 
+    # HKY nonclock model 
+    summary_from_ind(pairs, summary_path, model, summary_file = summary_path + 'HKY_nonclock_summary.txt',
+                     unfinished_list_file = summary_path + 'HKY_nonclock_unfinished.txt',
+                     clock = False, force = False)
+
+    # HKY clock model (force tau = 0)
+    summary_from_ind(pairs, summary_path, model, summary_file = summary_path + 'Force_HKY_clock_summary.txt',
+                     unfinished_list_file = summary_path + 'Force_HKY_clock_unfinished.txt',
+                     clock = True, force = True)
+    # HKY nonclock model (force tau = 0)
+    summary_from_ind(pairs, summary_path, model, summary_file = summary_path + 'Force_HKY_nonclock_summary.txt',
+                     unfinished_list_file = summary_path + 'Force_HKY_nonclock_unfinished.txt',
+                     clock = False, force = True)
+                

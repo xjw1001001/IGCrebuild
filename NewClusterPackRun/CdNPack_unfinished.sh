@@ -1,25 +1,3 @@
 #!/bin/bash
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YER131W_YGL189C_clock_force_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YDR502C_YLR180W_clock_force_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YPL037C_YDR252W_clock_force_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YMR142C_YDL082W_clock_force_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YDR502C_YLR180W_nonclock_dir_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YNL301C_YOL120C_nonclock_dir_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YGL062W_YBR218C_nonclock_dir_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YLR406C_YDL075W_clock_dir_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YER131W_YGL189C_clock_dir_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YDR502C_YLR180W_clock_dir_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YML026C_YDR450W_clock_dir_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YNL301C_YOL120C_clock_dir_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YJL177W_YKL180W_clock_dir_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YBR191W_YPL079W_clock_dir_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YGL062W_YBR218C_clock_dir_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YDR502C_YLR180W_nonclock_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YLR406C_YDL075W_clock_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YER131W_YGL189C_clock_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YDR502C_YLR180W_clock_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YML026C_YDR450W_clock_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YNL301C_YOL120C_clock_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YJL177W_YKL180W_clock_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YBR191W_YPL079W_clock_gBGC_unfinished.sh
-sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YGL062W_YBR218C_clock_gBGC_unfinished.sh
+sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YIR033W_YKL020C_clock_dir_gBGC_unfinished.sh
+sbatch -o summary-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YIR033W_YKL020C_clock_gBGC_unfinished.sh

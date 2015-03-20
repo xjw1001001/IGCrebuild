@@ -120,7 +120,7 @@ if __name__ == '__main__':
     pairs_clock_dir_gBGC = []
     pairs_nonclock_gBGC = []
     pairs_clock_gBGC = []
-    summary_path = '/Users/xji3/FromCluster03162015/'
+    summary_path = '/Users/xji3/FromCluster03192015/'
     with open(summary_path + 'NewPackageNewRun/MG94_nonclock_unfinished.txt', 'r') as f:
         for line in f.readlines():
             pairs_nonclock.append(line.replace('\n','').split('_'))

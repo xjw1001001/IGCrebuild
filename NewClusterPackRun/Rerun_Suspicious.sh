@@ -1,0 +1,20 @@
+#!/bin/bash
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YBL087C_YER117W_dir_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YBR191W_YPL079W_dir_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YDR502C_YLR180W_dir_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YER074W_YIL069C_dir_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YER102W_YBL072C_dir_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YER131W_YGL189C_dir_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YGL062W_YBR218C_dir_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YML026C_YDR450W_dir_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YMR142C_YDL082W_dir_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YNL069C_YIL133C_dir_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YNL301C_YOL120C_dir_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YBL087C_YER117W_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YBR191W_YPL079W_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YDR502C_YLR180W_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YER102W_YBL072C_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YER131W_YGL189C_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YGL062W_YBR218C_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YML026C_YDR450W_MG94_nonclock_suspicious.sh
+sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YMR142C_YDL082W_MG94_nonclock_suspicious.sh

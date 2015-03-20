@@ -10,6 +10,7 @@ def main(args):
     alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
     path = './NewPackageNewRun/'
+    summary_path = './NewPackageNewRun/'
     omega_guess = 0.1    
 
     print 'Now calculate MLE for pair', paralog
@@ -29,9 +30,10 @@ def main(args):
         else:
             test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)
             
-    result = test.get_mle(display = True, em_iterations = 3)
+    result = test.get_mle(display = True, em_iterations = 2, method = 'basin-hopping')
     test.get_ExpectedNumGeneconv()
     test.get_ExpectedHetDwellTime()
+    test.get_individual_summary(summary_path = summary_path)
     test.save_to_file(path = path)
 
     
