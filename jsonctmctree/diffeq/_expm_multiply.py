@@ -98,22 +98,27 @@ class ExpmSystem(object):
         t = 1.0
 
         # Compute the number of columns of B.
-        if len(B.shape) == 1:
+        if len(self.B.shape) == 1:
             n0 = 1
-        elif len(B.shape) == 2:
-            n0 = B.shape[1]
+        elif len(self.B.shape) == 2:
+            n0 = self.B.shape[1]
         else:
             raise ValueError('expected B to be like a matrix or a vector')
 
         # Compute the exact 1-norm of the modified matrix.
         # This does not yet depend on the coefficient.
         a1 = _exact_1_norm(self.A_mod)
+
+        # Compute 
         if a1 == 0:
             m_star, s = 0, 1
         else:
             ell = 2
-            norm_info = LazyOperatorNormInfo(self.A_mod, A_1_norm=a1, ell=ell)
-            m_star, s = _fragment_3_1(norm_info, B_ncols, tol, ell=ell)
+            norm_info = LazyOperatorNormInfo(
+                    t*self.A_mod,
+                    A_1_norm=t*a1,
+                    ell=ell)
+            m_star, s = _fragment_3_1(norm_info, n0, tol, ell=ell)
         return m_star, s
 
 
@@ -174,7 +179,7 @@ def expm_multiply_ex(A_mod, t, B, mu, m, s):
     blocksize = 2
     itmax = 5
     Y = _expm_multiply_simple_core(A, B, t, mu, m, s)
-    _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol=None, balance=False):
+    #_expm_multiply_simple_core(A, B, t, mu, m_star, s, tol=None, balance=False):
 
 
 def expm_multiply(A, B, start=None, stop=None, num=None, endpoint=None):
