@@ -29,7 +29,30 @@ http://eprints.ma.man.ac.uk/1591/01/covered/MIMS_ep2010_30.pdf
 """
 from __future__ import division, print_function, absolute_import
 
+from scipy.sparse.linalg import aslinearoperator
+
+from _onenormest import onenormest
+
 _MMAX = 55
+
+def _mmax_to_pmax(mmax):
+    """
+    Compute the largest positive integer p such that p*(p-1) <= m_max + 1.
+
+    Parameters
+    ----------
+    mmax : int
+        A count related to bounds.
+
+    """
+    sqrt_mmax = np.sqrt(mmax)
+    p_low = int(np.floor(sqrt_mmax))
+    p_high = int(np.ceil(sqrt_mmax + 1))
+    pmax = max(p for p in range(p_low, p_high+1) if p*(p-1) <= mmax + 1)
+    return pmax
+
+_PMAX = _mmax_to_pmax(_MMAX)
+
 
 # This table helps to compute bounds.
 # They seem to have been difficult to calculate, involving symbolic
@@ -78,70 +101,46 @@ _THETA = {
         }
 
 
-def mmax_to_pmax(mmax):
-    """
-    Compute the largest positive integer p such that p*(p-1) <= m_max + 1.
-
-    Parameters
-    ----------
-    mmax : int
-        A count related to bounds.
-
-    """
-    sqrt_mmax = np.sqrt(mmax)
-    p_low = int(np.floor(sqrt_mmax))
-    p_high = int(np.ceil(sqrt_mmax + 1))
-    pmax = max(p for p in range(p_low, p_high+1) if p*(p-1) <= mmax + 1)
-    return pmax
+def _exact_1_norm(A):
+    # A compatibility function which should eventually disappear.
+    if scipy.sparse.isspmatrix(A):
+        return max(abs(A).sum(axis=0).flat)
+    else:
+        return np.linalg.norm(A, 1)
 
 
-def _condition_3_13(A_1_norm, t, n0, mmax, ell):
-    """
-    A helper function for the _expm_multiply_* functions.
-
-    Parameters
-    ----------
-    A_1_norm : float
-        The precomputed 1-norm of A.
-    n0 : int
-        Number of columns in the _expm_multiply_* B matrix.
-    mmax : int
-        A value related to a bound.
-    ell : int
-        The number of columns used in the 1-norm approximation.
-        This is usually taken to be small, maybe between 1 and 5.
-
-    Returns
-    -------
-    value : bool
-        Indicates whether or not the condition has been met.
-
-    Notes
-    -----
-    This is condition (3.13) in Al-Mohy and Higham (2011).
-
-    """
-
-    # This is the rhs of equation (3.12).
-    p_max = _compute_p_max(m_max)
-    a = 2 * ell * p_max * (p_max + 3)
-
-    # Evaluate the condition (3.13).
-    b = _theta[m_max] / float(n0 * m_max)
-    return A_1_norm * t <= a * b
+def onenormest_matrix_power(A, p):
+    return onenormest(aslinearoperator(A) ** p)
 
 
 class IterationStash(object):
     """
     Stash information for computing iteration counts.
 
+    Some norms of matrix powers are pre-estimated for a given
+    matrix with zero trace.
+
+    These cached norms are subsequently used to compute
+    iteration counts given a matrix scaling factor
+    and the number of columns on the right hand side
+    of the planned matrix-exponential-vector product.
+    The first iteration count is related to the maximum
+    degree of the matrix exponential Taylor expansion (although
+    it may be stopped early depending on the data).
+    The second iteration count is related to the number
+    of requested segments that the interval should be broken into.
+
     """
     def __init__(self, A):
-        self._d = {}
-        self._alpha = {}
+        # The input matrix A is expected to have had a multiple
+        # of the identity subtracted from the diagonal
+        # so that its trace is zero.
+        self._A = A
         self._mmax = _MMAX
-        self._pmax = mmax_to_pmax(self._mmax)
+        self._pmax = _PMAX
         self._A_1_norm = _exact_1_norm(A)
+        self._d = {1 : self._A_1_norm}
+        self._alpha = {}
 
         # Initialize the S matrix.
         shape = (self._pmax - 1, self._mmax)
@@ -151,11 +150,18 @@ class IterationStash(object):
                 if m in _THETA:
                     self._S[p, m] = self.alpha(p) / _THETA[m]
 
+        # Remove connections to some values that had been used
+        # to create the _S matrix.
+        # Some other values are kept.
+        self._A = None
+        self._d = None
+        self._alpha = None
+
     def d(self, p):
-        # This calculation requires estimating
-        # a root of the one-norm of a power of the A matrix.
+        # This calculation requires computing a root of an estimate
+        # of the one-norm of a power of the A matrix.
         if p not in self._d:
-            self._d[p] = foo
+            self._d[p] = onenormest_matrix_power(self.A, p) ** (1 / p)
         return self._d[p]
 
     def alpha(self, p):
@@ -163,7 +169,7 @@ class IterationStash(object):
             self._alpha[p] = max(self.d(p), self.d(p+1))
         return self._alpha[p]
 
-    def fragment_3_1(self, n0, t, ell):
+    def fragment_3_1(self, n0, t, ell=2):
         """
         Compute the order of the taylor expansion and the number of segments.
 
@@ -216,7 +222,7 @@ class IterationStash(object):
         # Transform entries of the matrix.
         abst = np.abs(t)
         row = np.arange(1, self._mmax + 1)
-        M = np.ceil((abst * M) * row).astype(int)
+        M = np.ceil((abst * M) * row)
 
         # Get the row and column of the smallest element.
         r, c = np.unravel_index(np.argmin(M), M.shape)
