@@ -15,7 +15,7 @@ import scipy.linalg
 import scipy.sparse.linalg
 from scipy.sparse import coo_matrix
 
-from .diffeq import expm_multiply
+from .pyexp import expm_multiply
 
 
 __all__ = [

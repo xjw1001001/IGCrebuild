@@ -21,7 +21,7 @@ setup(
         author='jsonctmctree authors',
         url='https://github.com/argriffing/jsonctmctree/',
         download_url='https://github.com/argriffing/jsonctmctree/',
-        packages=['jsonctmctree', 'jsonctmctree.diffeq'],
+        packages=['jsonctmctree', 'jsonctmctree.pyexp'],
         test_suite='nose.collector',
         package_data={'jsonctmctree' : ['tests/test_*.py']},
         scripts=[

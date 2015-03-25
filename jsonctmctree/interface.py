@@ -55,7 +55,7 @@ The interface is limited in that it does not support the following:
 from __future__ import division, print_function, absolute_import
 
 from . import impl_naive, impl_v2
-from .diffeq import _expm_multiply
+from .pyexp import _expm_multiply
 
 
 def diagnose_expm_multiply():
