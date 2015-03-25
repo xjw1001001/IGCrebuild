@@ -32,81 +32,9 @@ from __future__ import division, print_function, absolute_import
 from scipy.sparse.linalg import aslinearoperator
 
 from _onenormest import onenormest
+from constants import MMAX, PMAX, THETA
+from sparse_dense_compat import exact_1_norm
 
-_MMAX = 55
-
-def _mmax_to_pmax(mmax):
-    """
-    Compute the largest positive integer p such that p*(p-1) <= m_max + 1.
-
-    Parameters
-    ----------
-    mmax : int
-        A count related to bounds.
-
-    """
-    sqrt_mmax = np.sqrt(mmax)
-    p_low = int(np.floor(sqrt_mmax))
-    p_high = int(np.ceil(sqrt_mmax + 1))
-    pmax = max(p for p in range(p_low, p_high+1) if p*(p-1) <= mmax + 1)
-    return pmax
-
-_PMAX = _mmax_to_pmax(_MMAX)
-
-
-# This table helps to compute bounds.
-# They seem to have been difficult to calculate, involving symbolic
-# manipulation of equations, followed by numerical root finding.
-_THETA = {
-        # The first 30 values are from table A.3 of Computing Matrix Functions.
-        1: 2.29e-16,
-        2: 2.58e-8,
-        3: 1.39e-5,
-        4: 3.40e-4,
-        5: 2.40e-3,
-        6: 9.07e-3,
-        7: 2.38e-2,
-        8: 5.00e-2,
-        9: 8.96e-2,
-        10: 1.44e-1,
-        # 11
-        11: 2.14e-1,
-        12: 3.00e-1,
-        13: 4.00e-1,
-        14: 5.14e-1,
-        15: 6.41e-1,
-        16: 7.81e-1,
-        17: 9.31e-1,
-        18: 1.09,
-        19: 1.26,
-        20: 1.44,
-        # 21
-        21: 1.62,
-        22: 1.82,
-        23: 2.01,
-        24: 2.22,
-        25: 2.43,
-        26: 2.64,
-        27: 2.86,
-        28: 3.08,
-        29: 3.31,
-        30: 3.54,
-        # The rest are from table 3.1 of
-        # Computing the Action of the Matrix Exponential.
-        35: 4.7,
-        40: 6.0,
-        45: 7.2,
-        50: 8.5,
-        55: 9.9,
-        }
-
-
-def _exact_1_norm(A):
-    # A compatibility function which should eventually disappear.
-    if scipy.sparse.isspmatrix(A):
-        return max(abs(A).sum(axis=0).flat)
-    else:
-        return np.linalg.norm(A, 1)
 
 
 def onenormest_matrix_power(A, p):
@@ -136,9 +64,9 @@ class IterationStash(object):
         # of the identity subtracted from the diagonal
         # so that its trace is zero.
         self._A = A
-        self._mmax = _MMAX
-        self._pmax = _PMAX
-        self._A_1_norm = _exact_1_norm(A)
+        self._mmax = MMAX
+        self._pmax = PMAX
+        self._A_1_norm = exact_1_norm(A)
         self._d = {1 : self._A_1_norm}
         self._alpha = {}
 
@@ -147,8 +75,8 @@ class IterationStash(object):
         self._S = np.zeros(shape)
         for p in range(2, self._pmax+1):
             for m in range(p*(p-1)-1, self._mmax+1):
-                if m in _THETA:
-                    self._S[p, m] = self.alpha(p) / _THETA[m]
+                if m in THETA:
+                    self._S[p, m] = self.alpha(p) / THETA[m]
 
         # Remove connections to some values that had been used
         # to create the _S matrix.
@@ -196,7 +124,7 @@ class IterationStash(object):
         a = 2 * ell * self._pmax * (self._pmax + 3)
 
         # Evaluate the condition (3.13).
-        b = _THETA[self._mmax] / float(n0 * self._mmax)
+        b = THETA[self._mmax] / float(n0 * self._mmax)
         return self._A_1_norm * t <= a * b
 
     def cmstar(self, t):
