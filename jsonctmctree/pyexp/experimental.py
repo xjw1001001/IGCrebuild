@@ -36,9 +36,33 @@ from constants import MMAX, PMAX, THETA
 from sparse_dense_compat import exact_1_norm
 
 
+class foo(linearoperator):
+    def __init__(self, A, foo):
+        pass
+    def _matmul(self, foo):
+        pass
 
-def onenormest_matrix_power(A, p):
-    return onenormest(aslinearoperator(A) ** p)
+
+class RateMatrix(object):
+    """
+    This class is deliberately generally named.
+
+    The input should be a scipy sparse matrix
+    of non-negative off-diagonal rates.
+    Diagonal entries should not be provided.
+
+    """
+    def __init__(self, A):
+        self._A = A
+        self._exit_rates = A.sum(axis=1).A.flatten()
+        self._mean_exit_rate = np.mean(self._exit_rates)
+        self._centered_exit_rates = self._exit_rates - self._mean_exit_rate
+
+    def expm_multiply(self, t, B):
+        pass
+
+    def expm_adjoint_multiply(self, t, B):
+        pass
 
 
 class IterationStash(object):
@@ -60,12 +84,10 @@ class IterationStash(object):
 
     """
     def __init__(self, A):
-        # The input matrix A is expected to have had a multiple
-        # of the identity subtracted from the diagonal
-        # so that its trace is zero.
         self._A = A
         self._mmax = MMAX
         self._pmax = PMAX
+
         self._A_1_norm = exact_1_norm(A)
         self._d = {1 : self._A_1_norm}
         self._alpha = {}
@@ -89,7 +111,8 @@ class IterationStash(object):
         # This calculation requires computing a root of an estimate
         # of the one-norm of a power of the A matrix.
         if p not in self._d:
-            self._d[p] = onenormest_matrix_power(self.A, p) ** (1 / p)
+            est = onenormest(aslinearoperator(A) ** p)
+            self._d[p] = est ** (1 / p)
         return self._d[p]
 
     def alpha(self, p):
@@ -135,13 +158,17 @@ class IterationStash(object):
         in the matrix ceil(abs(t)*S)*diag(1, 2, ..., mmax), where mstar
         is the column index of the smallest element."
 
-        a b c   u        au bv cw
-        d e f *   v    = du ev fw
-        g h i       w    gu hv iw
+        Traditional linear algebra notation
+        -----------------------------------
+        [ a b c ]   [ u     ]   [ au bv cw ]
+        [ d e f ] * [   v   ] = [ du ev fw ]
+        [ g h i ]   [     w ]   [ gu hv iw ]
 
-        [ a b c ]             au bv cw
-        [ d e f ] * [u v w] = du ev fw
-        [ g h i ]             gu hv iw
+        Numpy ndarray notation
+        ----------------------
+        [ a b c ]               [ au bv cw ]
+        [ d e f ] * [ u v w ] = [ du ev fw ]
+        [ g h i ]               [ gu hv iw ]
 
         """
         # Prepare a matrix that is like S except with inf replacing 0.

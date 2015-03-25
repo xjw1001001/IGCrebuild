@@ -11,10 +11,6 @@ computed by fragment 3.1 separately from the subsequent calculation.
 This separation would allow calculations that are deemed to be too
 computationally intensive to be aborted.
 
-TODO: Re-use more intermediate calculations when computing
-multiple expm(t*A).dot(B) for multiple irregularly spaced
-values of t.
-
 """
 from __future__ import division, print_function, absolute_import
 
@@ -27,99 +23,11 @@ from scipy.sparse.linalg import LinearOperator, aslinearoperator
 from scipy.linalg.lapack import get_lapack_funcs
 
 from ._onenormest import _onenormest_core
-# _onenormest_core(A, AT, t, itmax)
+
+from sparse_dense_compat import (
+        exact_1_norm, exact_inf_norm, trace, ident_like)
 
 __all__ = ['expm_multiply']
-
-
-def _exact_inf_norm(A):
-    # A compatibility function which should eventually disappear.
-    if scipy.sparse.isspmatrix(A):
-        return max(abs(A).sum(axis=1).flat)
-    else:
-        return np.linalg.norm(A, np.inf)
-
-
-def _exact_1_norm(A):
-    # A compatibility function which should eventually disappear.
-    if scipy.sparse.isspmatrix(A):
-        return max(abs(A).sum(axis=0).flat)
-    else:
-        return np.linalg.norm(A, 1)
-
-
-def _trace(A):
-    # A compatibility function which should eventually disappear.
-    if scipy.sparse.isspmatrix(A):
-        return A.diagonal().sum()
-    else:
-        return np.trace(A)
-
-
-def _ident_like(A):
-    # A compatibility function which should eventually disappear.
-    if scipy.sparse.isspmatrix(A):
-        return scipy.sparse.construct.eye(A.shape[0], A.shape[1],
-                dtype=A.dtype, format=A.format)
-    else:
-        return np.eye(A.shape[0], A.shape[1], dtype=A.dtype)
-
-
-class ExpmSystem(object):
-    """
-    Compute expm_multiply(A, B) with more informative intermediate steps.
-
-    For now do not optimize for multiple scaling factors of A.
-
-    """
-    def __init__(self, A, B):
-        if len(A.shape) != 2 or A.shape[0] != A.shape[1]:
-            raise ValueError('expected A to be like a square matrix')
-
-        # Precompute the mean of the trace of A.
-        self.mu = _trace(A) / float(A.shape[0])
-
-        # Subtract this mean from each diagonal entry of A.
-        # Require that sparsity is preserved.
-        ident = _ident_like(A)
-        self.A_mod = A - mu * ident
-        if isspmatrix(A) != isspmatrix(self.A_mod):
-            raise RuntimeError('sparsity has not been preserved')
-
-        # Store the B matrix.
-        self.B = B
-
-        self.m = None
-        self.s = None
-
-    def compute_iteration_counts(self):
-
-        # For now do not use a separate coefficient.
-        t = 1.0
-
-        # Compute the number of columns of B.
-        if len(self.B.shape) == 1:
-            n0 = 1
-        elif len(self.B.shape) == 2:
-            n0 = self.B.shape[1]
-        else:
-            raise ValueError('expected B to be like a matrix or a vector')
-
-        # Compute the exact 1-norm of the modified matrix.
-        # This does not yet depend on the coefficient.
-        a1 = _exact_1_norm(self.A_mod)
-
-        # Compute 
-        if a1 == 0:
-            m_star, s = 0, 1
-        else:
-            ell = 2
-            norm_info = LazyOperatorNormInfo(
-                    t*self.A_mod,
-                    A_1_norm=t*a1,
-                    ell=ell)
-            m_star, s = _fragment_3_1(norm_info, n0, tol, ell=ell)
-        return m_star, s
 
 
 def compute_iteration_counts(A, t, B_ncols):
@@ -145,11 +53,11 @@ def compute_iteration_counts(A, t, B_ncols):
     """
     if len(A.shape) != 2 or A.shape[0] != A.shape[1]:
         raise ValueError('expected A to be like a square matrix')
-    ident = _ident_like(A)
+    ident = ident_like(A)
     n = A.shape[0]
     u_d = 2**-53
     tol = u_d
-    mu = _trace(A) / float(n)
+    mu = trace(A) / float(n)
 
     # Subtract a scaled identity matrix, requiring that sparsity is preserved.
     A_was_sparse = scipy.sparse.isspmatrix(A)
@@ -157,7 +65,7 @@ def compute_iteration_counts(A, t, B_ncols):
     if A_was_sparse != scipy.sparse.isspmatrix(A):
         raise RuntimeError('sparsity has not been preserved')
 
-    A_1_norm = _exact_1_norm(A)
+    A_1_norm = exact_1_norm(A)
     if t*A_1_norm == 0:
         m_star, s = 0, 1
     else:
@@ -281,7 +189,7 @@ def _expm_multiply_simple(A, B, t=1.0, balance=False):
         raise ValueError('expected A to be like a square matrix')
     if A.shape[1] != B.shape[0]:
         raise ValueError('the matrices A and B have incompatible shapes')
-    ident = _ident_like(A)
+    ident = ident_like(A)
     n = A.shape[0]
     if len(B.shape) == 1:
         n0 = 1
@@ -291,9 +199,9 @@ def _expm_multiply_simple(A, B, t=1.0, balance=False):
         raise ValueError('expected B to be like a matrix or a vector')
     u_d = 2**-53
     tol = u_d
-    mu = _trace(A) / float(n)
+    mu = trace(A) / float(n)
     A = A - mu * ident
-    A_1_norm = _exact_1_norm(A)
+    A_1_norm = exact_1_norm(A)
     if t*A_1_norm == 0:
         m_star, s = 0, 1
     else:
@@ -323,67 +231,21 @@ def _expm_multiply_simple_core(A, B, t, mu, m_star, s, tol=None, balance=False):
     F = B
     eta = np.exp(t*mu / float(s))
     for i in range(s):
-        #c1 = _exact_inf_norm(B)
+        #c1 = exact_inf_norm(B)
         c1 = lange('i', B)
         for j in range(m_star):
             coeff = t / float(s*(j+1))
             B = coeff * A.dot(B)
-            #c2 = _exact_inf_norm(B)
+            #c2 = exact_inf_norm(B)
             c2 = lange('i', B)
             F = F + B
-            #if c1 + c2 <= tol * _exact_inf_norm(F):
+            #if c1 + c2 <= tol * exact_inf_norm(F):
             if c1 + c2 <= tol * lange('i', F):
                 break
             c1 = c2
         F = eta * F
         B = F
     return F
-
-# This table helps to compute bounds.
-# They seem to have been difficult to calculate, involving symbolic
-# manipulation of equations, followed by numerical root finding.
-_theta = {
-        # The first 30 values are from table A.3 of Computing Matrix Functions.
-        1: 2.29e-16,
-        2: 2.58e-8,
-        3: 1.39e-5,
-        4: 3.40e-4,
-        5: 2.40e-3,
-        6: 9.07e-3,
-        7: 2.38e-2,
-        8: 5.00e-2,
-        9: 8.96e-2,
-        10: 1.44e-1,
-        # 11
-        11: 2.14e-1,
-        12: 3.00e-1,
-        13: 4.00e-1,
-        14: 5.14e-1,
-        15: 6.41e-1,
-        16: 7.81e-1,
-        17: 9.31e-1,
-        18: 1.09,
-        19: 1.26,
-        20: 1.44,
-        # 21
-        21: 1.62,
-        22: 1.82,
-        23: 2.01,
-        24: 2.22,
-        25: 2.43,
-        26: 2.64,
-        27: 2.86,
-        28: 3.08,
-        29: 3.31,
-        30: 3.54,
-        # The rest are from table 3.1 of
-        # Computing the Action of the Matrix Exponential.
-        35: 4.7,
-        40: 6.0,
-        45: 7.2,
-        50: 8.5,
-        55: 9.9,
-        }
 
 
 def _onenormest_matrix_power(A, p,
@@ -464,7 +326,7 @@ class LazyOperatorNormInfo:
         Compute the exact 1-norm.
         """
         if self._A_1_norm is None:
-            self._A_1_norm = _exact_1_norm(self._A)
+            self._A_1_norm = exact_1_norm(self._A)
         return self._A_1_norm
 
     def d(self, p):
@@ -618,195 +480,3 @@ def _condition_3_13(A_1_norm, n0, m_max, ell):
     # Evaluate the condition (3.13).
     b = _theta[m_max] / float(n0 * m_max)
     return A_1_norm <= a * b
-
-
-def _expm_multiply_interval(A, B, start=None, stop=None,
-        num=None, endpoint=None, balance=False, status_only=False):
-    """
-    Compute the action of the matrix exponential at multiple time points.
-
-    Parameters
-    ----------
-    A : transposable linear operator
-        The operator whose exponential is of interest.
-    B : ndarray
-        The matrix to be multiplied by the matrix exponential of A.
-    start : scalar, optional
-        The starting time point of the sequence.
-    stop : scalar, optional
-        The end time point of the sequence, unless `endpoint` is set to False.
-        In that case, the sequence consists of all but the last of ``num + 1``
-        evenly spaced time points, so that `stop` is excluded.
-        Note that the step size changes when `endpoint` is False.
-    num : int, optional
-        Number of time points to use.
-    endpoint : bool, optional
-        If True, `stop` is the last time point.  Otherwise, it is not included.
-    balance : bool
-        Indicates whether or not to apply balancing.
-    status_only : bool
-        A flag that is set to True for some debugging and testing operations.
-
-    Returns
-    -------
-    F : ndarray
-        :math:`e^{t_k A} B`
-    status : int
-        An integer status for testing and debugging.
-
-    Notes
-    -----
-    This is algorithm (5.2) in Al-Mohy and Higham (2011).
-
-    There seems to be a typo, where line 15 of the algorithm should be
-    moved to line 6.5 (between lines 6 and 7).
-
-    """
-    if balance:
-        raise NotImplementedError
-    if len(A.shape) != 2 or A.shape[0] != A.shape[1]:
-        raise ValueError('expected A to be like a square matrix')
-    if A.shape[1] != B.shape[0]:
-        raise ValueError('the matrices A and B have incompatible shapes')
-    ident = _ident_like(A)
-    n = A.shape[0]
-    if len(B.shape) == 1:
-        n0 = 1
-    elif len(B.shape) == 2:
-        n0 = B.shape[1]
-    else:
-        raise ValueError('expected B to be like a matrix or a vector')
-    u_d = 2**-53
-    tol = u_d
-    mu = _trace(A) / float(n)
-
-    # Get the linspace samples, attempting to preserve the linspace defaults.
-    linspace_kwargs = {'retstep': True}
-    if num is not None:
-        linspace_kwargs['num'] = num
-    if endpoint is not None:
-        linspace_kwargs['endpoint'] = endpoint
-    samples, step = np.linspace(start, stop, **linspace_kwargs)
-
-    # Convert the linspace output to the notation used by the publication.
-    nsamples = len(samples)
-    if nsamples < 2:
-        raise ValueError('at least two time points are required')
-    q = nsamples - 1
-    h = step
-    t_0 = samples[0]
-    t_q = samples[q]
-
-    # Define the output ndarray.
-    # Use an ndim=3 shape, such that the last two indices
-    # are the ones that may be involved in level 3 BLAS operations.
-    X_shape = (nsamples,) + B.shape
-    X = np.empty(X_shape, dtype=float)
-    t = t_q - t_0
-    A = A - mu * ident
-    A_1_norm = _exact_1_norm(A)
-    if t*A_1_norm == 0:
-        m_star, s = 0, 1
-    else:
-        ell = 2
-        norm_info = LazyOperatorNormInfo(t*A, A_1_norm=t*A_1_norm, ell=ell)
-        m_star, s = _fragment_3_1(norm_info, n0, tol, ell=ell)
-
-    # Compute the expm action up to the initial time point.
-    X[0] = _expm_multiply_simple_core(A, B, t_0, mu, m_star, s)
-
-    # Compute the expm action at the rest of the time points.
-    if q <= s:
-        if status_only:
-            return 0
-        else:
-            return _expm_multiply_interval_core_0(A, X,
-                    h, mu, m_star, s, q)
-    elif q > s and not (q % s):
-        if status_only:
-            return 1
-        else:
-            return _expm_multiply_interval_core_1(A, X,
-                    h, mu, m_star, s, q, tol)
-    elif q > s and (q % s):
-        if status_only:
-            return 2
-        else:
-            return _expm_multiply_interval_core_2(A, X,
-                    h, mu, m_star, s, q, tol)
-    else:
-        raise Exception('internal error')
-
-
-def _expm_multiply_interval_core_0(A, X, h, mu, m_star, s, q):
-    """
-    A helper function, for the case q <= s.
-    """
-    for k in range(q):
-        X[k+1] = _expm_multiply_simple_core(A, X[k], h, mu, m_star, s)
-    return X, 0
-
-
-def _expm_multiply_interval_core_1(A, X, h, mu, m_star, s, q, tol):
-    """
-    A helper function, for the case q > s and q % s == 0.
-    """
-    d = q // s
-    input_shape = X.shape[1:]
-    K_shape = (m_star + 1, ) + input_shape
-    K = np.empty(K_shape, dtype=float)
-    for i in range(s):
-        Z = X[i*d]
-        K[0] = Z
-        high_p = 0
-        for k in range(1, d+1):
-            F = K[0]
-            c1 = _exact_inf_norm(F)
-            for p in range(1, m_star+1):
-                if p > high_p:
-                    K[p] = h * A.dot(K[p-1]) / float(p)
-                coeff = float(pow(k, p))
-                F = F + coeff * K[p]
-                inf_norm_K_p_1 = _exact_inf_norm(K[p])
-                c2 = coeff * inf_norm_K_p_1
-                if c1 + c2 <= tol * _exact_inf_norm(F):
-                    break
-                c1 = c2
-            X[k + i*d] = np.exp(k*h*mu) * F
-    return X, 1
-
-
-def _expm_multiply_interval_core_2(A, X, h, mu, m_star, s, q, tol):
-    """
-    A helper function, for the case q > s and q % s > 0.
-    """
-    d = q // s
-    j = q // d
-    r = q - d * j
-    input_shape = X.shape[1:]
-    K_shape = (m_star + 1, ) + input_shape
-    K = np.empty(K_shape, dtype=float)
-    for i in range(j + 1):
-        Z = X[i*d]
-        K[0] = Z
-        high_p = 0
-        if i < j:
-            effective_d = d
-        else:
-            effective_d = r
-        for k in range(1, effective_d+1):
-            F = K[0]
-            c1 = _exact_inf_norm(F)
-            for p in range(1, m_star+1):
-                if p == high_p + 1:
-                    K[p] = h * A.dot(K[p-1]) / float(p)
-                    high_p = p
-                coeff = float(pow(k, p))
-                F = F + coeff * K[p]
-                inf_norm_K_p_1 = _exact_inf_norm(K[p])
-                c2 = coeff * inf_norm_K_p_1
-                if c1 + c2 <= tol * _exact_inf_norm(F):
-                    break
-                c1 = c2
-            X[k + i*d] = np.exp(k*h*mu) * F
-    return X, 2
