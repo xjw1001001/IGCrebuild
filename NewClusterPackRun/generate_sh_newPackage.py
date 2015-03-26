@@ -120,7 +120,7 @@ if __name__ == '__main__':
     pairs_clock_dir_gBGC = []
     pairs_nonclock_gBGC = []
     pairs_clock_gBGC = []
-    summary_path = '/Users/xji3/FromCluster03192015/'
+    summary_path = '/Users/xji3/FromCluster03212015/'
     with open(summary_path + 'NewPackageNewRun/MG94_nonclock_unfinished.txt', 'r') as f:
         for line in f.readlines():
             pairs_nonclock.append(line.replace('\n','').split('_'))
@@ -220,7 +220,7 @@ if __name__ == '__main__':
             with open('./NewRun/' + '_'.join(pair) + '_nonclock_gBGC_unfinished.sh', 'w+') as g:
                 g.write('#!/bin/bash' + '\n')
                 g.write('python Run_unfinished.py --paralog1 ' + pair[0] + ' --paralog2 ' + pair[1] + ' --no-force --gBGC' + ' --no-dir' + nonclock_suffix + save_txt + '\n')
-        for pair in pairs_clock_dir_gBGC:
+        for pair in pairs_clock_gBGC:
             save_txt = ' > ' + '_'.join(pair) + '_clock_gBGC_unfinished_PrintScreen.txt'
             f.write(sh_line + '_'.join(pair) + '_clock_gBGC_unfinished.sh' + '\n')
             with open('./NewRun/' + '_'.join(pair) + '_clock_gBGC_unfinished.sh', 'w+') as g:

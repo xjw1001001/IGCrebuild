@@ -668,6 +668,22 @@ class DirGeneconv:
         self.update_by_x(x)
         f, g = self.loglikelihood_and_gradient(display = display)
         return f, g
+    
+    def objective_and_gradient_tr_back(self, display, x):
+        if self.clock:
+            f, g = self.Clock_wrap(display = display, x_clock = np.log(x))
+            for i in range(len(g)):
+                g[i] = g[i] / abs(x[i])
+        else:
+            self.update_by_x(np.log(x))
+            f, g = self.loglikelihood_and_gradient(display = display )
+            for i in range(len(g)):
+                g[i] = g[i] / abs(x[i])
+
+        if display:
+            print 'current x array = ', x
+        
+        return f, g
 
     def Clock_wrap(self, display, x_clock):
         assert(self.clock)
@@ -738,8 +754,34 @@ class DirGeneconv:
                 print 'Current x array = ', self.x
 
         return -ll
+
+    def objective_wo_derivative_global(self, display, x):
+        x_transform = []
+        if self.clock:
+            x_transform.extend(x[:3])
+            x_transform.extend([-np.log(y) for y in x[3 : (len(self.x_process) + 1)]])
+            x_transform.extend(x[(len(self.x_process) + 1) :])
+            
+            self.update_by_x_clock(np.log(x_transform))
+            ll = self._loglikelihood2()[0]
+        else:
+            x_transform.extend(x[:3])
+            x_transform.extend([-np.log(y) for y in x[3 : ]])
+                               
+            self.update_by_x(np.log(x_transform))
+            ll = self._loglikelihood2()[0]
+
+        if display:
+            print 'log likelihood = ', ll
+            if self.clock:
+                print 'Current x_clock array = ', self.x_clock
+            else:
+                print 'Current x array = ', self.x
+
+        return -ll
         
-    def get_mle(self, display = True, derivative = True, em_iterations = 3, method = 'BFGS'):
+        
+    def get_mle(self, display = True, derivative = True, em_iterations = 3, method = 'basin-hopping'):
         ll = self._loglikelihood2()
         # http://jsonctmctree.readthedocs.org/en/latest/examples/hky_paralog/yeast_geneconv_zero_tau/index.html#em-for-edge-lengths-only
         observation_reduction = None
@@ -787,6 +829,27 @@ class DirGeneconv:
                 result = scipy.optimize.basinhopping(f, guess_x, minimizer_kwargs = {'method':'L-BFGS-B', 'jac':True, 'bounds':bnds}, niter = 10, callback = self.check_boundary)
             else:
                 result = scipy.optimize.basinhopping(f, guess_x, minimizer_kwargs = {'method':'L-BFGS-B', 'jac':False, 'bounds':bnds}, niter = 10, callback = self.check_boundary)
+
+        elif method == 'differential_evolution':
+            f = partial(self.objective_wo_derivative_global, display)
+            if self.clock:
+                bnds = [(0.0, 1.0)] * len(self.x_clock)
+            else:
+                bnds = [(0.0, 1.0)] * len(self.x)
+            result = scipy.optimize.differential_evolution(f, bnds)
+            
+        elif method == 'No_transformation':
+            f = partial(self.objective_and_gradient_tr_back, display)
+            bnds = [(0.0, 1.0)] * 3
+            if self.clock:
+                bnds.extend([(0.0, None)] * (len(self.x_process) - 2))
+                bnds.extend([(0.0, 1.0)] * (len(self.x_Lr) - 1))
+            else:
+                bnds.extend([(0.0, None)] * (len(self.x_process) - 3))
+                bnds.extend([(np.exp(self.minlogblen), None)] * len(self.x_rates))
+            result = scipy.optimize.minimize(f, np.exp(guess_x), jac = True, method = 'L-BFGS-B', bounds = bnds)
+    
+            
 
         print (result)
         return result
@@ -1092,32 +1155,32 @@ def main(args):
     
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
-    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
-    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
-    
-    main(parser.parse_args())
-
-##    paralog1 = 'YLR406C'
-##    paralog2 = 'YDL075W'
-##    paralog1 = 'YER131W'
-##    paralog2 = 'YGL189C'
-########    paralog1 = 'YNL301C'
-########    paralog2 = 'YOL120C'
-########
-########    path = './NewPackageNewRun/'
-########    paralog1 = 'ECP'
-########    paralog2 = 'EDN'
-########
-##    paralog = [paralog1, paralog2]
-##    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-##    newicktree = '../PairsAlignemt/YeastTree.newick'
-##    Force    = {5:0.0, 6:0.0}
-##    Force = None
+##    parser = argparse.ArgumentParser()
+##    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
+##    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
+##    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
 ##    
-##    test = DirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force, clock = True)
-##    test.get_mle(False, False, 1, 'basin-hopping')
+##    main(parser.parse_args())
+
+    paralog1 = 'YLR406C'
+    paralog2 = 'YDL075W'
+    paralog1 = 'YER131W'
+    paralog2 = 'YGL189C'
+######    paralog1 = 'YNL301C'
+######    paralog2 = 'YOL120C'
+######
+######    path = './NewPackageNewRun/'
+######    paralog1 = 'ECP'
+######    paralog2 = 'EDN'
+######
+    paralog = [paralog1, paralog2]
+    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    newicktree = '../PairsAlignemt/YeastTree.newick'
+    Force    = {5:0.0, 6:0.0}
+    Force = None
+    
+    test = DirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force, clock = False)
+    test.get_mle(True, False, 1, 'No_transformation')
 ####    x_clock = np.array([-0.65655139, -0.48443265, -0.93353299,  1.91457768, -2.42152556,  0.45292941,
 ####  0.98102602, -1.39706555, -0.13152144, -0.86854455,  0.   ,       0.        ,  0.,
 ####  0.        ])

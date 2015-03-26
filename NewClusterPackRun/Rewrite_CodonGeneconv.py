@@ -753,7 +753,7 @@ class ReCodonGeneconv:
 
         return -ll
         
-    def get_mle(self, display = True, derivative = True, em_iterations = 3, method = 'BFGS'):
+    def get_mle(self, display = True, derivative = True, em_iterations = 3, method = 'basin-hopping'):
         if em_iterations > 0:
             ll = self._loglikelihood2()
             # http://jsonctmctree.readthedocs.org/en/latest/examples/hky_paralog/yeast_geneconv_zero_tau/index.html#em-for-edge-lengths-only
@@ -1149,30 +1149,30 @@ def main(args):
         Force = None
         Force_hky = None
 
-##    test_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = False)
-##    result_hky = test_hky.get_mle(display = False)
-##    test_hky.get_ExpectedNumGeneconv()
-##    test_hky.get_ExpectedHetDwellTime()
-##    test_hky.get_individual_summary(summary_path = summary_path)
-##    test_hky.save_to_file(path = path)
-##
-##    test2_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
-##    result2_hky = test2_hky.get_mle(display = False)
-##    test2_hky.get_ExpectedNumGeneconv()
-##    test2_hky.get_ExpectedHetDwellTime()
-##    test2_hky.get_individual_summary(summary_path = summary_path)
-##    test2_hky.save_to_file(path = path)
-##
-##
-##    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)
-##    x = np.concatenate((test_hky.x_process[:-1], np.log([omega_guess]), test_hky.x_process[-1:], test_hky.x_rates))
-##    test.update_by_x(x)
-##    
-##    result = test.get_mle(display = True, em_iterations = 1)
-##    test.get_ExpectedNumGeneconv()
-##    test.get_ExpectedHetDwellTime()
-##    test.get_individual_summary(summary_path = summary_path)
-##    test.save_to_file(path = path)
+    test_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = False)
+    result_hky = test_hky.get_mle(display = False)
+    test_hky.get_ExpectedNumGeneconv()
+    test_hky.get_ExpectedHetDwellTime()
+    test_hky.get_individual_summary(summary_path = summary_path)
+    test_hky.save_to_file(path = path)
+
+    test2_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
+    result2_hky = test2_hky.get_mle(display = False)
+    test2_hky.get_ExpectedNumGeneconv()
+    test2_hky.get_ExpectedHetDwellTime()
+    test2_hky.get_individual_summary(summary_path = summary_path)
+    test2_hky.save_to_file(path = path)
+
+
+    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)
+    x = np.concatenate((test_hky.x_process[:-1], np.log([omega_guess]), test_hky.x_process[-1:], test_hky.x_rates))
+    test.update_by_x(x)
+    
+    result = test.get_mle(display = True, em_iterations = 1)
+    test.get_ExpectedNumGeneconv()
+    test.get_ExpectedHetDwellTime()
+    test.get_individual_summary(summary_path = summary_path)
+    test.save_to_file(path = path)
 
     test2 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
     #x_clock = np.concatenate((test2_hky.x_process[:-1], np.log([omega_guess]), test2_hky.x_process[-1:], test2_hky.x_Lr))

@@ -29,8 +29,12 @@ def main(args):
             test = DirGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)
         else:
             test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)
-            
-    result = test.get_mle(display = True, em_iterations = 2, method = 'basin-hopping')
+
+    if model == 'MG94':
+        method = 'BFGS'
+    else:
+        method = 'differential_evolution'
+    result = test.get_mle(display = False, em_iterations = 1, method = method)
     test.get_ExpectedNumGeneconv()
     test.get_ExpectedHetDwellTime()
     test.get_individual_summary(summary_path = summary_path)

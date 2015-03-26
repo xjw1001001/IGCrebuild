@@ -64,12 +64,12 @@ def get_mass_summary(pairs, pair_path, model, summary_path, clock = True, force 
 
 
 if __name__ == '__main__':
-    summary_path = '/Users/xji3/FromCluster03192015/NewPackageNewRun/'
+    summary_path = '/Users/xji3/FromCluster03232015_4/NewPackageNewRun/'
     model = 'MG94'
     pairs = []
     all_pairs = '../All_Pairs.txt'
     jeff_pairs = './Jeff_pairs_list.txt'
-    with open(jeff_pairs, 'r') as f:
+    with open(all_pairs, 'r') as f:
         for line in f.readlines():
             pairs.append(line.replace('\n','').split('_'))
     if ['YLR028C', 'YMR120C'] in pairs:
