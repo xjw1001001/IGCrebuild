@@ -36,7 +36,7 @@ def _mmax_to_pmax(mmax):
     pmax = max(p for p in range(p_low, p_high+1) if p*(p-1) <= mmax + 1)
     return pmax
 
-PMAX = _mmax_to_pmax(_MMAX)
+PMAX = _mmax_to_pmax(MMAX)
 
 assert PMAX == 8
 

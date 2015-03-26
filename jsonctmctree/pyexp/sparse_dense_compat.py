@@ -6,6 +6,7 @@ from __future__ import division, print_function, absolute_import
 
 
 import numpy as np
+from scipy import sparse
 from scipy.sparse import isspmatrix
 
 __all__ = ['exact_1_norm', 'exact_inf_norm', 'trace', 'ident_like']
@@ -32,7 +33,7 @@ def trace(A):
 
 def ident_like(A):
     if isspmatrix(A):
-        return scipy.sparse.construct.eye(A.shape[0], A.shape[1],
+        return sparse.construct.eye(A.shape[0], A.shape[1],
                 dtype=A.dtype, format=A.format)
     else:
         return np.eye(A.shape[0], A.shape[1], dtype=A.dtype)

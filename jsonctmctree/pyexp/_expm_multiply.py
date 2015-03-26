@@ -22,12 +22,14 @@ from scipy.sparse import isspmatrix
 from scipy.sparse.linalg import LinearOperator, aslinearoperator
 from scipy.linalg.lapack import get_lapack_funcs
 
+from .constants import MMAX, PMAX, THETA
 from ._onenormest import _onenormest_core
-
-from sparse_dense_compat import (
+from .sparse_dense_compat import (
         exact_1_norm, exact_inf_norm, trace, ident_like)
 
 __all__ = ['expm_multiply']
+
+_theta = THETA
 
 
 def compute_iteration_counts(A, t, B_ncols):
@@ -388,7 +390,7 @@ def _compute_p_max(m_max):
     return max(p for p in range(p_low, p_high+1) if p*(p-1) <= m_max + 1)
 
 
-def _fragment_3_1(norm_info, n0, tol, m_max=55, ell=2):
+def _fragment_3_1(norm_info, n0, tol, m_max=MMAX, ell=2):
     """
     A helper function for the _expm_multiply_* functions.
 
