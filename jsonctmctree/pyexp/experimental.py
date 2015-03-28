@@ -30,17 +30,11 @@ http://eprints.ma.man.ac.uk/1591/01/covered/MIMS_ep2010_30.pdf
 from __future__ import division, print_function, absolute_import
 
 from scipy.sparse.linalg import aslinearoperator
+from scipy.sparse.linalg.interface import MatrixOperator, IdentityOperator
 
 from _onenormest import onenormest
 from constants import MMAX, PMAX, THETA
 from sparse_dense_compat import exact_1_norm
-
-
-class foo(linearoperator):
-    def __init__(self, A, foo):
-        pass
-    def _matmul(self, foo):
-        pass
 
 
 class RateMatrix(object):
