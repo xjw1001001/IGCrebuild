@@ -6,6 +6,9 @@ from __future__ import division, print_function, absolute_import
 
 import numpy as np
 
+import scipy.linalg
+from scipy.linalg import get_lapack_funcs
+
 from .experimental import IterationStash
 from .basic_ops import (
         HighLevelInterface, VanillaAdjointOperator,
@@ -164,7 +167,7 @@ def _expm_product_helper(A, mu, iteration_stash, t, B):
     # Compute some input-dependent constants.
     tol = np.ldexp(1, -53)
     n0 = B.shape[1]
-    m, s = forward_iteration_stash.fragment_3_1(n0, t)
+    m, s = iteration_stash.fragment_3_1(n0, t)
 
     # Get the lapack function for computing matrix norms.
     lange, = get_lapack_funcs(('lange',), (B,))
@@ -186,7 +189,7 @@ def _expm_product_helper(A, mu, iteration_stash, t, B):
     return F
 
 
-def Propagator(object):
+class Propagator(object):
     """
     Wraps a linear operator.
 
@@ -228,7 +231,7 @@ def Propagator(object):
                 self._A.H, self._mu, self._adjoint_iteration_stash, t, B)
 
 
-def MatrixExponential(HighLevelInterface):
+class MatrixExponential(HighLevelInterface):
     # The input is already a propagator; this just scales by a specific t.
     def __init__(self, P, t):
         # P is a propagator

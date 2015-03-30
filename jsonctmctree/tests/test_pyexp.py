@@ -6,10 +6,12 @@ import numpy as np
 from numpy.testing import assert_equal, assert_array_less, assert_allclose
 
 import scipy.sparse
+from scipy.linalg import expm
 
 import jsonctmctree
-from jsonctmctree.pyexp.ctmc_ops import RdOperator, RdcOperator, RdCOperator
 from jsonctmctree.pyexp.basic_ops import PowerOperator, ExtendedMatrixOperator
+from jsonctmctree.pyexp.ctmc_ops import (
+        RdOperator, RdcOperator, RdCOperator, Propagator, MatrixExponential)
 
 
 def get_random_rate_matrix(n):
@@ -129,3 +131,39 @@ def test_PowerOperator():
         # Test properties of the operator, its transpose, and its adjoint.
         for f, g in (L, M), (L.T, M.T), (L.H, M.T):
             assert_allclose(f.dot(B), g.dot(B))
+
+
+def _sample_Rd(n):
+    R = get_random_rate_matrix(n)
+    d = np.random.randn(n)
+    return RdOperator(R, d)
+
+
+def _sample_Rdc(n):
+    Rd = _sample_Rd(n)
+    c = np.random.randn(n)
+    return RdcOperator(Rd, c)
+
+
+def _sample_RdC(n):
+    Rd = _sample_Rd(n)
+    C = get_random_sparse_square_matrix(n)
+    return RdCOperator(Rd, C)
+
+
+def test_MatrixExponential():
+    # This is an n x n square operator.
+    np.random.seed(1234)
+    n = 4
+    mu = 0
+    for t in 0.42, 4.2, 42.0:
+        for op in _sample_Rd(n), _sample_Rdc(n), _sample_RdC(n):
+            k = op.shape[1]
+            I = np.identity(k)
+            P = Propagator(op, mu)
+            L = MatrixExponential(P, t)
+            for n0 in 2, 10:
+                B = np.random.randn(k, n0)
+                actual = L.dot(B)
+                desired = expm(op.dot(I) * t).dot(B)
+                assert_allclose(actual, desired)

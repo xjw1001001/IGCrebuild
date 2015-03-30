@@ -29,10 +29,12 @@ http://eprints.ma.man.ac.uk/1591/01/covered/MIMS_ep2010_30.pdf
 """
 from __future__ import division, print_function, absolute_import
 
+import numpy as np
+
 from ._onenormest import onenormest
 from .constants import MMAX, PMAX, THETA
 from .sparse_dense_compat import exact_1_norm
-from .basic_ops import HighLevelInterface, VanillaAdjointOperator
+from .basic_ops import PowerOperator
 
 
 class RateMatrix(object):
@@ -85,8 +87,7 @@ class IterationStash(object):
         self._alpha = {}
 
         # Initialize the S matrix.
-        shape = (self._pmax - 1, self._mmax)
-        self._S = np.zeros(shape)
+        self._S = np.zeros((self._pmax+1, self._mmax+1))
         for p in range(2, self._pmax+1):
             for m in range(p*(p-1)-1, self._mmax+1):
                 if m in THETA:
@@ -127,12 +128,13 @@ class IterationStash(object):
         elif self.condition_3_13(n0, t, ell):
             onenorm = self._A_1_norm * t
             triples = []
-            for m, theta in _theta.items():
+            for m, theta in THETA.items():
                 s = int(np.ceil(onenorm / theta))
                 triples.append((m*s, m, s))
             ms, m, s = min(triples)
         else:
-            m, s = self.cmstar(t)
+            m, value = self.cmstar(t)
+            s = max(int(value / m), 1)
         return m, s
 
     def condition_3_13(self, n0, t, ell):
@@ -165,15 +167,16 @@ class IterationStash(object):
 
         """
         # Prepare a matrix that is like S except with inf replacing 0.
-        M = np.where(self.S == 0, np.inf, self.S)
+        M = np.where(self._S == 0, np.inf, self._S)
 
         # Transform entries of the matrix.
         abst = np.abs(t)
-        row = np.arange(1, self._mmax + 1)
+        row = np.arange(self._mmax + 1)
+        row = np.where(row == 0, np.inf, row)
         M = np.ceil((abst * M) * row)
 
-        # Get the row and column of the smallest element.
+        # Get the row and value of the smallest element.
         r, c = np.unravel_index(np.argmin(M), M.shape)
         mstar = c
-        s = int(M[r, c])
-        return mstar, s
+        value = int(M[r, c])
+        return mstar, value
