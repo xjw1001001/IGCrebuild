@@ -98,7 +98,7 @@ class PowerOperator(HighLevelInterface):
         return other
     def _transpose(self):
         if self.__adj is None:
-            self.__adj = _VanillaAdjointOperator(self)
+            self.__adj = VanillaAdjointOperator(self)
         return self.__adj
     def _adjoint(self):
         return self._transpose()

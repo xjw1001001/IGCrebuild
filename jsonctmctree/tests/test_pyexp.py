@@ -9,7 +9,7 @@ import scipy.sparse
 
 import jsonctmctree
 from jsonctmctree.pyexp.ctmc_ops import RdOperator, RdcOperator, RdCOperator
-from jsonctmctree.pyexp.basic_ops import PowerOperator
+from jsonctmctree.pyexp.basic_ops import PowerOperator, ExtendedMatrixOperator
 
 
 def get_random_rate_matrix(n):
@@ -110,3 +110,22 @@ def test_RdCOperator():
 
     # Test properties of the operator, its transpose, and its adjoint.
     check_operator_equivalence(L, M)
+
+
+def test_PowerOperator():
+    # This is an n x 2 square operator.
+    np.random.seed(1234)
+    n = 4
+    C = get_random_sparse_square_matrix(n)
+    B = np.random.randn(n, 2)
+    for p in range(5):
+
+        # Define the dense numpy ndarray.
+        M = np.linalg.matrix_power(C.A, p)
+
+        # Define the linear operator.
+        L = PowerOperator(ExtendedMatrixOperator(C), p)
+
+        # Test properties of the operator, its transpose, and its adjoint.
+        for f, g in (L, M), (L.T, M.T), (L.H, M.T):
+            assert_allclose(f.dot(B), g.dot(B))
