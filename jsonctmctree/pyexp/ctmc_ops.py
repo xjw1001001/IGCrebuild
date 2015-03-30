@@ -257,5 +257,5 @@ class RdCOperator(_HighLevelInterface, _ConcreteInterface):
         M = np.empty_like(other)
         M[:n, :] = self._Rd._my_adjoint_matmat(other[:n, :])
         M[n:, :] = (self._Rd._my_adjoint_matmat(other[n:, :]) +
-                    self._C.dot(other[:n, :]))
+                    self._C.H.dot(other[:n, :]))
         return M
