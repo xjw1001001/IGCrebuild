@@ -29,12 +29,10 @@ http://eprints.ma.man.ac.uk/1591/01/covered/MIMS_ep2010_30.pdf
 """
 from __future__ import division, print_function, absolute_import
 
-from scipy.sparse.linalg import aslinearoperator
-from scipy.sparse.linalg.interface import MatrixOperator, IdentityOperator
-
-from _onenormest import onenormest
-from constants import MMAX, PMAX, THETA
-from sparse_dense_compat import exact_1_norm
+from ._onenormest import onenormest
+from .constants import MMAX, PMAX, THETA
+from .sparse_dense_compat import exact_1_norm
+from .basic_ops import HighLevelInterface, VanillaAdjointOperator
 
 
 class RateMatrix(object):
@@ -82,7 +80,7 @@ class IterationStash(object):
         self._mmax = MMAX
         self._pmax = PMAX
 
-        self._A_1_norm = exact_1_norm(A)
+        self._A_1_norm = A.one_norm()
         self._d = {1 : self._A_1_norm}
         self._alpha = {}
 
@@ -105,7 +103,8 @@ class IterationStash(object):
         # This calculation requires computing a root of an estimate
         # of the one-norm of a power of the A matrix.
         if p not in self._d:
-            est = onenormest(aslinearoperator(A) ** p)
+            op = PowerOperator(self._A, p)
+            est = onenormest(op)
             self._d[p] = est ** (1 / p)
         return self._d[p]
 

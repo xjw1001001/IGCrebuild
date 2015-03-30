@@ -9,6 +9,7 @@ import scipy.sparse
 
 import jsonctmctree
 from jsonctmctree.pyexp.ctmc_ops import RdOperator, RdcOperator, RdCOperator
+from jsonctmctree.pyexp.basic_ops import PowerOperator
 
 
 def get_random_rate_matrix(n):

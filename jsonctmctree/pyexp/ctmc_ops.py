@@ -1,184 +1,22 @@
 """
 Define some custom linear operators.
 
-Some of the operator norms of some operators can be computed efficiently.
-This should really use more advanced abstract linear operator machinery.
-
 """
 from __future__ import division, print_function, absolute_import
 
 import numpy as np
 
 from .experimental import IterationStash
+from .basic_ops import (
+        HighLevelInterface, VanillaAdjointOperator,
+        ConcreteInterface, ExtendedAdjointOperator, ExtendedMatrixOperator)
 
 
-__all__ = ['RdOperator', 'RdcOperator', 'RdCOperator']
+__all__ = ['RdOperator', 'RdcOperator', 'RdCOperator',
+           'Propagator', 'MatrixExponential']
 
 
-class _HighLevelInterface(object):
-    # This interface expects to be mixed into a class with the following members
-    # _matmat (function)
-    # _transpose (function)
-    # _adjoint (function)
-
-    @property
-    def T(self):
-        return self._transpose()
-
-    @property
-    def H(self):
-        return self._adjoint()
-
-    def dot(self, other):
-        return self._matmat(other)
-
-
-
-class _ConcreteInterface(object):
-    # This interface expects to be mixed into a class with the following members
-    # abs_sum_axis_0 (function)
-    # abs_sum_axis_1 (function)
-    # _matmat (function)
-    # _my_adjoint_matmat (function)
-    # shape (property)
-    # dtype (property)
-
-    def _init_concrete_cache(self):
-        self._one_norm = None
-        self._inf_norm = None
-        self.__adj = None
-
-    def one_norm(self):
-        if self._one_norm is None:
-            self._one_norm = np.max(self.abs_sum_axis_0())
-        return self._one_norm
-
-    def inf_norm(self):
-        if self._inf_norm is None:
-            self._inf_norm = np.max(self.abs_sum_axis_1())
-        return self._inf_norm
-
-    def _transpose(self):
-        if self.__adj is None:
-            self.__adj = _ExtendedAdjointOperator(self)
-        return self.__adj
-
-    def _adjoint(self):
-        return self._transpose()
-
-
-class _VanillaAdjointOperator(_HighLevelInterface):
-    # The forward operator is expected to meet a few extra conditions.
-    # It should be real-valued (so the adjoint is the transpose).
-    # It should also be square but not necessarily symmetric.
-    # This class is not mixed with _ConcreteInterface.
-    def __init__(self, L):
-        self._L = L
-        self.args = (L, )
-    @property
-    def shape(self):
-        return self._L.shape
-    @property
-    def dtype(self):
-        return self._L.dtype
-    def _matmat(self, other):
-        return self._L._my_adjoint_matmat(other)
-    def _adjoint(self):
-        return self._L
-    def _transpose(self):
-        return self._L
-
-
-class _ExtendedAdjointOperator(_HighLevelInterface):
-    # The forward operator is expected to meet a few extra conditions.
-    # It should be real-valued (so the adjoint is the transpose),
-    # and it should have easily computable row and column vector 1-norms.
-    # It should also be square but not necessarily symmetric.
-    # This class is not mixed with _ConcreteInterface.
-    def __init__(self, L):
-        self._L = L
-        self.args = (L, )
-    @property
-    def shape(self):
-        return self._L.shape
-    @property
-    def dtype(self):
-        return self._L.dtype
-    def _matmat(self, other):
-        return self._L._my_adjoint_matmat(other)
-    def abs_sum_axis_0(self):
-        return self._L.abs_sum_axis_1()
-    def abs_sum_axis_1(self):
-        return self._L.abs_sum_axis_0()
-    def one_norm(self):
-        return self._L.inf_norm()
-    def inf_norm(self):
-        return self._L.one_norm()
-    def _adjoint(self):
-        return self._L
-    def _transpose(self):
-        return self._L
-
-
-class PowerOperator(_HighLevelInterface):
-    def __init__(self, L, p):
-        self._L = L
-        self._p = p
-        self.__adj = None
-    def _matmat(self, other):
-        for i in range(self._p):
-            other = self._L.dot(other)
-        return other
-    def _my_adjoint_matmat(self, other):
-        for i in range(self._p):
-            other = self._L.H.dot(other)
-        return other
-    def _transpose(self):
-        if self.__adj is None:
-            self.__adj = _VanillaAdjointOperator(self)
-        return self.__adj
-    def _adjoint(self):
-        return self._transpose()
-
-
-class _ExtendedMatrixOperator(_HighLevelInterface, _ConcreteInterface):
-    # This wraps a sparse matrix and has an interface common to this module.
-    # The matrix should be square and real-valued.
-    def __init__(self, M):
-        self.dtype = M.dtype
-        self.shape = M.shape
-        self._M = M
-        self.args = (M, )
-        self._MT = None
-        self._M_abs = None
-        self._abs_sum_axis_0 = None
-        self._abs_sum_axis_1 = None
-        self._init_concrete_cache()
-
-    def abs_sum_axis_0(self):
-        if self._abs_sum_axis_0 is None:
-            if self._M_abs is None:
-                self._M_abs = np.absolute(self._M)
-            self._abs_sum_axis_0 = self._M_abs.sum(axis=0).A.ravel()
-        return self._abs_sum_axis_0
-
-    def abs_sum_axis_1(self):
-        if self._abs_sum_axis_1 is None:
-            if self._M_abs is None:
-                self._M_abs = np.absolute(self._M)
-            self._abs_sum_axis_1 = self._M_abs.sum(axis=1).A.ravel()
-        return self._abs_sum_axis_1
-
-    def _matmat(self, other):
-        return self._M.dot(other)
-
-    def _my_adjoint_matmat(self, other):
-        if self._MT is None:
-            self._MT = self._M.T
-        return self._MT.dot(other)
-
-
-class RdOperator(_HighLevelInterface, _ConcreteInterface):
+class RdOperator(HighLevelInterface, ConcreteInterface):
     """
     This is a custom linear operator.
 
@@ -223,7 +61,7 @@ class RdOperator(_HighLevelInterface, _ConcreteInterface):
         return self._RT.dot(other) + self._d[:, np.newaxis] * other
 
 
-class RdcOperator(_HighLevelInterface, _ConcreteInterface):
+class RdcOperator(HighLevelInterface, ConcreteInterface):
     # R+d  c
     #  0  R+d
     def __init__(self, Rd, c):
@@ -268,14 +106,14 @@ class RdcOperator(_HighLevelInterface, _ConcreteInterface):
         return M
 
 
-class RdCOperator(_HighLevelInterface, _ConcreteInterface):
+class RdCOperator(HighLevelInterface, ConcreteInterface):
     # R+d  C
     #  0  R+d
     def __init__(self, Rd, C):
         self.dtype = Rd.dtype
         self.shape = Rd.shape[0]*2, Rd.shape[1]*2
         self._Rd = Rd
-        self._C = _ExtendedMatrixOperator(C)
+        self._C = ExtendedMatrixOperator(C)
         self._CH = None
         self.args = Rd, C
         self._abs_sum_axis_0 = None
@@ -348,7 +186,7 @@ def _expm_product_helper(A, mu, iteration_stash, t, B):
     return F
 
 
-def _Propagator(object):
+def Propagator(object):
     """
     Wraps a linear operator.
 
@@ -371,7 +209,7 @@ def _Propagator(object):
         self._forward_iteration_stash = None
         self._adjoint_iteration_stash = None
 
-    def _parameterized_matvec(self, t, B):
+    def _parameterized_matmat(self, t, B):
         # Approximate expm(M*t).dot(B).
         # t is a scaling factor of L
         # B the input matrix of the linear function
@@ -380,7 +218,7 @@ def _Propagator(object):
         return _expm_product_helper(
                 self._A, self._mu, self._forward_iteration_stash, t, B)
 
-    def _parameterized_adjoint_matvec(self, t, B):
+    def _parameterized_adjoint_matmat(self, t, B):
         # Approximate expm(M.H*t).dot(B).
         # t is a scaling factor of L
         # B the input matrix of the adjoint linear function
@@ -390,7 +228,7 @@ def _Propagator(object):
                 self._A.H, self._mu, self._adjoint_iteration_stash, t, B)
 
 
-def MatrixExponential(_HighLevelInterface):
+def MatrixExponential(HighLevelInterface):
     # The input is already a propagator; this just scales by a specific t.
     def __init__(self, P, t):
         # P is a propagator
@@ -399,18 +237,18 @@ def MatrixExponential(_HighLevelInterface):
         self._t = t
         self.__adj = None
 
-    def _matvec(self, B):
+    def _matmat(self, B):
         # B is the input matrix of the linear function.
-        return self._P._parameterized_matvec(self._t, B)
+        return self._P._parameterized_matmat(self._t, B)
 
-    def _my_adjoint_matvec(self, B):
+    def _my_adjoint_matmat(self, B):
         # B is the input matrix of the adjoint linear function.
-        return self._P._parameterized_adjoint_matvec(self._t, B)
+        return self._P._parameterized_adjoint_matmat(self._t, B)
 
     def _transpose(self):
         # This uses a vanilla adjoint because norms are unavailable.
         if self.__adj is None:
-            self.__adj = _VanillaAdjointOperator(self)
+            self.__adj = VanillaAdjointOperator(self)
         return self.__adj
 
     def _adjoint(self):
