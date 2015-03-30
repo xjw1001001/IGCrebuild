@@ -104,18 +104,23 @@ class _ExtendedMatrixOperator(_HighLevelInterface, _ConcreteInterface):
         self._M = M
         self.args = (M, )
         self._MT = None
+        self._M_abs = None
         self._abs_sum_axis_0 = None
         self._abs_sum_axis_1 = None
         self._init_concrete_cache()
 
     def abs_sum_axis_0(self):
         if self._abs_sum_axis_0 is None:
-            self._abs_sum_axis_0 = self._M.sum(axis=0).A.ravel()
+            if self._M_abs is None:
+                self._M_abs = np.absolute(self._M)
+            self._abs_sum_axis_0 = self._M_abs.sum(axis=0).A.ravel()
         return self._abs_sum_axis_0
 
     def abs_sum_axis_1(self):
         if self._abs_sum_axis_1 is None:
-            self._abs_sum_axis_1 = self._M.sum(axis=1).A.ravel()
+            if self._M_abs is None:
+                self._M_abs = np.absolute(self._M)
+            self._abs_sum_axis_1 = self._M_abs.sum(axis=1).A.ravel()
         return self._abs_sum_axis_1
 
     def _matmat(self, other):
@@ -225,6 +230,7 @@ class RdCOperator(_HighLevelInterface, _ConcreteInterface):
         self.shape = Rd.shape[0]*2, Rd.shape[1]*2
         self._Rd = Rd
         self._C = _ExtendedMatrixOperator(C)
+        self._CH = None
         self.args = Rd, C
         self._abs_sum_axis_0 = None
         self._abs_sum_axis_1 = None
@@ -254,8 +260,10 @@ class RdCOperator(_HighLevelInterface, _ConcreteInterface):
 
     def _my_adjoint_matmat(self, other):
         n = self._C.shape[0]
+        if self._CH is None:
+            self._CH = self._C.H
         M = np.empty_like(other)
         M[:n, :] = self._Rd._my_adjoint_matmat(other[:n, :])
         M[n:, :] = (self._Rd._my_adjoint_matmat(other[n:, :]) +
-                    self._C.H.dot(other[:n, :]))
+                    self._CH.dot(other[:n, :]))
         return M

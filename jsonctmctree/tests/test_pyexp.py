@@ -35,32 +35,19 @@ def get_random_sparse_square_matrix(n):
     Returns a scipy sparse matrix.
     The matrix is square with floating-point type.
     """
-    row_ind = []
-    col_ind = []
-    shape = (n, n)
-    mask = np.random.randint(0, 2, size=shape)
-    for i in range(n):
-        for j in range(n):
-            if i != j and mask[i, j]:
-                row_ind.append(i)
-                col_ind.append(j)
-    ndata = len(row_ind)
-    data = np.exp(np.random.randn(ndata))
-    R = scipy.sparse.csr_matrix((data, (row_ind, col_ind)), shape=shape)
+    A = scipy.sparse.construct.rand(n, n, density=0.2)
+    B = scipy.sparse.construct.rand(n, n, density=0.2)
+    R = (A - B).tocsr()
     return R
 
 
 def check_operator_equivalence(L, M):
     # Check properties of the operator, its transpose, and its adjoint.
     # This is restricted to real square operators.
-    np.set_printoptions(precision=10, linewidth=1000, threshold=10000)
     n = L.shape[1]
     B = np.random.randn(n, 2)
     for f, g in (L, M), (L.T, M.T), (L.H, M.T):
         # Check the action of the operator.
-        print('fB and gB:')
-        print(f.dot(B))
-        print(g.dot(B))
         assert_allclose(f.dot(B), g.dot(B))
         # Check the 1-norm and the infinity-norm.
         assert_allclose(f.one_norm(), np.linalg.norm(g, 1))
@@ -69,6 +56,7 @@ def check_operator_equivalence(L, M):
 
 def test_RdOperator():
     # This is an n x n square operator.
+    np.random.seed(1234)
     n = 4
     R = get_random_rate_matrix(n)
     d = np.random.randn(n)
@@ -85,6 +73,7 @@ def test_RdOperator():
 
 def test_RdcOperator():
     # This is a 2n x 2n square operator.
+    np.random.seed(1234)
     n = 4
     R = get_random_rate_matrix(n)
     d = np.random.randn(n)
@@ -104,7 +93,7 @@ def test_RdcOperator():
 
 def test_RdCOperator():
     # This is a 2n x 2n square operator.
-    print('*** RdC ***')
+    np.random.seed(1234)
     n = 4
     R = get_random_rate_matrix(n)
     d = np.random.randn(n)
