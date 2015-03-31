@@ -131,6 +131,7 @@ class IterationStash(object):
             for m, theta in THETA.items():
                 s = int(np.ceil(onenorm / theta))
                 triples.append((m*s, m, s))
+            #print(triples)
             ms, m, s = min(triples)
         else:
             m, value = self.cmstar(t)

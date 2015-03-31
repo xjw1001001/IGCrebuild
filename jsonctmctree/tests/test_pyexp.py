@@ -151,7 +151,7 @@ def _sample_RdC(n):
     return RdCOperator(Rd, C)
 
 
-def test_MatrixExponential():
+def test_MatrixExponential_zero_mu():
     # This is an n x n square operator.
     np.random.seed(1234)
     n = 4
@@ -167,3 +167,27 @@ def test_MatrixExponential():
                 actual = L.dot(B)
                 desired = expm(op.dot(I) * t).dot(B)
                 assert_allclose(actual, desired)
+
+
+def test_MatrixExponential_nontrivial_mu():
+    # This is an n x n square operator.
+    np.random.seed(1234)
+    n = 4
+
+    # Sample the operator with nontrivial mu to reduce the norm.
+    R = get_random_rate_matrix(n)
+    d = np.random.randn(n)
+    mu = np.mean(d)
+    op = RdOperator(R, d - mu)
+    P = Propagator(op, mu)
+    k = op.shape[1]
+    I = np.identity(k)
+
+    # Compare to the brute force calculation across several scaling factors.
+    for t in 0.42, 4.2, 42.0:
+        L = MatrixExponential(P, t)
+        for n0 in 2, 10:
+            B = np.random.randn(k, n0)
+            desired = expm((R.A + np.diag(d)) * t).dot(B)
+            actual = L.dot(B)
+            assert_allclose(actual, desired)

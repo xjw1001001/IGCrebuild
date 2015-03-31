@@ -16,6 +16,7 @@ import scipy.sparse.linalg
 from scipy.sparse import coo_matrix
 
 from .pyexp import expm_multiply
+from .pyexp.ctmc_ops import Propagator, MatrixExponential, RdOperator
 
 
 __all__ = [
@@ -142,6 +143,51 @@ class EigenExpm(object):
 
 
 class ActionExpm(object):
+    """
+    This uses a newer implementation of the matrix exponential vector product.
+
+    """
+    def __init__(self, state_space_shape, row, col, rate, debug=False):
+        R = create_sparse_pre_rate_matrix(state_space_shape, row, col, rate)
+        R = R.tocsr()
+        exit_rates = R.sum(axis=1).A.ravel()
+        d = -exit_rates
+        mu = np.mean(d)
+        op = RdOperator(R, d - mu)
+        P = Propagator(op, mu)
+
+        # Set member variables.
+        self._propagator = P
+        self._Q = RdOperator(R, d)
+
+    def expm_rmul(self, rate_scaling_factor, A):
+        """
+        Compute A * exp(Q * r).
+
+        This uses the fact that exp(X.T) = exp(X).T.
+
+        """
+        L = MatrixExponential(self._propagator, rate_scaling_factor)
+        return L.T.dot(A.T).T
+
+    def expm_mul(self, rate_scaling_factor, A):
+        """
+        Compute exp(Q * r) * A.
+
+        """
+        L = MatrixExponential(self._propagator, rate_scaling_factor)
+        return L.dot(A)
+
+    def rate_mul(self, rate_scaling_factor, PA):
+        """
+        Compute Q * r * PA.
+        This is for gradient calculation.
+
+        """
+        return rate_scaling_factor * self._Q.dot(PA)
+
+
+class ActionExpmOld(object):
     def __init__(self, state_space_shape, row, col, rate, debug=False):
         self.Q = create_sparse_rate_matrix(state_space_shape, row, col, rate)
         self.debug = debug

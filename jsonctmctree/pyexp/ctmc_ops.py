@@ -169,6 +169,8 @@ def _expm_product_helper(A, mu, iteration_stash, t, B):
     n0 = B.shape[1]
     m, s = iteration_stash.fragment_3_1(n0, t)
 
+    #print('1-norm:', A.one_norm(), 't:', t, 'mu:', mu, 'n0:', n0, 'm:', m, 's:', s)
+
     # Get the lapack function for computing matrix norms.
     lange, = get_lapack_funcs(('lange',), (B,))
 
