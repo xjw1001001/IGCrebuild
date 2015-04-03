@@ -12,11 +12,9 @@ of observed transition probability and observed transversion probability.
 from __future__ import division, print_function, absolute_import
 
 from functools import partial
-from itertools import product, permutations
 
 import numpy as np
 from scipy.linalg import expm
-import scipy.stats
 
 KAPPA = 4
 TRANSITIONS = set([(0, 1), (1, 0), (2, 3), (3, 2)])
@@ -119,12 +117,8 @@ def main():
     import matplotlib.pyplot as plt
     sns.set(style='white')
     np.random.seed(sum(map(ord, 'axis_grids')))
-    #tips = sns.load_dataset('tips')
-    #print(tips)
-    #return
 
     n = 24
-    #step_rates = 20 * np.random.rand(10)
     subs_rates = np.linspace(0.5, 8, 41)
 
     transition_prob_col = []
@@ -155,35 +149,16 @@ def main():
     # http://web.stanford.edu/~mwaskom/software/seaborn/tutorial/
     # quantitative_linear_models.html#plotting-different-linear-relationships
     print('plotting a thing...')
-    #pal = {0:'lightred', 0.5:'blue', 1:'seagreen', 2:'gray'}
     result = sns.lmplot(
             'transition_diff_prob',
             'transversion_diff_prob',
             df,
             hue='sync_rate',
-            #palette=pal,
-            #palette=pal,
             fit_reg=False)
     print('plot result:')
     print(result)
     print('showing the plot...')
-    #sns.plt.show()
     sns.plt.savefig('K80-synchro-walks.svg')
-
-    # Draw a plot.
-    # This is from the seaborn tutorials.
-    """
-    g = sns.FacetGrid(df, hue='sync_rate', palette=pal, size=5)
-    g.map(
-            #plt.scatter,
-            'state_difference_mean',
-            'state_difference_variance',
-            s=50,
-            alpha=0.7,
-            linewidth=0.5,
-            edgecolor='white')
-    g.add_legend()
-    """
 
 
 if __name__ == '__main__':
