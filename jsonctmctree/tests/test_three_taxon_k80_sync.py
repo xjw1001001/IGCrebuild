@@ -38,7 +38,9 @@ from functools import partial
 from itertools import product
 
 import numpy as np
-from scipy.linalg import expm
+from numpy.testing import assert_allclose, assert_equal
+from scipy.special import kl_div
+from scipy.linalg import expm, eigvalsh, inv
 
 KAPPA = 4
 TRANSITIONS = set([(0, 1), (1, 0), (2, 3), (3, 2)])
@@ -49,8 +51,8 @@ def mravel(indices):
 
 
 def add_rates(Q, kappa, sync_rate, r0, r1):
-    multivariate_states = list(product(range(4), repeat=3))
-    for sa in multivariate_states:
+    for sa in product(range(4), repeat=3):
+        sa = np.array(sa)
         idxa = mravel(sa)
         ai, aj, ak = sa
 
@@ -64,7 +66,7 @@ def add_rates(Q, kappa, sync_rate, r0, r1):
             astate = sa[variable]
             for bstate in range(4):
                 sb = sa.copy()
-                if astate = bstate:
+                if astate == bstate:
                     continue
                 sb[variable] = bstate
                 idxb = mravel(sb)
@@ -75,164 +77,172 @@ def add_rates(Q, kappa, sync_rate, r0, r1):
                 Q[idxa, idxb] += rate
 
         # Add rates corresponding to synchronizations.
-        # Synchronizations occur only on the second and third lineages.
-
-        #TODO unfinished below here...
-
-        # Add rates corresponding to substitutions along other lineages.
-        for bj in range(4):
-            bi, bk = ai, ak
-            idxb = mravel((bi, bj, bk))
-            if ai == bi:
-                continue
-            elif (ai, bi) in TRANSITIONS:
-                rate = r0 * kappa / (kappa + 2)
-            else:
-                rate = r0 / (kappa + 2)
-            Q[idxa, idxb] = rate
+        # Synchronizations occur only between the second and third lineages.
+        # Note that the rate is scaled by the the rate*time
+        # of these lineages.
+        for vsource, vsink in (1, 2), (2, 1):
+            if sa[vsource] != sa[vsink]:
+                sb = sa.copy()
+                sb[vsink] = sa[vsource]
+                idxb = mravel(sb)
+                Q[idxa, idxb] += 0.5 * sync_rate * r1
 
 
+def compute_prior_vector():
+    """
+    Compute the prior distribution over all 4*4*4 = 64 states.
 
-def _fill_transition(expected_rate, n, Q, ai, aj, bi, bj):
-    idxa = ai*n + aj
-    idxb = bi*n + bj
-    rate = expected_rate * KAPPA / (KAPPA + 2)
-    Q[idxa, idxb] += rate
-
-
-def _fill_transversion(expected_rate, n, Q, ai, aj, bi, bj):
-    idxa = ai*n + aj
-    idxb = bi*n + bj
-    rate = expected_rate / (KAPPA + 2)
-    Q[idxa, idxb] += rate
-
-
-def _fill_sync(sync_rate, n, Q, ai, aj, bi, bj):
-    idxa = ai*n + aj
-    idxb = bi*n + bj
-    Q[idxa, idxb] += 0.5 * sync_rate
+    The prior distribution is uniform over all multivariate states
+    for which all three variables share the same value in {0, 1, 2, 3}.
+    """
+    n = 4
+    p = 1 / n
+    prior = np.zeros(n*n*n, dtype=float)
+    for state in product(range(n), repeat=3):
+        if np.all(np.equal(state, state[0])):
+            idx = mravel(state)
+            prior[idx] = p
+    return prior
 
 
-def create_rate_matrix(expected_rate, sync_rate, n):
-    Q = np.zeros((n*n, n*n), dtype=float)
-    fill_transition = partial(_fill_transition, expected_rate, n, Q)
-    fill_transversion = partial(_fill_transversion, expected_rate, n, Q)
-    fill_sync = partial(_fill_sync, sync_rate, n, Q)
-    for ai in range(n):
-        for aj in range(n):
-
-            # Add first variable transition and transversions.
-            bi = ai
-            for bj in 0, 1, 2, 3:
-                if aj == bj:
-                    continue
-                elif (aj, bj) in TRANSITIONS:
-                    fill_transition(ai, aj, bi, bj)
-                else:
-                    fill_transversion(ai, aj, bi, bj)
-
-            # Add second variable transitions and transversions.
-            bj = aj
-            for bi in 0, 1, 2, 3:
-                if ai == bi:
-                    continue
-                elif (ai, bi) in TRANSITIONS:
-                    fill_transition(ai, aj, bi, bj)
-                else:
-                    fill_transversion(ai, aj, bi, bj)
-
-            # Synchronize to the first variable.
-            if ai != aj:
-                bi, bj = ai, ai
-                fill_sync(ai, aj, bi, bj)
-
-            # Synchronize to the second variable.
-            if ai != aj:
-                bi, bj = aj, aj
-                fill_sync(ai, aj, bi, bj)
-
+def compute_rate_matrix(kappa, sync_rate, r0, r1):
+    nstates = 4*4*4
+    Q = np.zeros((nstates, nstates), dtype=float)
+    add_rates(Q, kappa, sync_rate, r0, r1)
     exit_rates = Q.sum(axis=1)
     Q = Q - np.diag(exit_rates)
     return Q
 
 
-def compute_histogram(expected_rate, sync_rate, n):
-    # This histogram is over (identities, transitions, transversions).
-    Q = create_rate_matrix(expected_rate, sync_rate, n)
-    P = expm(Q)
-    initial_state = np.zeros(n*n, dtype=float)
-    initial_state[0] = 1
-    final_distribution = initial_state.dot(P)
+def compute_likelihood_vector(prior_vector, rate_matrix):
+    """
+    Return a vector that gives the likelihood for each possible state.
 
-    # Summarize the distribution over differences.
-    histogram = np.zeros(3, dtype=float)
-    for i in range(n):
-        for j in range(n):
-            idx = i*n + j
-            p = final_distribution[idx]
-            if i == j:
-                d = 0
-            elif (i, j) in TRANSITIONS:
-                d = 1
-            else:
-                d = 2
-            histogram[d] += p
+    To compute the log likelihood given data and the parameterized rate matrix,
+    compute the dot product of the observation count vector
+    and the log of this likelihood vector.
+    """
+    P = expm(rate_matrix)
+    likelihood_vector = prior_vector.dot(P)
+    return likelihood_vector
 
-    return histogram
+
+def compute_p(prior_vector, X):
+    """
+    This is a helper function for computing the Fisher information matrix.
+
+    """
+    # Unpack the parameter values from the vector.
+    kappa, sync_rate, r0, r1 = X
+    rate_matrix = compute_rate_matrix(kappa, sync_rate, r0, r1)
+    likelihood_vector = compute_likelihood_vector(prior_vector, rate_matrix)
+    return likelihood_vector
+
+
+def compute_kl_div(X, X_prime):
+    """
+    Compute K-L divergence.
+
+    """
+    prior_vector = compute_prior_vector()
+    p_prime = compute_p(prior_vector, X_prime)
+    p = compute_p(prior_vector, X)
+    flat_div = kl_div(p_prime, p)
+    return flat_div.sum()
+
+
+def elementary(n, i):
+    v = np.zeros(n, dtype=float)
+    v[i] = 1
+    return v
+
+
+def compute_second_derivatives(f, delta, X):
+    """
+    Compute second and cross derivatives with finite differences.
+
+    """
+    n = X.shape[0]
+    assert_equal(X.shape, (n,))
+    M = np.zeros((n, n), dtype=float)
+    delta2 = delta*delta
+    for x in range(4):
+        h = delta * elementary(n, x)
+        M[x, x] = (f(X + h) - 2*f(X) + f(X - h)) / delta2
+    for x in range(4):
+        for y in range(x):
+            h = delta * elementary(n, x)
+            k = delta * elementary(n, y)
+            value = (f(X+h+k) - f(X+h-k) - f(X-h+k) + f(X-h-k)) / (4*delta2)
+            M[x, y] = value
+            M[y, x] = value
+    return M
+
+
+def compute_fisher_information(X):
+    """
+    Return the Fisher information matrix using finite differences.
+
+    The input X is a parameter vector as a length 4 ndarray.
+    The output Fisher information matrix is a 4x4 matrix.
+    If this matrix is positive definite, this would mean that the
+    likelihood function is nicely behaved at the maximum likelihood estimate.
+
+    """
+    # Define the function whose partial derivatives are of interest.
+    f = partial(compute_kl_div, X)
+
+    # Estimate the second derivatives matrix.
+    delta = 1e-4
+    fisher_info = compute_second_derivatives(f, delta, X)
+    return fisher_info
+
+
+def run_analysis(kappa, sync_rate, r0, r1):
+    """
+    Look at the Fisher information at various points in the parameter space.
+
+    For now use finite differences but maybe eventually
+    use automatic differentiation.
+
+    """
+    X = np.array([kappa, sync_rate, r0, r1], dtype=float)
+    print('kappa:', kappa)
+    print('sync rate:', sync_rate)
+    print('r0:', r0)
+    print('r1:', r1)
+
+    # Check the probability vector at the parameter values of interest.
+    prior_vector = compute_prior_vector()
+    p = compute_p(prior_vector, X)
+    #print('probability vector:')
+    #for i, value in enumerate(p):
+        #print(i, value, sep='\t')
+    #print()
+
+    # Compute the fisher information.
+
+    print('parameter vector:')
+    print(X)
+
+    print('fisher information matrix:')
+    fisher_info = compute_fisher_information(X)
+    print(fisher_info)
+
+    print('spectrum of fisher information matrix:')
+    print(eigvalsh(fisher_info))
+
+    print('inverse of fisher information matrix:')
+    print(inv(fisher_info))
 
 
 def main():
-
-    # Do a bunch of stuff from the seaborn tutorials.
-    import pandas as pd
-    import seaborn as sns
-    import matplotlib as mpl
-    import matplotlib.pyplot as plt
-    sns.set(style='white')
-    np.random.seed(sum(map(ord, 'axis_grids')))
-
-    n = 24
-    subs_rates = np.linspace(0.5, 8, 41)
-
-    transition_prob_col = []
-    transversion_prob_col = []
-    sync_rate_col = []
-    subs_rate_col = []
-
-    for sync_rate in 0, 0.5, 1, 2:
-        npairs = len(subs_rates)
-        for subs_rate in subs_rates:
-            h = compute_histogram(subs_rate, sync_rate, n)
-            transition_prob_col.append(h[1])
-            transversion_prob_col.append(h[2])
-        sync_rate_col.extend([sync_rate] * npairs)
-        subs_rate_col.extend(subs_rates.tolist())
-
-
-    # Create a data frame.
-    # First make a Python dict.
-    d = {
-            'transition_diff_prob' : transition_prob_col,
-            'transversion_diff_prob' : transversion_prob_col,
-            'sync_rate' : sync_rate_col,
-            'subs_rate' : subs_rate_col,
-            }
-    df = pd.DataFrame(data=d)
-
-    # http://web.stanford.edu/~mwaskom/software/seaborn/tutorial/
-    # quantitative_linear_models.html#plotting-different-linear-relationships
-    print('plotting a thing...')
-    result = sns.lmplot(
-            'transition_diff_prob',
-            'transversion_diff_prob',
-            df,
-            hue='sync_rate',
-            fit_reg=False)
-    print('plot result:')
-    print(result)
-    print('showing the plot...')
-    sns.plt.savefig('K80-synchro-walks.svg')
-
+    # The order is as follows:
+    # kappa, sync_rate, r0, r1
+    run_analysis(4, 2, 0.1, 0.2)
+    run_analysis(4, 0.2, 0.1, 0.2)
+    run_analysis(0.1, 1.0, 0.1, 0.2)
+    run_analysis(4.0, 1.0, 0.001, 0.2)
 
 if __name__ == '__main__':
     main()
