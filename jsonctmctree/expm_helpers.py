@@ -16,7 +16,8 @@ import scipy.sparse.linalg
 from scipy.sparse import coo_matrix
 
 from .pyexp import expm_multiply
-from .pyexp.ctmc_ops import Propagator, MatrixExponential, RdOperator
+from .pyexp.ctmc_ops import (
+        Propagator, ExplicitPropagator, MatrixExponential, RdOperator)
 
 
 __all__ = [
@@ -146,6 +147,10 @@ class ActionExpm(object):
     """
     This uses a newer implementation of the matrix exponential vector product.
 
+    Check some predicted costs and decide whether to use
+    the abstract linear operator approach or the explicit matrix
+    exponential approach.
+
     """
     def __init__(self, state_space_shape, row, col, rate, debug=False):
         R = create_sparse_pre_rate_matrix(state_space_shape, row, col, rate)
@@ -154,11 +159,17 @@ class ActionExpm(object):
         d = -exit_rates
         mu = np.mean(d)
         op = RdOperator(R, d - mu)
-        P = Propagator(op, mu)
+
+        #TODO use some kind of heuristic
+        # to decide between Propagator vs. ExplicitPropagator.
+        #P = Propagator(op, mu)
+        #self._Q = RdOperator(R, d)
+        Q = R.A + np.diag(d)
+        P = ExplicitPropagator(Q)
+        self._Q = Q
 
         # Set member variables.
         self._propagator = P
-        self._Q = RdOperator(R, d)
 
     def expm_rmul(self, rate_scaling_factor, A):
         """

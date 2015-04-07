@@ -9,6 +9,7 @@ import numpy as np
 from numpy.testing import assert_equal
 from scipy.misc import logsumexp
 from scipy.optimize import minimize
+from scipy.special import logit, expit
 
 import jsonctmctree.interface
 
@@ -40,19 +41,52 @@ def gen_transitions(distn, kappa, tau):
                         yield (i, j), (k, j), R[i, k]
                         yield (i, j), (i, k), R[j, k]
 
+
+def pack_acgt(pi):
+    a, c, g, t = pi
+    ag = a+g  # purines
+    ct = c+t  # pyrimidines
+    a_div_ag = a / ag
+    c_div_ct = c / ct
+    return logit([ag, a_div_ag, c_div_ct])
+
+
+def unpack_acgt(packed_acgt):
+    ag, a_div_ag, c_div_ct = expit(packed_acgt)
+    ct = 1 - ag
+    a = a_div_ag * ag
+    g = ag - a
+    c = c_div_ct * ct
+    t = ct - c
+    return np.array([a, c, g, t])
+
+
+def pack_global_params(pi, kappa, tau):
+    return np.concatenate([
+        pack_acgt(pi),
+        np.log([kappa, tau])])
+
+
+def unpack_global_params(X):
+    pi = unpack_acgt(X[:3])
+    kappa, tau = np.exp(X[3:])
+    return pi, kappa, tau
+
+
 def pack(distn, kappa, tau, rates):
-    return np.log(np.concatenate([distn, [kappa, tau], rates]))
+    return np.concatenate((
+        pack_global_params(distn, kappa, tau),
+        np.log(rates)))
+
 
 def unpack(X):
-    lse = logsumexp(X[0:4])
-    unpacking_cost = lse * lse
-    distn = np.exp(X[0:4] - lse)
-    kappa, tau = np.exp(X[4:6])
-    rates = np.exp(X[6:])
-    return distn, kappa, tau, rates, unpacking_cost
+    distn, kappa, tau = unpack_global_params(X[:5])
+    rates = np.exp(X[5:])
+    return distn, kappa, tau, rates
+
 
 def objective(scene, X):
-    distn, kappa, tau, rates, unpacking_cost = unpack(X)
+    distn, kappa, tau, rates = unpack(X)
     scene['root_prior']['probabilities'] = distn.tolist()
     scene['tree']['edge_rate_scaling_factors'] = rates.tolist()
     triples = list(gen_transitions(distn, kappa, tau))
@@ -67,7 +101,7 @@ def objective(scene, X):
     j_in = {'scene' : scene, 'requests' : [request]}
     j_out = jsonctmctree.interface.process_json_in(j_in)
     log_likelihood = j_out['responses'][0]
-    cost = -log_likelihood + unpacking_cost
+    cost = -log_likelihood
     return cost
 
 def main():
@@ -97,7 +131,16 @@ def main():
             rows.append(row)
     columns = [list(x) for x in zip(*rows)]
 
-    distn = [0.25, 0.25, 0.25, 0.25]
+    print('number of sites in the alignment:', len(columns))
+    print('number of sequences:', len(nodes))
+
+    # Compute the empirical distribution of the nucleotides.
+    counts = np.zeros(4)
+    for k in np.ravel(columns):
+        counts[k] += 1
+    empirical_pi = counts / counts.sum()
+
+    distn = empirical_pi
     rates = [1, 1, 1, 1, 1, 1, 1, 1]
     scene = {
             "node_count" : 9,
@@ -124,7 +167,7 @@ def main():
     f = functools.partial(objective, scene)
     result = minimize(f, X, method='L-BFGS-B')
     print('final value of objective function:', result.fun)
-    distn, kappa, tau, rates, unpacking_cost = unpack(result.x)
+    distn, kappa, tau, rates = unpack(result.x)
     print('nucleotide distribution:')
     for nt, p in zip('ACGT', distn):
         print('  ', nt, ':', p)

@@ -196,12 +196,6 @@ def get_expected_univariate_rate(pi, kappa):
     return np.dot(pi, raw_exit_rates)
 
 
-def get_univariate_exit_rates(pi, kappa):
-    raw_exit_rates = get_unnormalized_univariate_exit_rates(pi, kappa)
-    expectation = np.dot(pi, raw_exit_rates)
-    return [r / expectation for r in raw_exit_rates]
-
-
 def get_unnormalized_univariate_exit_rates(pi, kappa):
     exit_rates = [0, 0, 0, 0]
     for i, j, ts, tv in gen_hky():

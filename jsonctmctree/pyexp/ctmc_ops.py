@@ -16,7 +16,7 @@ from .basic_ops import (
 
 
 __all__ = ['RdOperator', 'RdcOperator', 'RdCOperator',
-           'Propagator', 'MatrixExponential']
+           'Propagator', 'MatrixExponential', 'ExplicitMatrixExponential']
 
 
 class RdOperator(HighLevelInterface, ConcreteInterface):
@@ -231,6 +231,28 @@ class Propagator(object):
             self._adjoint_iteration_stash = IterationStash(self._A.H)
         return _expm_product_helper(
                 self._A.H, self._mu, self._adjoint_iteration_stash, t, B)
+
+
+class ExplicitPropagator(object):
+    """
+    This explicitly computes the matrix exponential.
+
+    """
+    def __init__(self, M):
+        # M is assumed to be an explicit ndarray.
+        self._M = M
+
+    def _parameterized_matmat(self, t, B):
+        # Approximate expm(M*t).dot(B).
+        # t is a scaling factor of L
+        # B the input matrix of the linear function
+        return scipy.linalg.expm(self._M*t).dot(B)
+
+    def _parameterized_adjoint_matmat(self, t, B):
+        # Approximate expm(M.H*t).dot(B).
+        # t is a scaling factor of L
+        # B the input matrix of the adjoint linear function
+        return scipy.linalg.expm(self._M.T*t).dot(B)
 
 
 class MatrixExponential(HighLevelInterface):

@@ -7,9 +7,11 @@ import numpy as np
 from numpy.testing import assert_equal
 from scipy.misc import logsumexp
 from scipy.optimize import minimize
+from scipy.special import logit, expit
 import pyparsing
 
 import jsonctmctree.interface
+from jsonctmctree.extras import optimize_em
 
 s_tree = """((((((cerevisiae,paradoxus),mikatae),kudriavzevii),
 bayanus),castellii),kluyveri)"""
@@ -53,16 +55,49 @@ def gen_transitions(distn, kappa, tau):
                         yield (i, j), (k, j), R[i, k]
                         yield (i, j), (i, k), R[j, k]
 
+
+def pack_acgt(pi):
+    a, c, g, t = pi
+    ag = a+g  # purines
+    ct = c+t  # pyrimidines
+    a_div_ag = a / ag
+    c_div_ct = c / ct
+    return logit([ag, a_div_ag, c_div_ct])
+
+
+def unpack_acgt(packed_acgt):
+    ag, a_div_ag, c_div_ct = expit(packed_acgt)
+    ct = 1 - ag
+    a = a_div_ag * ag
+    g = ag - a
+    c = c_div_ct * ct
+    t = ct - c
+    return np.array([a, c, g, t])
+
+
+def pack_global_params(pi, kappa, tau):
+    return np.concatenate([
+        pack_acgt(pi),
+        np.log([kappa, tau])])
+
+
+def unpack_global_params(X):
+    pi = unpack_acgt(X[:3])
+    kappa, tau = np.exp(X[3:])
+    return pi, kappa, tau
+
+
 def pack(distn, kappa, tau, rates):
-    return np.log(np.concatenate([distn, [kappa, tau], rates]))
+    return np.concatenate((
+        pack_global_params(distn, kappa, tau),
+        np.log(rates)))
+
 
 def unpack(X):
-    lse = logsumexp(X[0:4])
-    unpacking_cost = lse * lse
-    distn = np.exp(X[0:4] - lse)
-    kappa, tau = np.exp(X[4:6])
-    rates = np.exp(X[6:])
-    return distn, kappa, tau, rates, unpacking_cost
+    distn, kappa, tau = unpack_global_params(X[:5])
+    rates = np.exp(X[5:])
+    return distn, kappa, tau, rates
+
 
 def get_process_defn_and_prior(distn, kappa, tau):
     triples = list(gen_transitions(distn, kappa, tau))
@@ -79,8 +114,13 @@ def get_process_defn_and_prior(distn, kappa, tau):
     return process_definition, root_prior
 
 def objective_and_gradient(scene, X):
+    #print('parameter estimates passed to objective and gradient calculator:')
+    #print(X)
+    #print(np.exp(X))
+    print_estimates(X)
+
     delta = 1e-8
-    distn, kappa, tau, rates, unpacking_cost = unpack(X)
+    distn, kappa, tau, rates = unpack(X)
     scene['tree']['edge_rate_scaling_factors'] = rates.tolist()
     log_likelihood_request = {'property' : 'snnlogl'}
     derivatives_request = {'property' : 'sdnderi'}
@@ -98,9 +138,13 @@ def objective_and_gradient(scene, X):
             'scene' : scene,
             'requests' : [log_likelihood_request, derivatives_request]
             }
-    j_out = jsonctmctree.interface.process_json_in(j_in, debug=True)
+    j_out = jsonctmctree.interface.process_json_in(j_in,
+            #debug=True,
+            )
+    status = j_out['status']
+    assert_equal(status, 'feasible')
     log_likelihood, edge_gradient = j_out['responses']
-    cost = -log_likelihood + unpacking_cost
+    cost = -log_likelihood
 
     # For each non-edge-specific parameter get finite-differences
     # approximation of the gradient.
@@ -110,7 +154,7 @@ def objective_and_gradient(scene, X):
     for i in range(nparams):
         W = np.copy(X)
         W[i] += delta
-        distn, kappa, tau, rates, unpacking_cost = unpack(W)
+        distn, kappa, tau, rates = unpack(W)
         process_defn, root_prior = get_process_defn_and_prior(distn, kappa, tau)
         scene['root_prior'] = root_prior
         scene['process_definitions'] = [process_defn]
@@ -120,19 +164,18 @@ def objective_and_gradient(scene, X):
                 }
         j_out = jsonctmctree.interface.process_json_in(j_in)
         ll = j_out['responses'][0]
-        c = -ll + unpacking_cost
+        c = -ll
         slope = (c - cost) / delta
         gradient.append(slope)
     gradient.extend([-x for x in edge_gradient])
     gradient = np.array(gradient)
 
     # Return cost and gradient.
-    print(X)
-    print(np.exp(X))
     print(cost)
-    print(gradient)
+    #print(gradient)
     print()
     return cost, gradient
+
 
 def main():
 
@@ -181,8 +224,19 @@ def main():
     edge_count = len(edges)
     row_nodes, column_nodes = zip(*edges)
 
-    distn = [0.25, 0.25, 0.25, 0.25]
-    rates = [1] * edge_count
+    print('number of sites in the alignment:', len(columns))
+    print('number of sequences:', observed_node_count)
+
+    # Compute the empirical distribution of the nucleotides.
+    counts = np.zeros(4)
+    for k in np.ravel(columns):
+        counts[k] += 1
+    empirical_pi = counts / counts.sum()
+
+    distn = empirical_pi
+    #distn = np.ones(4) / 4
+
+    rates = [0.1] * edge_count
     kappa = 2.0
     tau = 3.0
     process_defn, root_prior = get_process_defn_and_prior(distn, kappa, tau)
@@ -197,7 +251,7 @@ def main():
                 "edge_processes" : [0] * edge_count
                 },
             "root_prior" : root_prior,
-            "process_definition" : process_defn,
+            "process_definitions" : [process_defn],
             "observed_data" : {
                 "nodes" : nodes,
                 "variables" : variables,
@@ -205,11 +259,18 @@ def main():
                 }
             }
 
+    # Update the edge rates using 5 iterations of EM.
+    rates = optimize_em(scene, None, 5)
+
     X = pack(distn, kappa, tau, rates)
     f = functools.partial(objective_and_gradient, scene)
     result = minimize(f, X, jac=True, method='L-BFGS-B')
     print('final value of objective function:', result.fun)
-    distn, kappa, tau, rates, unpacking_cost = unpack(result.x)
+    print_estimates(result.x)
+
+
+def print_estimates(X):
+    distn, kappa, tau, rates = unpack(X)
     print('nucleotide distribution:')
     for nt, p in zip('ACGT', distn):
         print('  ', nt, ':', p)
@@ -219,5 +280,5 @@ def main():
     for r in rates:
         print('  ', r)
 
-main()
 
+main()
