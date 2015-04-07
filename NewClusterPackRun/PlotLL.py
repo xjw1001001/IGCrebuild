@@ -3,6 +3,7 @@ from DirGeneconv import DirGeneconv
 from gBGCDirGeneconv import gBGCDirGeneconv
 from gBGCCodonGeneconv import gBGCCodonGeneconv
 import argparse
+import numpy as np
 
 def main(args):
     model = args.model
@@ -13,32 +14,42 @@ def main(args):
     summary_path = './NewPackageNewRun/'
     omega_guess = 0.1    
 
-    print 'Now calculate MLE for pair', paralog
-    if args.force:
-        if model == 'MG94':
-            Force = {5:0.0}
-    else:
-        Force = None
+    Force = None
+
+    txtname = '_'.join(paralog) + '_' + model
+
     if args.gBGC:
+        txtname = txtname + '_gBGC'
         if args.dir:
             test = gBGCDirGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)
+            txtname = txtname + '_dir'
         else:
             test = gBGCCodonGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)       
     else:
         if args.dir:
+            txtname = txtname + '_dir'
             test = DirGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)
         else:
             test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)
 
-    if model == 'MG94':
-        method = 'BFGS'
+    if test.clock:
+        txtname = txtname + '_clock'
     else:
-        method = 'basin-hopping'
-    result = test.get_mle(display = False, em_iterations = 1, method = method)
-    test.get_ExpectedNumGeneconv()
-    test.get_ExpectedHetDwellTime()
-    test.get_individual_summary(summary_path = summary_path)
-    test.save_to_file(path = path)
+        txtname = txtname + '_nonclock'
+        
+    Force_index = len(test.x_process) + 1
+
+    out_group_blen = np.arange(0.0001, 0.01, 0.0005)
+    ll_list = []
+    for blen in out_group_blen:
+        test.Force = {Force_index:blen}
+        test.get_initial_x_process()
+        test.update_by_x()
+        test.get_mle(False, True, 1, 'BFGS')
+        ll_list.append(test.ll)
+
+
+    np.savetxt(open('./testlikelihood_' + txtname + '.txt', 'w+'), np.matrix([ll_list, out_group_blen]), delimiter = ' ')
 
     
 if __name__ == '__main__':

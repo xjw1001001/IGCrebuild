@@ -1,2 +1,2 @@
 #!/bin/bash
-/Library/Frameworks/Python.framework/Versions/7.3/bin/python Run_unfinished.py --paralog1 YDR502C --paralog2 YLR180W --no-force --gBGC --dir --no-clock --model HKY > YDR502C_YLR180W_dir_gBGC_HKY_nonclock_suspicious_PrintScreen.txt
+python PlotLL.py --paralog1 YDR502C --paralog2 YLR180W --no-force --gBGC --dir --no-clock --model HKY > YDR502C_YLR180W_dir_gBGC_HKY_nonclock_suspicious_plotLL_PrintScreen.txt

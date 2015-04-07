@@ -6,7 +6,7 @@ class gBGCCodonGeneconv(ReCodonGeneconv):
     # add gamma parameter which is equivalent to B in Lartillot's 2013 MBE paper (Phylogenetic Patterns of GC-Biased Gene Conversion...)
     # gamma parameter isn't log-transformed in self.x but used itself
 
-    def get_initial_x_process(self):
+    def get_initial_x_process(self, transformation = 'log'):
         self.gamma = 1.0
         count = np.array([0, 0, 0, 0], dtype = float) # count for A, C, G, T in all seq
         for name in self.name_to_seq:
@@ -27,20 +27,45 @@ class gBGCCodonGeneconv(ReCodonGeneconv):
             self.x_process = np.concatenate((self.x_process, [self.gamma]))
 
         self.x_rates = np.log(np.array([ 0.01 * self.edge_to_blen[edge] for edge in self.edge_to_blen.keys()]))
+
+        if transformation == 'log':    
+            self.x = np.concatenate((self.x_process, self.x_rates))
+        elif transformation == 'None':
+            self.x_process[:-1] = np.exp(self.x_process[:-1])
+            self.x_rates = np.exp(self.x_rates)
+        elif transformation == 'Exp_Neg':
+            self.x_process[:-1] = np.exp(self.x_process[:-1])
+            self.x_process = np.exp(-self.x_process)
+            self.x_rates = np.exp(-np.exp(self.x_rates))
+
         self.x = np.concatenate((self.x_process, self.x_rates))
 
 
         if self.clock:   # set-up x_clock if it's a clock model
             l = len(self.edge_to_blen) / 2 + 1               # number of leaves
             self.x_Lr = np.log(np.ones((l)) * 0.6)
+            
+            if transformation == 'log':
+                self.x_clock = np.concatenate((self.x_process, self.x_Lr))
+            elif transformation == 'None':
+                self.x_Lr = np.exp(self.x_Lr)
+            elif transformation == 'Exp_Neg':
+                self.x_Lr = np.exp(-np.exp(self.x_Lr))
             self.x_clock = np.concatenate((self.x_process, self.x_Lr))
-            self.unpack_x_clock()
+            self.unpack_x_clock(transformation = transformation)
 
-        self.update_by_x()
+        self.update_by_x(transformation = transformation)
 
-    def unpack_x_process(self, Force_process = None):
-        self.gamma = self.x_process[-1]
-        x_process = np.exp(self.x_process[:-1])
+    def unpack_x_process(self, transformation, Force_process = None):  
+        if transformation == 'log':
+            self.gamma = self.x_process[-1]
+            x_process = np.exp(self.x_process[:-1])
+        elif transformation == 'None':
+            self.gamma = self.x_process[-1]
+            x_process = self.x_process[:-1]
+        elif transformation == 'Exp_Neg':
+            self.gamma = (self.x_process[-1] - 0.5) * 20.0
+            x_process = np.concatenate((self.x_process[:3], -np.log(self.x_process[3:-1])))
 
         if Force_process != None:
             for i in Force_process.keys():
@@ -446,7 +471,6 @@ class gBGCCodonGeneconv(ReCodonGeneconv):
         np.savetxt(open(summary_file, 'w+'), summary.T, delimiter = ' ', footer = footer)
 
 
-
 def main(args):
     paralog = [args.paralog1, args.paralog2]
     alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
@@ -505,6 +529,6 @@ if __name__ == '__main__':
 ##    #Force    = {5:0.0, 6:0.0}
 ##    Force = None
 ##    
-##    test = gBGCCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force, clock = True)
-##    test.get_mle(False, False, 1, 'basin-hopping')
+##    test = gBGCCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force, clock = False)
+##    test.get_mle(True, True, 1, 'differential_evolution')
 ##    test.save_to_file(path = './NewPackageNewRun/')

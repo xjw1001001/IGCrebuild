@@ -52,10 +52,10 @@ class ReCodonGeneconv:
 
 
         # Rate matrix related variable
-        self.x_process      = None      # log values of process parameters (logit for ratios)
-        self.x_rates        = None      # log values of blen (general for both clock and nonclock cases)
+        self.x_process      = None      # values of process parameters (untransformed, log, or exp(-x))
+        self.x_rates        = None      # values of blen (untransformed, log, or exp(-x))
         self.x              = None      # x_process + x_rates
-        self.x_Lr           = None      # log values of clock blen parameters
+        self.x_Lr           = None      # values of clock blen parameters
         self.x_clock        = None      # x_process + Lr
         self.pi             = None      # real values
         self.kappa          = 1.2       # real values
@@ -185,7 +185,7 @@ class ReCodonGeneconv:
             iid_observations.append(observations)
         self.iid_observations = iid_observations
 
-    def get_initial_x_process(self):
+    def get_initial_x_process(self, transformation = 'log'):
         
         count = np.array([0, 0, 0, 0], dtype = float) # count for A, C, G, T in all seq
         for name in self.name_to_seq:
@@ -203,30 +203,51 @@ class ReCodonGeneconv:
             self.x_process = np.log(np.array([count[0] + count[2], count[0] / (count[0] + count[2]), count[1] / (count[1] + count[3]),
                                   self.kappa, self.tau]))
 
-        self.x_rates = np.log(np.array([ 0.01 * self.edge_to_blen[edge] for edge in self.edge_to_blen.keys()]))
-        self.x = np.concatenate((self.x_process, self.x_rates))
+        self.x_rates = np.log(np.array([ 0.1 * self.edge_to_blen[edge] for edge in self.edge_to_blen.keys()]))
 
+        if transformation == 'log':    
+            self.x = np.concatenate((self.x_process, self.x_rates))
+        elif transformation == 'None':
+            self.x_process = np.exp(self.x_process)
+            self.x_rates = np.exp(self.x_rates)
+        elif transformation == 'Exp_Neg':
+            self.x_process = np.exp(-np.exp(self.x_process))
+            self.x_rates = np.exp(-np.exp(self.x_rates))
+        self.x = np.concatenate((self.x_process, self.x_rates))
 
         if self.clock:   # set-up x_clock if it's a clock model
             l = len(self.edge_to_blen) / 2 + 1               # number of leaves
             self.x_Lr = np.log(np.ones((l)) * 0.6)
-            self.x_clock = np.concatenate((self.x_process, self.x_Lr))
-            self.unpack_x_clock()
 
-        self.update_by_x()
+            if transformation == 'log':
+                self.x_clock = np.concatenate((self.x_process, self.x_Lr))
+            elif transformation == 'None':
+                self.x_Lr = np.exp(self.x_Lr)
+            elif transformation == 'Exp_Neg':
+                self.x_Lr = np.exp(-np.exp(self.x_Lr))
+            self.x_clock = np.concatenate((self.x_process, self.x_Lr))
+            self.unpack_x_clock(transformation = transformation)
+
+        self.update_by_x(transformation = transformation)
         
-    def update_by_x_clock(self, x_clock = None):
+    def update_by_x_clock(self, x_clock = None, transformation = 'log'):
         if not x_clock == None:
             self.x_clock = x_clock
-        self.unpack_x_clock()
-        self.update_by_x()
+        self.unpack_x_clock(transformation = transformation)
+        self.update_by_x(transformation = transformation)
         
-    def unpack_x_clock(self):
+    def unpack_x_clock(self, transformation):
         assert(self.clock)
         nEdge = len(self.edge_to_blen)  # number of edges
         l = nEdge / 2 + 1               # number of leaves
         k = l - 1   # number of internal nodes. The notation here is inconsistent with Alex's for trying to match my notes.
-        self.x_process, self.x_Lr = self.x_clock[:-l], np.exp(self.x_clock[-l:])
+        if transformation == 'log':
+            self.x_process, self.x_Lr = self.x_clock[:-l], np.exp(self.x_clock[-l:])
+        elif transformation == 'None':
+            self.x_process, self.x_Lr = self.x_clock[:-l], self.x_clock[-l:]
+        elif transformation == 'Exp_Neg':
+            self.x_process, self.x_Lr = self.x_clock[:-l], self.x_clock[-l:]
+            self.x_clock[0] = - np.log(self.x_clock[0])
 
         # Now update self.x by using self.x_clock
         leaf_branch = [edge for edge in self.edge_to_blen.keys() if edge[0][0] == 'N' and str.isdigit(edge[0][1:]) and not str.isdigit(edge[1][1:])]
@@ -241,14 +262,21 @@ class ReCodonGeneconv:
         # Always start from the root and internal-tip branch first
         for i in range(len(internal_branch)):
             edge = internal_branch[i]
-            self.x_rates[2 * i] = (np.log(self.blen_from_clock(edge)) if self.blen_from_clock(edge) > 0 else self.logzero)
+            self.x_rates[2 * i] = self.blen_from_clock(edge)
             edge = leaf_branch[i]
-            self.x_rates[2 * i + 1] = (np.log(self.blen_from_clock(edge)) if self.blen_from_clock(edge) > 0 else self.logzero)
+            self.x_rates[2 * i + 1] = self.blen_from_clock(edge)
         for j in range(len(leaf_branch[i + 1:])):
             edge = leaf_branch[i + 1 + j]
-            self.x_rates[ - len(leaf_branch[i + 1:]) + j] = (np.log(self.blen_from_clock(edge)) if self.blen_from_clock(edge) > 0 else self.logzero)
+            self.x_rates[ - len(leaf_branch[i + 1:]) + j] = self.blen_from_clock(edge)
         # update self.x so that all parameters can be updated by update_by_x
-        self.x = np.concatenate((self.x_process, self.x_rates))
+        if transformation == 'log':
+            self.x_rates = np.array([ np.log(rate) if rate > 0 else self.logzero for rate in self.x_rates])
+            self.x = np.concatenate((self.x_process, self.x_rates))
+        elif transformation == 'None':
+            self.x = np.concatenate((self.x_process, self.x_rates))
+        elif transformation == 'Exp_Neg':
+            self.x = np.concatenate((self.x_process, np.exp(-self.x_rates)))
+        
         
     def blen_from_clock(self, edge):
         assert(edge in self.edge_to_blen.keys())
@@ -266,7 +294,7 @@ class ReCodonGeneconv:
                 return reduce( mul, self.x_Lr[: (tmp_k + 2)], 1)
         
         
-    def update_by_x(self, x = None):
+    def update_by_x(self, x = None, transformation = 'log'):
         k = len(self.edge_to_blen)
         if x != None:
             self.x = x
@@ -275,12 +303,18 @@ class ReCodonGeneconv:
         Force_rates = None
         if self.Force != None:
             Force_process = {i:self.Force[i] for i in self.Force.keys() if i < len(self.x) - k}
-            Force_rates = {(i-k):self.Force[i] for i in self.Force.keys() if not i < len(self.x) - k}
-        self.unpack_x_process(Force_process = Force_process)
-        self.unpack_x_rates(Force_rates = Force_rates)
+            Force_rates = {(i-len(self.x_process)):self.Force[i] for i in self.Force.keys() if not i < len(self.x) - k}
+        self.unpack_x_process(Force_process = Force_process, transformation = transformation)
+        self.unpack_x_rates(Force_rates = Force_rates, transformation = transformation)
 
-    def unpack_x_process(self, Force_process = None):
-        x_process = np.exp(self.x_process)
+    def unpack_x_process(self, transformation, Force_process = None):
+        if transformation == 'log':
+            x_process = np.exp(self.x_process)
+        elif transformation == 'None':
+            x_process = self.x_process
+        elif transformation == 'Exp_Neg':
+            x_process = x_process = np.concatenate((self.x_process[:3], -np.log(self.x_process[3:])))
+            
 
         if Force_process != None:
             for i in Force_process.keys():
@@ -486,8 +520,15 @@ class ReCodonGeneconv:
             )
         return [process_basic, process_geneconv]
     
-    def unpack_x_rates(self, Force_rates = None):  # TODO: Change it to fit general tree structure rather than cherry tree
-        x_rates = np.exp(self.x_rates)
+    def unpack_x_rates(self, transformation, Force_rates = None):  # TODO: Change it to fit general tree structure rather than cherry tree
+        if transformation == 'log':
+            x_rates = np.exp(self.x_rates)
+        elif transformation == 'None':
+            x_rates = self.x_rates
+        elif transformation == 'Exp_Neg':
+            x_rates = -np.log(self.x_rates)
+            
+
         if Force_rates != None:
             for i in Force_rates.keys():
                 x_rates[i] = Force_rates[i]
@@ -729,19 +770,11 @@ class ReCodonGeneconv:
         return -ll
 
     def objective_wo_derivative_global(self, display, x):
-        x_transform = []
         if self.clock:
-            x_transform.extend(x[:3])
-            x_transform.extend([-np.log(y) for y in x[3 : (len(self.x_process) + 1)]])
-            x_transform.extend(x[(len(self.x_process) + 1) :])
-            
-            self.update_by_x_clock(np.log(x_transform))
+            self.update_by_x_clock(x, transformation = 'Exp_Neg')
             ll = self._loglikelihood2()[0]
         else:
-            x_transform.extend(x[:3])
-            x_transform.extend([-np.log(y) for y in x[3 : ]])
-                               
-            self.update_by_x(np.log(x_transform))
+            self.update_by_x(x, transformation = 'Exp_Neg')
             ll = self._loglikelihood2()[0]
 
         if display:
@@ -753,7 +786,7 @@ class ReCodonGeneconv:
 
         return -ll
         
-    def get_mle(self, display = True, derivative = True, em_iterations = 3, method = 'basin-hopping'):
+    def get_mle(self, display = True, derivative = True, em_iterations = 3, method = 'basin-hopping', niter = 2000):
         if em_iterations > 0:
             ll = self._loglikelihood2()
             # http://jsonctmctree.readthedocs.org/en/latest/examples/hky_paralog/yeast_geneconv_zero_tau/index.html#em-for-edge-lengths-only
@@ -784,7 +817,8 @@ class ReCodonGeneconv:
             else:
                 f = partial(self.objective_wo_derivative, display)
             guess_x = self.x            
-            edge_bnds = [(None, None)] * (len(self.x) - 3)
+            bnds.extend([(None, None)] * (len(self.x_process) - 3))
+            edge_bnds = [(None, None)] * len(self.x_rates)
             edge_bnds[1] = (self.minlogblen, None)
             bnds.extend(edge_bnds)
             
@@ -805,16 +839,16 @@ class ReCodonGeneconv:
         elif method == 'differential_evolution':
             f = partial(self.objective_wo_derivative_global, display)
             if self.clock:
-                bnds = [(0.0, 1.0)] * len(self.x_clock)
+                bnds = [(np.exp(-20), 1.0 - np.exp(-20))] * len(self.x_clock)
             else:
-                bnds = [(0.0, 1.0)] * len(self.x)
-    
+                bnds = [(np.exp(-20), 1.0 - np.exp(-20))] * len(self.x)
+                
             result = scipy.optimize.differential_evolution(f, bnds, callback = self.check_boundary_differential_evolution)
         elif method == 'basin-hopping':
             if derivative:
-                result = scipy.optimize.basinhopping(f, guess_x, minimizer_kwargs = {'method':'L-BFGS-B', 'jac':True, 'bounds':bnds}, niter = 10, callback = self.check_boundary)
+                result = scipy.optimize.basinhopping(f, guess_x, minimizer_kwargs = {'method':'L-BFGS-B', 'jac':True, 'bounds':bnds}, niter = niter)#, callback = self.check_boundary)
             else:
-                result = scipy.optimize.basinhopping(f, guess_x, minimizer_kwargs = {'method':'L-BFGS-B', 'jac':False, 'bounds':bnds}, niter = 10, callback = self.check_boundary)
+                result = scipy.optimize.basinhopping(f, guess_x, minimizer_kwargs = {'method':'L-BFGS-B', 'jac':False, 'bounds':bnds}, niter = niter)#, callback = self.check_boundary)
             
         print (result)
         return result
@@ -1184,32 +1218,34 @@ def main(args):
     
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
-    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
-    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
-    
-    main(parser.parse_args())
+##    parser = argparse.ArgumentParser()
+##    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
+##    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
+##    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
+##    
+##    main(parser.parse_args())
 
-##    paralog1 = 'YNL069C'
-##    paralog2 = 'YIL133C'
-##    paralog1 = 'YBL087C'
-##    paralog2 = 'YER117W'
-##    #paralog1 = 'YML026C'
-##    #paralog2 = 'YDR450W'
-####    path = './NewPackageNewRun/'
-######    paralog1 = 'ECP'
-######    paralog2 = 'EDN'
-######
-####    Force    = {5:0.0}
-######
-##    paralog = [paralog1, paralog2]
-##    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-##    #alignment_file = '../data/cleaned_input_data.fasta'
-##    #alignment_file = '../data/cleanedfasta.fasta'
-##    newicktree = '../PairsAlignemt/YeastTree.newick'
-##    #newicktree = '../data/input_tree.newick'
-##
+    paralog1 = 'YNL069C'
+    paralog2 = 'YIL133C'
+    paralog1 = 'YBL087C'
+    paralog2 = 'YER117W'
+    paralog1 = 'YDR502C'
+    paralog2 = 'YLR180W'
+    #paralog1 = 'YML026C'
+    #paralog2 = 'YDR450W'
+##    path = './NewPackageNewRun/'
+####    paralog1 = 'ECP'
+####    paralog2 = 'EDN'
+####
+##    Force    = {5:0.0}
+####
+    paralog = [paralog1, paralog2]
+    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    #alignment_file = '../data/cleaned_input_data.fasta'
+    #alignment_file = '../data/cleanedfasta.fasta'
+    newicktree = '../PairsAlignemt/YeastTree.newick'
+    #newicktree = '../data/input_tree.newick'
+
 ##    x = np.array([-0.72980621, -0.56994663, -0.96216856,  1.73940961, -1.71054117,  0.54387332,
 ##                  -1.33866266, -3.47424374, -1.68831105, -1.80543811, -3.62520339, -2.69364618,
 ##                  -4.41935536, -2.61416486, -3.63272477, -2.78779654, -3.17653234, -3.95894103])
@@ -1218,9 +1254,19 @@ if __name__ == '__main__':
 ##                        -5.82838102, -0.07656569, -1.56484193, -0.18590612, -0.16381505, -0.41778555,
 ##                        -0.18178853])
 ##
-##    test3 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = True)
-##    #test3.get_mle(False, False, 1, 'differential_evolution')
-##    test3.get_mle(False, False, 1, 'basin-hopping')
+    out_group_blen = np.arange(0.0001, 0.01, 0.005)
+    ll_list = []
+    #test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', nnsites = 102, Force = None, clock = False)
+    #test.get_mle(False, False, 1, 'BFGS')
+    for blen in out_group_blen:
+        test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = {6:blen}, clock = False)
+        #test.Force = Force = {6:blen}
+        #test.update_by_x()
+        test.get_mle(False, True, 1, 'BFGS')
+        ll_list.append(test.ll)
+    
+    np.savetxt(open('./testlikelihood.txt', 'w+'), np.matrix([ll_list, out_group_blen]), delimiter = ' ')
+##    test.get_mle(False, False, 1, 'basin-hopping')
     
 ##    test3.update_by_x(x)
 ##    #test3.update_by_x_clock(x_clock)

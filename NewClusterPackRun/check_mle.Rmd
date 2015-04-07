@@ -196,8 +196,10 @@ check.suspicious <- function(sh.file, summary, model, clock, gBGC, dir, force, t
     paralog <- strsplit(pair, split = "_")[[1]]
     pair.sh.name <- paste("./NewRun/", pair, sh.suffix, "suspicious.sh", sep = "")
     pair.sh <- file(pair.sh.name, "w+")
-    txt.suffix <- paste(pair, sh.suffix, "suspicious_PrintScreen.txt", sep = "")
-    sh.txt <- paste("python", "Run_unfinished.py", 
+    #txt.suffix <- paste(pair, sh.suffix, "suspicious_basinhopping_PrintScreen.txt", sep = "")
+    txt.suffix <- paste(pair, sh.suffix, "suspicious_plotLL_PrintScreen.txt", sep = "")
+    #sh.txt <- paste("python", "Run_unfinished.py", 
+    sh.txt <- paste("python", "PlotLL.py",                 
     #sh.txt <- paste("/Library/Frameworks/Python.framework/Versions/7.3/bin/python", "Run_unfinished.py", 
                     "--paralog1", paralog[1], "--paralog2", paralog[2], 
                     force.cmd, gBGC.cmd, dir.cmd, clock.cmd, "--model", model, 

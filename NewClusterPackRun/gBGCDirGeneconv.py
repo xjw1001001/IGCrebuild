@@ -37,9 +37,17 @@ class gBGCDirGeneconv(DirGeneconv):
 
         self.update_by_x()
 
-    def unpack_x_process(self, Force_process = None):
-        self.gamma = self.x_process[-1]
-        x_process = np.exp(self.x_process[:-1])
+    def unpack_x_process(self, transformation, Force_process = None):
+        
+        if transformation == 'log':
+            x_process = np.exp(self.x_process[:-1])
+            self.gamma = self.x_process[-1]
+        elif transformation == 'None':
+            x_process = self.x_process[:-1]
+            self.gamma = self.x_process[-1]
+        elif transformation == 'Exp_Neg':
+            x_process = x_process = np.concatenate((self.x_process[:3], -np.log(self.x_process[3:-1])))
+            self.gamma = (self.x_process[-1] - 0.5) * 20.0
 
         if Force_process != None:
             for i in Force_process.keys():
@@ -458,5 +466,5 @@ if __name__ == '__main__':
 ##    Force = None
 ##    
 ##    test = gBGCDirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force, clock = False)
-##    test.get_mle()
-##    test2 = DirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force, clock = False)
+##    test.get_mle(method = 'differential_evolution')
+    #test2 = DirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force, clock = False)
