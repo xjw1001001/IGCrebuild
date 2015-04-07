@@ -7,14 +7,24 @@ import numpy as np
 from numpy.testing import assert_equal
 from scipy.misc import logsumexp
 from scipy.optimize import minimize
-from scipy.special import logit, expit
 import pyparsing
 
 import jsonctmctree.interface
 from jsonctmctree.extras import optimize_em
 
+from modelutil import pack, unpack
+
+
 s_tree = """((((((cerevisiae,paradoxus),mikatae),kudriavzevii),
 bayanus),castellii),kluyveri)"""
+
+FASTA_FILENAME = 'YDR502C_YLR180W_input.fasta'
+#FASTA_FILENAME = 'yeast.paralogs.fasta'
+
+PARALOGS = ('YDR502C', 'YLR180W')
+#PARALOGS = ('YAL056W', 'YOR371C')
+
+
 
 def build_tree(parent, root, node, name_to_node, edges):
     if parent is not None:
@@ -54,49 +64,6 @@ def gen_transitions(distn, kappa, tau):
                     if i != k and j != k:
                         yield (i, j), (k, j), R[i, k]
                         yield (i, j), (i, k), R[j, k]
-
-
-def pack_acgt(pi):
-    a, c, g, t = pi
-    ag = a+g  # purines
-    ct = c+t  # pyrimidines
-    a_div_ag = a / ag
-    c_div_ct = c / ct
-    return logit([ag, a_div_ag, c_div_ct])
-
-
-def unpack_acgt(packed_acgt):
-    ag, a_div_ag, c_div_ct = expit(packed_acgt)
-    ct = 1 - ag
-    a = a_div_ag * ag
-    g = ag - a
-    c = c_div_ct * ct
-    t = ct - c
-    return np.array([a, c, g, t])
-
-
-def pack_global_params(pi, kappa, tau):
-    return np.concatenate([
-        pack_acgt(pi),
-        np.log([kappa, tau])])
-
-
-def unpack_global_params(X):
-    pi = unpack_acgt(X[:3])
-    kappa, tau = np.exp(X[3:])
-    return pi, kappa, tau
-
-
-def pack(distn, kappa, tau, rates):
-    return np.concatenate((
-        pack_global_params(distn, kappa, tau),
-        np.log(rates)))
-
-
-def unpack(X):
-    distn, kappa, tau = unpack_global_params(X[:5])
-    rates = np.exp(X[5:])
-    return distn, kappa, tau, rates
 
 
 def get_process_defn_and_prior(distn, kappa, tau):
@@ -172,7 +139,8 @@ def objective_and_gradient(scene, X):
 
     # Return cost and gradient.
     print(cost)
-    #print(gradient)
+    print('gradient:')
+    print(gradient)
     print()
     return cost, gradient
 
@@ -198,14 +166,14 @@ def main():
 
     # Define suffixes indicating paralogs.
     paralog_to_variable = {
-            'yal056w' : 0,
-            'yor371c' : 1}
+            PARALOGS[0].lower() : 0,
+            PARALOGS[1].lower() : 1}
 
     # Read the data (in this case, alignment columns).
     nodes = []
     variables = []
     rows = []
-    with open('yeast.paralogs.fasta') as fin:
+    with open(FASTA_FILENAME) as fin:
         while True:
             line = fin.readline().strip().lower()
             if not line:
@@ -237,7 +205,7 @@ def main():
     #distn = np.ones(4) / 4
 
     rates = [0.1] * edge_count
-    kappa = 2.0
+    kappa = 6.0
     tau = 3.0
     process_defn, root_prior = get_process_defn_and_prior(distn, kappa, tau)
     scene = {
@@ -265,8 +233,27 @@ def main():
     X = pack(distn, kappa, tau, rates)
     f = functools.partial(objective_and_gradient, scene)
     result = minimize(f, X, jac=True, method='L-BFGS-B')
-    print('final value of objective function:', result.fun)
-    print_estimates(result.x)
+    print('penultimate value of objective function:', result.fun)
+    X = result.x
+    print('penultimate results:')
+    print_estimates(X)
+    print()
+
+    # Update the edge rates using 5 iterations of EM.
+    # Then re-run the optimization.
+    distn, kappa, tau, rates = unpack(X)
+    process_defn, root_prior = get_process_defn_and_prior(distn, kappa, tau)
+    scene['root_prior'] = root_prior
+    scene['process_definitions'] = [process_defn]
+    rates = optimize_em(scene, None, 5)
+    X = pack(distn, kappa, tau, rates)
+    f = functools.partial(objective_and_gradient, scene)
+    result = minimize(f, X, jac=True, method='L-BFGS-B')
+    print('final results:')
+    print('objective function value:', result.fun)
+    X = result.x
+    print_estimates(X)
+    print()
 
 
 def print_estimates(X):

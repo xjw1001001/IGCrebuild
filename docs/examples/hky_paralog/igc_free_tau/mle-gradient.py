@@ -7,9 +7,11 @@ import numpy as np
 from numpy.testing import assert_equal
 from scipy.misc import logsumexp
 from scipy.optimize import minimize
-from scipy.special import logit, expit
 
 import jsonctmctree.interface
+
+from modelutil import pack, unpack
+
 
 def hky(distn, k):
     R = np.array([
@@ -38,49 +40,6 @@ def gen_transitions(distn, kappa, tau):
                     if i != k and j != k:
                         yield (i, j), (k, j), R[i, k]
                         yield (i, j), (i, k), R[j, k]
-
-
-def pack_acgt(pi):
-    a, c, g, t = pi
-    ag = a+g  # purines
-    ct = c+t  # pyrimidines
-    a_div_ag = a / ag
-    c_div_ct = c / ct
-    return logit([ag, a_div_ag, c_div_ct])
-
-
-def unpack_acgt(packed_acgt):
-    ag, a_div_ag, c_div_ct = expit(packed_acgt)
-    ct = 1 - ag
-    a = a_div_ag * ag
-    g = ag - a
-    c = c_div_ct * ct
-    t = ct - c
-    return np.array([a, c, g, t])
-
-
-def pack_global_params(pi, kappa, tau):
-    return np.concatenate([
-        pack_acgt(pi),
-        np.log([kappa, tau])])
-
-
-def unpack_global_params(X):
-    pi = unpack_acgt(X[:3])
-    kappa, tau = np.exp(X[3:])
-    return pi, kappa, tau
-
-
-def pack(distn, kappa, tau, rates):
-    return np.concatenate((
-        pack_global_params(distn, kappa, tau),
-        np.log(rates)))
-
-
-def unpack(X):
-    distn, kappa, tau = unpack_global_params(X[:5])
-    rates = np.exp(X[5:])
-    return distn, kappa, tau, rates
 
 
 def get_process_defn_and_prior(distn, kappa, tau):
