@@ -25,6 +25,66 @@ PARALOGS = ('YDR502C', 'YLR180W')
 #PARALOGS = ('YAL056W', 'YOR371C')
 
 
+def custom_pack(distn, kappa, tau, rates):
+    return pack(distn, kappa, tau, hardcoded_rate_deflate(rates))
+
+def custom_unpack(rate_expansion, X):
+    distn, kappa, tau, rates = unpack(X)
+    return distn, kappa, tau, hardcoded_rate_expand(rate_expansion, rates)
+
+def hardcoded_rate_deflate(rates):
+    new_rates = np.concatenate((rates[:1], rates[2:]))
+    assert_equal(len(new_rates) + 1, len(rates))
+    return new_rates
+
+def hardcoded_rate_expand(outgroup_rate, rates):
+    new_rates = np.concatenate((rates[:1], [outgroup_rate], rates[1:]))
+    assert_equal(len(new_rates), len(rates) + 1)
+    return new_rates
+
+
+def get_hardcoded_tree_and_rates(outgroup_rate):
+    # This is for compatibility with Xiang's implementation.
+    # It is an alternative to build_tree.
+    names = [
+            'N0', 'N1', 'N2', 'N3', 'N4', 'N5',
+            'kluyveri', 'castellii', 'bayanus', 'kudriavzevii',
+            'mikatae', 'cerevisiae', 'paradoxus']
+    name_to_node = {x : i for i, x in enumerate(names)}
+    name_edges = [
+            ('N0','N1'),
+            ('N0','kluyveri'),
+            ('N1','N2'),
+            ('N1','castellii'),
+            ('N2','N3'),
+            ('N2','bayanus'),
+            ('N3','N4'),
+            ('N3','kudriavzevii'),
+            ('N4','N5'),
+            ('N4','mikatae'),
+            ('N5','cerevisiae'),
+            ('N5','paradoxus'),
+            ]
+    edges = [[name_to_node[a], name_to_node[b]] for a, b in name_edges]
+    rates = [
+            1.323666e-01,
+
+            1.141184e-05,
+            #outgroup_rate,
+
+            3.208034e-02,
+            1.167843e-01,
+            2.156341e-02,
+            2.942265e-02,
+            1.778006e-02,
+            4.161289e-02,
+            1.778255e-02,
+            4.193464e-02,
+            2.272669e-02,
+            2.114252e-02,
+            ]
+    return name_to_node, edges, rates
+
 
 def build_tree(parent, root, node, name_to_node, edges):
     if parent is not None:
@@ -80,14 +140,14 @@ def get_process_defn_and_prior(distn, kappa, tau):
             }
     return process_definition, root_prior
 
-def objective_and_gradient(scene, X):
+def objective_and_gradient(scene, outgroup_length, X):
     #print('parameter estimates passed to objective and gradient calculator:')
     #print(X)
     #print(np.exp(X))
-    print_estimates(X)
+    print_estimates(outgroup_length, X)
 
     delta = 1e-8
-    distn, kappa, tau, rates = unpack(X)
+    distn, kappa, tau, rates = custom_unpack(outgroup_length, X)
     scene['tree']['edge_rate_scaling_factors'] = rates.tolist()
     log_likelihood_request = {'property' : 'snnlogl'}
     derivatives_request = {'property' : 'sdnderi'}
@@ -121,7 +181,7 @@ def objective_and_gradient(scene, X):
     for i in range(nparams):
         W = np.copy(X)
         W[i] += delta
-        distn, kappa, tau, rates = unpack(W)
+        distn, kappa, tau, rates = custom_unpack(outgroup_length, W)
         process_defn, root_prior = get_process_defn_and_prior(distn, kappa, tau)
         scene['root_prior'] = root_prior
         scene['process_definitions'] = [process_defn]
@@ -145,17 +205,15 @@ def objective_and_gradient(scene, X):
     return cost, gradient
 
 
-def main():
-
-    np.set_printoptions(threshold=100000)
-
+def compute_log_likelihood_for_one_branch_length(outgroup_length):
     # Flatten the tree into a list of node indices and a list of edges.
-    tree = s_tree.replace(',', ' ')
-    nestedItems = pyparsing.nestedExpr(opener='(', closer=')')
-    tree = (nestedItems + pyparsing.stringEnd).parseString(tree).asList()[0]
-    name_to_node = {}
-    edges = []
-    build_tree(None, tree, 0, name_to_node, edges)
+    #tree = s_tree.replace(',', ' ')
+    #nestedItems = pyparsing.nestedExpr(opener='(', closer=')')
+    #tree = (nestedItems + pyparsing.stringEnd).parseString(tree).asList()[0]
+    #name_to_node = {}
+    #edges = []
+    #build_tree(None, tree, 0, name_to_node, edges)
+    name_to_node, edges, rates = get_hardcoded_tree_and_rates(outgroup_length)
 
     # Spam the name and node and edges.
     for name, node in name_to_node.items():
@@ -203,8 +261,14 @@ def main():
 
     distn = empirical_pi
     #distn = np.ones(4) / 4
+    #distn = np.array([2.5125e-01, 2.3797e-01, 2.0262e-01, 3.0815e-01])
 
-    rates = [0.1] * edge_count
+    #kappa = 5.944071e+00
+    #tau = 3.140967e+00
+
+    # This has been replaced by hardcoded rates.
+    #rates = [0.1] * edge_count
+
     kappa = 6.0
     tau = 3.0
     process_defn, root_prior = get_process_defn_and_prior(distn, kappa, tau)
@@ -228,36 +292,41 @@ def main():
             }
 
     # Update the edge rates using 5 iterations of EM.
-    rates = optimize_em(scene, None, 5)
+    #rates = optimize_em(scene, None, 5)
+    #assert_equal(len(rates), len(edges))
 
-    X = pack(distn, kappa, tau, rates)
-    f = functools.partial(objective_and_gradient, scene)
+    X = custom_pack(distn, kappa, tau, rates)
+    f = functools.partial(objective_and_gradient, scene, outgroup_length)
     result = minimize(f, X, jac=True, method='L-BFGS-B')
-    print('penultimate value of objective function:', result.fun)
+    print('post-search value of objective function:', result.fun)
     X = result.x
-    print('penultimate results:')
-    print_estimates(X)
+    print('post-search results:')
+    print_estimates(outgroup_length, X)
     print()
 
     # Update the edge rates using 5 iterations of EM.
     # Then re-run the optimization.
-    distn, kappa, tau, rates = unpack(X)
+    """
+    distn, kappa, tau, rates = custom_unpack(outgroup_length, X)
     process_defn, root_prior = get_process_defn_and_prior(distn, kappa, tau)
     scene['root_prior'] = root_prior
     scene['process_definitions'] = [process_defn]
     rates = optimize_em(scene, None, 5)
-    X = pack(distn, kappa, tau, rates)
-    f = functools.partial(objective_and_gradient, scene)
+    X = custom_pack(distn, kappa, tau, rates)
+    f = functools.partial(objective_and_gradient, scene, outgroup_length)
     result = minimize(f, X, jac=True, method='L-BFGS-B')
     print('final results:')
     print('objective function value:', result.fun)
     X = result.x
-    print_estimates(X)
+    print_estimates(outgroup_length, X)
     print()
+    """
+
+    return result.fun
 
 
-def print_estimates(X):
-    distn, kappa, tau, rates = unpack(X)
+def print_estimates(outgroup_length, X):
+    distn, kappa, tau, rates = custom_unpack(outgroup_length, X)
     print('nucleotide distribution:')
     for nt, p in zip('ACGT', distn):
         print('  ', nt, ':', p)
@@ -266,6 +335,33 @@ def print_estimates(X):
     print('edge rate scaling factors:')
     for r in rates:
         print('  ', r)
+
+
+def main():
+    np.set_printoptions(threshold=100000)
+
+    log_likelihoods = []
+    nsamples = 15
+    log_outgroup_rates = np.linspace(-10, -3, num=nsamples)
+    outgroup_rates = np.exp(log_outgroup_rates)
+    for outgroup_rate in outgroup_rates:
+        ll = compute_log_likelihood_for_one_branch_length(outgroup_rate)
+        log_likelihoods.append(ll)
+        print(ll)
+
+    print('outgroup rate and maximum log likelihood:')
+    for outgroup_rate, ll in zip(outgroup_rates, log_likelihoods):
+        print(outgroup_rate, ll, sep='\t')
+
+    print('draw the plot:')
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    plt.plot(outgroup_rates, log_likelihoods, marker='o', linestyle='--')
+    plt.xscale('log')
+    plt.xlabel('outgroup branch length')
+    plt.ylabel('neg log likelihood')
+    plt.title('outgroup branch discretization for HKY+IGC YDR502C YLR180W')
+    plt.savefig('discretized-outgroup-plot.svg')
 
 
 main()
