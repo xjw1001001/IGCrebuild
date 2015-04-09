@@ -10,7 +10,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from jsonctmctree.expect import process_json_in
-from jsonctmctree.sampling import(
+from jsonctmctree.testutil import(
         sample_distn,
         sample_time_reversible_rate_matrix,
         sample_time_nonreversible_rate_matrix,

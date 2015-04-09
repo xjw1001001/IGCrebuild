@@ -15,9 +15,9 @@ import numpy as np
 from numpy.testing import assert_allclose
 import scipy.linalg
 
-from jsonctmctree.sampling import assert_square_matrix
 from jsonctmctree.ll import process_json_in
-from jsonctmctree.sampling import(
+from jsonctmctree.testutil import(
+        assert_square_matrix,
         sample_distn,
         sample_time_reversible_rate_matrix,
         sample_time_nonreversible_rate_matrix,

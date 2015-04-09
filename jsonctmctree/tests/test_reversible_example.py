@@ -12,7 +12,7 @@ import scipy.linalg
 
 from jsonctmctree import expect
 from jsonctmctree import interface
-from jsonctmctree.sampling import sample_time_reversible_rate_matrix
+from jsonctmctree.testutil import sample_time_reversible_rate_matrix
 
 
 def _process_ex(Q, d, observable_node, debug=False):
