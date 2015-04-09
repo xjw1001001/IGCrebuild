@@ -12,11 +12,10 @@ from __future__ import division, print_function, absolute_import
 from itertools import product, permutations
 
 import numpy as np
-from numpy.testing import (assert_allclose, assert_equal,
-        assert_array_less, assert_)
+from numpy.testing import assert_allclose
 import scipy.linalg
 
-from jsonctmctree.util import assert_square
+from jsonctmctree.sampling import assert_square_matrix
 from jsonctmctree.ll import process_json_in
 from jsonctmctree.sampling import(
         sample_distn,

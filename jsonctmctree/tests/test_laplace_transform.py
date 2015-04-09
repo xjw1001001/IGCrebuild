@@ -11,7 +11,7 @@ from numpy.testing import (assert_allclose, assert_equal,
         assert_array_less, assert_)
 import scipy.linalg
 
-from jsonctmctree.util import assert_square
+from jsonctmctree.sampling import assert_square_matrix
 from jsonctmctree.ll import process_json_in
 from jsonctmctree.sampling import(
         sample_distn,

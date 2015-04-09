@@ -11,7 +11,12 @@ from numpy.testing import assert_allclose, assert_equal
 import scipy.linalg
 
 
+def assert_square_matrix(M):
+    assert_equal(len(M.shape), 2)
+    assert_equal(M.shape[0], M.shape[1])
+
 def assert_symmetric_matrix(M):
+    assert_square_matrix(M)
     assert_allclose(M, M.T)
 
 def sample_symmetric_rates(n):
