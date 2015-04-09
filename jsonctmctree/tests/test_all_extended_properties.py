@@ -76,7 +76,7 @@ import numpy as np
 from numpy.testing import assert_allclose, assert_equal
 
 from jsonctmctree import interface
-from jsonctmctree.util import sparse_reduction
+from jsonctmctree.common_reduction import sparse_reduction
 
 def _get_scene():
     a = 0.2

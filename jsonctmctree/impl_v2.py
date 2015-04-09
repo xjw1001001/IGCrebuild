@@ -21,7 +21,6 @@ from .common_likelihood import (
         get_conditional_likelihoods, get_subtree_likelihoods)
 from .common_unpacking_ex import TopLevel, interpret_tree, interpret_root_prior
 from .common_reduction import apply_prefixed_reductions, apply_reductions
-from .util import sparse_reduction
 from . import expect
 from . import ll
 from .impl_naive import (
