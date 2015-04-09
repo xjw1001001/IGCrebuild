@@ -21,9 +21,9 @@ setup(
         author='jsonctmctree authors',
         url='https://github.com/argriffing/jsonctmctree/',
         download_url='https://github.com/argriffing/jsonctmctree/',
-        packages=['jsonctmctree', 'jsonctmctree.pyexp'],
+        packages=['jsonctmctree', 'jsonctmctree.pyexp', 'jsonctmctree.tests'],
         test_suite='nose.collector',
-        package_data={'jsonctmctree' : ['tests/test_*.py']},
+        #package_data={'jsonctmctree' : ['tests/test_*.py']},
         scripts=[
             'scripts/jsonctmctree',
             'scripts/jsonctmctree-ll',
