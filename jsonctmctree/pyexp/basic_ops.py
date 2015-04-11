@@ -13,7 +13,8 @@ __all__ = ['HighLevelInterface', 'VanillaAdjointOperator', 'PowerOperator',
 class HighLevelInterface(object):
     # This interface expects to be mixed into a class with the following members
     # _matmat (function)
-    # _transpose (function) # _adjoint (function)
+    # _transpose (function)
+    # _adjoint (function)
     @property
     def T(self):
         return self._transpose()

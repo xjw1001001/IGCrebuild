@@ -14,6 +14,7 @@ http://eprints.ma.man.ac.uk/1451/01/covered/MIMS_ep2010_18.pdf
 from __future__ import division, print_function, absolute_import
 
 import numpy as np
+from numpy.testing import assert_equal
 
 __all__ = ['MMAX', 'PMAX', 'THETA']
 
@@ -38,7 +39,7 @@ def _mmax_to_pmax(mmax):
 
 PMAX = _mmax_to_pmax(MMAX)
 
-assert PMAX == 8
+assert_equal(PMAX, 8)
 
 
 # This table helps to compute bounds.

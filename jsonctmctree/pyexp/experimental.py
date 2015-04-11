@@ -37,28 +37,6 @@ from .sparse_dense_compat import exact_1_norm
 from .basic_ops import PowerOperator
 
 
-class RateMatrix(object):
-    """
-    This class is deliberately generally named.
-
-    The input should be a scipy sparse matrix
-    of non-negative off-diagonal rates.
-    Diagonal entries should not be provided.
-
-    """
-    def __init__(self, A):
-        self._A = A
-        self._exit_rates = A.sum(axis=1).A.flatten()
-        self._mean_exit_rate = np.mean(self._exit_rates)
-        self._centered_exit_rates = self._exit_rates - self._mean_exit_rate
-
-    def expm_multiply(self, t, B):
-        pass
-
-    def expm_adjoint_multiply(self, t, B):
-        pass
-
-
 class IterationStash(object):
     """
     Stash information for computing iteration counts.

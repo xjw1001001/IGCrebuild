@@ -16,7 +16,8 @@ from .basic_ops import (
 
 
 __all__ = ['RdOperator', 'RdcOperator', 'RdCOperator',
-           'Propagator', 'MatrixExponential', 'ExplicitMatrixExponential']
+           'Propagator', 'ExplicitPropagator', 'SmarterPropagator',
+           'MatrixExponential']
 
 
 class RdOperator(HighLevelInterface, ConcreteInterface):
@@ -191,6 +192,43 @@ def _expm_product_helper(A, mu, iteration_stash, t, B):
     return F
 
 
+class SmarterPropagator(object):
+    """
+    Wraps a sparse rate matrix.
+
+    Depending on the size of the state space, use either an explicit
+    matrix exponential calculation or use an abstract linear operator
+    to compute matrix exponential vector products.
+
+    Ideally the cutoff would depend on not only the size of the state
+    space but also properties such as norms of powers of the rate matrix.
+
+    """
+    def __init__(self, M):
+        # M is a sparse matrix of non-negative rates.
+        self.shape = M.shape
+        self.dtype = M.dtype
+
+        # Compute exit rates.
+        exit_rates = M.sum(axis=1).A.ravel()
+
+        # Determine whether to use abstract or explicit linear operators.
+        if exit_rates.shape[0] < 100:
+            Q = M - np.diag(exit_rates)
+            self._P = ExplicitPropagator(Q)
+        else:
+            d = -exit_rates
+            mu = np.mean(d)
+            op = RdOperator(M, d - mu)
+            self._P = Propagator(op, mu)
+
+    def _parameterized_matmat(self, t, B):
+        return self._P._parameterized_matmat(t, B)
+
+    def _parameterized_adjoint_matmat(self, t, B):
+        return self._P._parameterized_adjoint_matmat(t, B)
+
+
 class Propagator(object):
     """
     Wraps a linear operator.
@@ -209,6 +247,8 @@ class Propagator(object):
         # A = M - mu*I is an abstract linear operator
         # whose 1-norm is directly accessible.
         # mu is the mean trace of M.
+        self.shape = A.shape
+        self.dtype = A.dtype
         self._A = A
         self._mu = mu
         self._forward_iteration_stash = None
@@ -240,6 +280,8 @@ class ExplicitPropagator(object):
     """
     def __init__(self, M):
         # M is assumed to be an explicit ndarray.
+        self.shape = M.shape
+        self.dtype = M.dtype
         self._M = M
 
     def _parameterized_matmat(self, t, B):

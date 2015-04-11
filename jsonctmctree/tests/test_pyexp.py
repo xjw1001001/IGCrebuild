@@ -11,7 +11,8 @@ from scipy.linalg import expm
 import jsonctmctree
 from jsonctmctree.pyexp.basic_ops import PowerOperator, ExtendedMatrixOperator
 from jsonctmctree.pyexp.ctmc_ops import (
-        RdOperator, RdcOperator, RdCOperator, Propagator, MatrixExponential)
+        RdOperator, RdcOperator, RdCOperator,
+        Propagator, SmarterPropagator, MatrixExponential)
 
 
 def get_random_rate_matrix(n):
@@ -181,7 +182,6 @@ def test_MatrixExponential_nontrivial_mu():
     op = RdOperator(R, d - mu)
     P = Propagator(op, mu)
     k = op.shape[1]
-    I = np.identity(k)
 
     # Compare to the brute force calculation across several scaling factors.
     for t in 0.42, 4.2, 42.0:
@@ -189,5 +189,30 @@ def test_MatrixExponential_nontrivial_mu():
         for n0 in 2, 10:
             B = np.random.randn(k, n0)
             desired = expm((R.A + np.diag(d)) * t).dot(B)
+            actual = L.dot(B)
+            assert_allclose(actual, desired)
+
+
+def test_SmarterPropagator():
+    # This is an n x n square operator.
+    np.random.seed(1234)
+    n = 4
+
+    # Sample a sparse matrix of rates.
+    R = get_random_rate_matrix(n)
+
+    # Create the 'smart' propagator.
+    P = SmarterPropagator(R)
+
+    # Create the rate matrix including explicit negative diagonal entries.
+    exit_rates = R.sum(axis=1).A.ravel()
+    Q = R - np.diag(exit_rates)
+
+    # Compare to the brute force calculation across several scaling factors.
+    for t in 0.42, 4.2, 42.0:
+        L = MatrixExponential(P, t)
+        for n0 in 2, 10:
+            B = np.random.randn(n, n0)
+            desired = expm(Q * t).dot(B)
             actual = L.dot(B)
             assert_allclose(actual, desired)

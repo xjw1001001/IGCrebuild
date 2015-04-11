@@ -17,7 +17,8 @@ from scipy.sparse import coo_matrix
 
 from .pyexp import expm_multiply
 from .pyexp.ctmc_ops import (
-        Propagator, ExplicitPropagator, MatrixExponential, RdOperator)
+        Propagator, SmarterPropagator, ExplicitPropagator,
+        MatrixExponential, RdOperator)
 
 
 __all__ = [
@@ -157,15 +158,14 @@ class ActionExpm(object):
         R = R.tocsr()
         exit_rates = R.sum(axis=1).A.ravel()
         d = -exit_rates
-        mu = np.mean(d)
-        op = RdOperator(R, d - mu)
 
         #TODO use some kind of heuristic
         # to decide between Propagator vs. ExplicitPropagator.
         #P = Propagator(op, mu)
         #self._Q = RdOperator(R, d)
         Q = R.A + np.diag(d)
-        P = ExplicitPropagator(Q)
+        P = SmarterPropagator(R)
+        #P = ExplicitPropagator(Q)
         self._Q = Q
 
         # Set member variables.
