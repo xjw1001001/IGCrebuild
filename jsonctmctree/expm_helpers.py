@@ -19,6 +19,7 @@ from .pyexp import expm_multiply
 from .pyexp.ctmc_ops import (
         Propagator, SmarterPropagator, ExplicitPropagator,
         MatrixExponential, RdOperator)
+from .pyexp.linear_system import LinearSystem
 
 
 __all__ = [
@@ -155,21 +156,7 @@ class ActionExpm(object):
     """
     def __init__(self, state_space_shape, row, col, rate, debug=False):
         R = create_sparse_pre_rate_matrix(state_space_shape, row, col, rate)
-        R = R.tocsr()
-        exit_rates = R.sum(axis=1).A.ravel()
-        d = -exit_rates
-
-        #TODO use some kind of heuristic
-        # to decide between Propagator vs. ExplicitPropagator.
-        #P = Propagator(op, mu)
-        #self._Q = RdOperator(R, d)
-        Q = R.A + np.diag(d)
-        P = SmarterPropagator(R)
-        #P = ExplicitPropagator(Q)
-        self._Q = Q
-
-        # Set member variables.
-        self._propagator = P
+        self._L = LinearSystem(R)
 
     def expm_rmul(self, rate_scaling_factor, A):
         """
@@ -178,16 +165,16 @@ class ActionExpm(object):
         This uses the fact that exp(X.T) = exp(X).T.
 
         """
-        L = MatrixExponential(self._propagator, rate_scaling_factor)
-        return L.T.dot(A.T).T
+        P = MatrixExponential(self._L.propagator, rate_scaling_factor)
+        return P.T.dot(A.T).T
 
     def expm_mul(self, rate_scaling_factor, A):
         """
         Compute exp(Q * r) * A.
 
         """
-        L = MatrixExponential(self._propagator, rate_scaling_factor)
-        return L.dot(A)
+        P = MatrixExponential(self._L.propagator, rate_scaling_factor)
+        return P.dot(A)
 
     def rate_mul(self, rate_scaling_factor, PA):
         """
@@ -195,7 +182,8 @@ class ActionExpm(object):
         This is for gradient calculation.
 
         """
-        return rate_scaling_factor * self._Q.dot(PA)
+        Q = self._L.instantaneous_operator
+        return rate_scaling_factor * Q.dot(PA)
 
 
 class ActionExpmOld(object):
