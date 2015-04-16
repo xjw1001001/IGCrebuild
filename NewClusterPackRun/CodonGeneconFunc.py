@@ -114,7 +114,7 @@ def get_MG94GeneconvRate(pair_from, pair_to, Qbasic, tau, codon_to_state):
             return [row, col, BasicRate]
     #print ('You should not see this')
 
-vec_get_MG94GeneconvRate = np.vectorize(get_MG94GeneconvRate, doc = 'Vectorized `get_MG94GeneconvRate`', excluded = ['pi', 'kappa', 'omega', 'codon_table', 'tau', 'codon_to_state'])
+## vec_get_MG94GeneconvRate = np.vectorize(get_MG94GeneconvRate, doc = 'Vectorized `get_MG94GeneconvRate`', excluded = ['pi', 'kappa', 'omega', 'codon_table', 'tau', 'codon_to_state'])
 
 def get_x_clock_guess(edge_to_blen):
     # TODO: modify this to work on general tree topology

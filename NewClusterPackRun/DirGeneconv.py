@@ -68,6 +68,8 @@ class DirGeneconv:
 
         self.processes      = None      # list of basic and geneconv rate matrices. Each matrix is a dictionary used for json parsing
 
+        self.scene_ll       = None      # used for lnL calculation
+        
         # Prior distribution on the root
         self.prior_feasible_states  = None
         self.prior_distribution     = None
@@ -171,10 +173,10 @@ class DirGeneconv:
         print 'number of sites to be analyzed: ', self.nsites
 
         # assign observable parameters
-        self.observable_names = self.name_to_seq.keys()
+        suffix_len = len(self.paralog[0])
+        self.observable_names = [n for n in self.name_to_seq.keys() if n[:-suffix_len] in self.node_to_num.keys()]
         paralog_len = [len(a) for a in self.paralog]
         assert(paralog_len[1:] == paralog_len[:-1])  # check if all paralog names have same length
-        suffix_len = len(self.paralog[0])
         suffix_to_axis = {n:i for (i, n) in enumerate(list(set(self.paralog))) }
         self.observable_nodes = [self.node_to_num[n[:-suffix_len]] for n in self.observable_names]
         self.observable_axes = [suffix_to_axis[s[-suffix_len:]] for s in self.observable_names]
@@ -612,7 +614,7 @@ class DirGeneconv:
         '''
         Modified from Alex's objective_and_gradient function in ctmcaas/adv-log-likelihoods/mle_geneconv_common.py
         '''
-        scene = self.get_scene()
+        self.scene_ll = self.get_scene()
         
         log_likelihood_request = {'property':'snnlogl'}
         derivatives_request = {'property':'sdnderi'}
@@ -621,7 +623,7 @@ class DirGeneconv:
         else:
             requests = [log_likelihood_request]
         j_in = {
-            'scene' : scene,
+            'scene' : self.scene_ll,
             'requests' : requests
             }
         j_out = jsonctmctree.interface.process_json_in(j_in)
@@ -817,20 +819,27 @@ class DirGeneconv:
         
         
     def get_mle(self, display = True, derivative = True, em_iterations = 3, method = 'basin-hopping', niter = 2000):
-        ll = self._loglikelihood2()
-        # http://jsonctmctree.readthedocs.org/en/latest/examples/hky_paralog/yeast_geneconv_zero_tau/index.html#em-for-edge-lengths-only
-        observation_reduction = None
-        self.x_rates = np.log(optimize_em(self.get_scene(), observation_reduction, em_iterations))
-        self.x = np.concatenate((self.x_process, self.x_rates))
-        if self.clock:
-            self.update_x_clock_by_x()
-            self.update_by_x_clock()
+        if em_iterations > 0:
+            ll = self._loglikelihood2()
+            # http://jsonctmctree.readthedocs.org/en/latest/examples/hky_paralog/yeast_geneconv_zero_tau/index.html#em-for-edge-lengths-only
+            observation_reduction = None
+            self.x_rates = np.log(optimize_em(self.get_scene(), observation_reduction, em_iterations))
+            self.x = np.concatenate((self.x_process, self.x_rates))
+            if self.clock:
+                self.update_x_clock_by_x()
+                self.update_by_x_clock()
+            else:
+                self.update_by_x()
+            if display:
+                print 'log-likelihood = ', ll
+                print 'updating blen length using EM'
+                print 'current log-likelihood = ', self._loglikelihood2()
         else:
-            self.update_by_x()
-        if display:
-            print 'log-likelihood = ', ll
-            print 'updating blen length using EM'
-            print 'current log-likelihood = ', self._loglikelihood2()
+            if self.clock:
+                self.update_x_clock_by_x()
+                self.update_by_x_clock()
+            else:
+                self.update_by_x()            
 
         bnds = [(None, -0.05)] * 3
         if not self.clock:
@@ -914,7 +923,7 @@ class DirGeneconv:
     def _ExpectedHetDwellTime(self, package = 'new', display = False):
 
         if package == 'new':
-            scene = self.get_scene()
+            self.scene_ll = self.get_scene()
             if self.Model == 'MG94':
                 heterogeneous_states = [(a, b) for (a, b) in list(product(range(len(self.codon_to_state)), repeat = 2)) if a != b]
             elif self.Model == 'HKY':
@@ -928,7 +937,7 @@ class DirGeneconv:
             )]
             
             j_in = {
-                'scene' : scene,
+                'scene' : self.scene_ll,
                 'requests' : dwell_request,
                 }        
             j_out = jsonctmctree.interface.process_json_in(j_in)
@@ -942,11 +951,11 @@ class DirGeneconv:
     def _ExpectedDirectionalNumGeneconv(self, package = 'new', display = False):
         DirectionalNumGeneconvRed = self.get_directionalNumGeneconvRed()
         if package == 'new':
-            scene = self.get_scene()
+            self.scene_ll = self.get_scene()
             requests = [{'property' : 'SDNTRAN', 'transition_reduction' : i} for i in DirectionalNumGeneconvRed]
             assert(len(requests) == 2)  # should be exactly 2 requests
             j_in = {
-                'scene' : scene,
+                'scene' : self.scene_ll,
                 'requests' : requests
                 }            
             j_out = jsonctmctree.interface.process_json_in(j_in)
@@ -1134,7 +1143,8 @@ class DirGeneconv:
 
 def main(args):
     paralog = [args.paralog1, args.paralog2]
-    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    #alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    alignment_file = './NewPairsAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
     path = './NewPackageNewRun/'
     summary_path = './NewPackageNewRun/'
@@ -1158,14 +1168,14 @@ def main(args):
 
     # YAL056W YOR371C 0127 Codon clock MLE
     test_hky = DirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = False)
-    result_hky = test_hky.get_mle(display = False)
+    result_hky = test_hky.get_mle(display = False, derivative = True, em_iterations = 3, method = 'BFGS')
     test_hky.get_ExpectedNumGeneconv()
     test_hky.get_ExpectedHetDwellTime()
     test_hky.get_individual_summary(summary_path = summary_path)
     test_hky.save_to_file(path = path)
 
     test2_hky = DirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
-    result2_hky = test2_hky.get_mle(display = False)
+    result2_hky = test2_hky.get_mle(display = False, derivative = True, em_iterations = 3, method = 'BFGS')
     test2_hky.get_ExpectedNumGeneconv()
     test2_hky.get_ExpectedHetDwellTime()
     test2_hky.get_individual_summary(summary_path = summary_path)
@@ -1175,7 +1185,7 @@ def main(args):
     x = np.concatenate((test_hky.x_process[:-2], np.log([omega_guess]), test_hky.x_process[-2:], test_hky.x_rates))
     test.update_by_x(x)
     
-    result = test.get_mle(display = True, em_iterations = 1)
+    result = test.get_mle(display = True, derivative = True, em_iterations = 1, method = 'BFGS')
     test.get_ExpectedNumGeneconv()
     test.get_ExpectedHetDwellTime()
     test.get_individual_summary(summary_path = summary_path)
@@ -1184,7 +1194,7 @@ def main(args):
     test2 = DirGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
     #x_clock = np.concatenate((test2_hky.x_process[:-2], np.log([omega_guess]), test2_hky.x_process[-2:], test2_hky.x_Lr))
     #test2.update_by_x_clock(x_clock)
-    result = test2.get_mle(display = True, em_iterations = 1)
+    result = test2.get_mle(display = True, derivative = True, em_iterations = 0, method = 'BFGS')
     test2.get_ExpectedNumGeneconv()
     test2.get_individual_summary(summary_path = summary_path)
     test2.save_to_file(path = path)

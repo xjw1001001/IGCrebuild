@@ -65,6 +65,8 @@ if __name__=='__main__':
 ###
 #Read ortholog info from http://www.broadinstitute.org/regev/orthogroups/
 ###
+#One to One mapping : http://www.broadinstitute.org/regev/orthogroups//orthologs.html
+###
     one_to_one_dict,many_to_many_dict = read_ortholog()
 
 ###
@@ -209,131 +211,131 @@ if __name__=='__main__':
     for pair in remove_pair_list:
         Pairs_for_alignment.remove(pair)
 
-###
-#Now output fasta file for alignment input
-#    output nex file for RevBayes input
-###
-    for pair in Pairs_for_alignment:
-        paralog1 = pair[0]
-        paralog2 = pair[1]
-        if not os.path.exists('./PairsAlignemt/'+paralog1+'_'+paralog2+'/'):
-            os.mkdir('./PairsAlignemt/'+paralog1+'_'+paralog2+'/')
-        with open('./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.fa','w+') as f:
-            for spe in species_list:
-                f.write('>'+spe+paralog1+'\n')
-                f.write(Pair_to_sequence[pair][paralog1][spe]+'\n')
-                f.write('>'+spe+paralog2+'\n')
-                f.write(Pair_to_sequence[pair][paralog2][spe]+'\n')
-            f.write('>'+'kluyveri'+paralog1+'\n')
-            f.write(Pair_to_sequence[pair]['kluyveri']+'\n')
-
-        # Now convert the fasta file to Nexus file
-        out_handle = './PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.nex'
-        in_handle = './PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_input.fasta'
-        count = SeqIO.convert(in_handle, 'fasta', out_handle, 'nexus',alphabet=Bio.Alphabet.generic_dna)
-        
-            
-    
-###
-#Now use fsa to do multiple sequence alignment
-###
-    for pair in Pairs_for_alignment:
-        paralog1 = pair[0]
-        paralog2 = pair[1]
-        #cmd = ['/Users/xji3/fsa-1.15.9/src/main/fsa','/Users/xji3/Genconv/PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.fa','>','/Users/xji3/Genconv/PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_fsa_alignment.fa']
-        #cmd = ['fsa','/Users/xji3/Genconv/PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.fa','>','/Users/xji3/Genconv/PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_fsa_alignment.fa']
-        #subprocess.check_output(cmd)
-
-
-        # Used Musle for MSA
-        #cmd = ['perl','./translatorx_vLocal.pl','-i','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.fa','-o','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_translatorX_alignment','-p','M']
-        # Change to MAFFT for MSA
-        cmd = ['perl','./translatorx_vLocal.pl','-i','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.fa','-o','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_translatorX_alignment_MAFFT','-p','P']
-        #os.system(' '.join(cmd))
-        my_env = os.environ.copy()
-        my_env['PATH'] = "/usr/sbin:/sbin:" + '/Users/xji3/AlignmentPro:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/Users/xji3/fas-1.15.9/MUMmer3.23:/opt/X11/bin:/opt/ImageMagick/bin:/usr/local/ncbi/blast/bin:/usr/texbin:/usr/local/ncbi/blast/bin:/Users/xji3/AlignmentPro'
-        subprocess.check_output(cmd,env = my_env)
-
-        aligned_file = './PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_translatorX_alignment_MAFFT.nt_ali.fasta'
-        align = processAlignment(aligned_file)
-        lookup = dict((rec.id,str(rec.seq)) for rec in align)
-        with open('./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_input.fasta','w+') as f:
-            for rec in align:
-                f.write('>'+str(rec.id)+'\n')
-                f.write(str(rec.seq)[:-3]+'\n')
-###
-#Now generate python code for cluster
-###
-    Sample_py_rooted_free = './PairsAlignemt/Rooted_HKY_Free_Tau_YBL087C_YER117W.py'
-    Sample_py_rooted_force = './PairsAlignemt/Rooted_HKY_Force_Tau_YBL087C_YER117W.py'
-    Sample_py_unrooted_free = './PairsAlignemt/UnRooted_HKY_Free_Tau_YBL087C_YER117W.py'
-    Sample_py_unrooted_force = './PairsAlignemt/UnRooted_HKY_Force_Tau_YBL087C_YER117W.py'
-
-    replace_paralog1 = 'YBL087C'
-    replace_paralog2 = 'YER117W'
-
-    for pair in Pairs_for_alignment:
-        paralog1 = pair[0]
-        paralog2 = pair[1]
-        new_py_rooted_free = Sample_py_rooted_free.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt','./PairsAlignemt/'+paralog1+'_'+paralog2)
-        new_py_rooted_force = Sample_py_rooted_force.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt','./PairsAlignemt/'+paralog1+'_'+paralog2)
-        new_py_unrooted_free = Sample_py_unrooted_free.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt','./PairsAlignemt/'+paralog1+'_'+paralog2)
-        new_py_unrooted_force = Sample_py_unrooted_force.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt','./PairsAlignemt/'+paralog1+'_'+paralog2)
-
-        with open(Sample_py_rooted_free,'rU') as f:
-            with open(new_py_rooted_free,'w+') as g:
-                for line in f:
-                    g.write(line.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2))
-
-        with open(Sample_py_rooted_force,'rU') as f:
-            with open(new_py_rooted_force,'w+') as g:
-                for line in f:
-                    g.write(line.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2))
-        
-        with open(Sample_py_unrooted_free,'rU') as f:
-            with open(new_py_unrooted_free,'w+') as g:
-                for line in f:
-                    g.write(line.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2))
-
-        with open(Sample_py_unrooted_force,'rU') as f:
-            with open(new_py_unrooted_force,'w+') as g:
-                for line in f:
-                    g.write(line.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2))
-
-###
-#Now generate sh file for cluster
-###
-    with open('./PairsAlignemt/run_all_yeast_pairs_HKY.sh','w+') as f:
-        f.write('#!/bin/bash'+'\n')
-        for pair in Pairs_for_alignment:
-            paralog1 = pair[0]
-            paralog2 = pair[1]
-            py_list = [Sample_py_rooted_free,Sample_py_rooted_force,Sample_py_unrooted_free,Sample_py_unrooted_force]
-            for py_file in py_list:
-                target_py_file = py_file.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt/','')
-                sh_file = py_file.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt/','./PairsAlignemt/'+paralog1+'_'+paralog2+'/Run_').replace('.py','_script.sh')
-                f.write(' '.join(['sbatch -o CodonGeneconv-%j.out -p bigmem -w node92 --mail-type=FAIL --mail-user=xji3@ncsu.edu',sh_file.replace('./PairsAlignemt/','./')])+'\n')
-                with open(sh_file,'w+') as g:
-                    g.write('#!/bin/bash'+'\n')
-                    g.write('cd '+paralog1+'_'+paralog2+'\n')
-                    g.write(' '.join(['python',target_py_file,'>',target_py_file.replace('.py','_PrintScreen.txt')]))
-
-###
-#Now generate sh file for local comp to run HKY 
-###
-    with open('./PairsAlignemt/run_all_yeast_pairs_HKY_local.sh','w+') as f:
-        f.write('#!/bin/bash'+'\n')
-        for pair in Pairs_for_alignment:
-            paralog1 = pair[0]
-            paralog2 = pair[1]
-            py_list = [Sample_py_rooted_free,Sample_py_rooted_force,Sample_py_unrooted_free,Sample_py_unrooted_force]
-            for py_file in py_list:
-                target_py_file = py_file.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt/','')
-                sh_file = py_file.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt/','./PairsAlignemt/'+paralog1+'_'+paralog2+'/Run_').replace('.py','_script.sh')
-                f.write(' '.join(['chmod', '+x', sh_file.replace('./PairsAlignemt/','./')])+'\n')
-                f.write(' '.join([sh_file.replace('./PairsAlignemt/','./')])+'\n')
-                with open(sh_file,'w+') as g:
-                    g.write('#!/bin/bash'+'\n')
-                    g.write('cd '+paralog1+'_'+paralog2+'\n')
-                    g.write(' '.join(['/Library/Frameworks/Python.framework/Versions/7.3/bin/python',target_py_file,'>',target_py_file.replace('.py','_PrintScreen.txt')]))
-
+#####
+###Now output fasta file for alignment input
+###    output nex file for RevBayes input
+#####
+##    for pair in Pairs_for_alignment:
+##        paralog1 = pair[0]
+##        paralog2 = pair[1]
+##        if not os.path.exists('./PairsAlignemt/'+paralog1+'_'+paralog2+'/'):
+##            os.mkdir('./PairsAlignemt/'+paralog1+'_'+paralog2+'/')
+##        with open('./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.fa','w+') as f:
+##            for spe in species_list:
+##                f.write('>'+spe+paralog1+'\n')
+##                f.write(Pair_to_sequence[pair][paralog1][spe]+'\n')
+##                f.write('>'+spe+paralog2+'\n')
+##                f.write(Pair_to_sequence[pair][paralog2][spe]+'\n')
+##            f.write('>'+'kluyveri'+paralog1+'\n')
+##            f.write(Pair_to_sequence[pair]['kluyveri']+'\n')
+##
+##        # Now convert the fasta file to Nexus file
+##        out_handle = './PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.nex'
+##        in_handle = './PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_input.fasta'
+##        count = SeqIO.convert(in_handle, 'fasta', out_handle, 'nexus',alphabet=Bio.Alphabet.generic_dna)
+##        
+##            
+##    
+#####
+###Now use fsa to do multiple sequence alignment
+#####
+##    for pair in Pairs_for_alignment:
+##        paralog1 = pair[0]
+##        paralog2 = pair[1]
+##        #cmd = ['/Users/xji3/fsa-1.15.9/src/main/fsa','/Users/xji3/Genconv/PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.fa','>','/Users/xji3/Genconv/PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_fsa_alignment.fa']
+##        #cmd = ['fsa','/Users/xji3/Genconv/PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.fa','>','/Users/xji3/Genconv/PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_fsa_alignment.fa']
+##        #subprocess.check_output(cmd)
+##
+##
+##        # Used Musle for MSA
+##        #cmd = ['perl','./translatorx_vLocal.pl','-i','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.fa','-o','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_translatorX_alignment','-p','M']
+##        # Change to MAFFT for MSA
+##        cmd = ['perl','./translatorx_vLocal.pl','-i','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'.fa','-o','./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_translatorX_alignment_MAFFT','-p','P']
+##        #os.system(' '.join(cmd))
+##        my_env = os.environ.copy()
+##        my_env['PATH'] = "/usr/sbin:/sbin:" + '/Users/xji3/AlignmentPro:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/Users/xji3/fas-1.15.9/MUMmer3.23:/opt/X11/bin:/opt/ImageMagick/bin:/usr/local/ncbi/blast/bin:/usr/texbin:/usr/local/ncbi/blast/bin:/Users/xji3/AlignmentPro'
+##        subprocess.check_output(cmd,env = my_env)
+##
+##        aligned_file = './PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_translatorX_alignment_MAFFT.nt_ali.fasta'
+##        align = processAlignment(aligned_file)
+##        lookup = dict((rec.id,str(rec.seq)) for rec in align)
+##        with open('./PairsAlignemt/'+paralog1+'_'+paralog2+'/'+paralog1+'_'+paralog2+'_input.fasta','w+') as f:
+##            for rec in align:
+##                f.write('>'+str(rec.id)+'\n')
+##                f.write(str(rec.seq)[:-3]+'\n')
+#####
+###Now generate python code for cluster
+#####
+##    Sample_py_rooted_free = './PairsAlignemt/Rooted_HKY_Free_Tau_YBL087C_YER117W.py'
+##    Sample_py_rooted_force = './PairsAlignemt/Rooted_HKY_Force_Tau_YBL087C_YER117W.py'
+##    Sample_py_unrooted_free = './PairsAlignemt/UnRooted_HKY_Free_Tau_YBL087C_YER117W.py'
+##    Sample_py_unrooted_force = './PairsAlignemt/UnRooted_HKY_Force_Tau_YBL087C_YER117W.py'
+##
+##    replace_paralog1 = 'YBL087C'
+##    replace_paralog2 = 'YER117W'
+##
+##    for pair in Pairs_for_alignment:
+##        paralog1 = pair[0]
+##        paralog2 = pair[1]
+##        new_py_rooted_free = Sample_py_rooted_free.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt','./PairsAlignemt/'+paralog1+'_'+paralog2)
+##        new_py_rooted_force = Sample_py_rooted_force.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt','./PairsAlignemt/'+paralog1+'_'+paralog2)
+##        new_py_unrooted_free = Sample_py_unrooted_free.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt','./PairsAlignemt/'+paralog1+'_'+paralog2)
+##        new_py_unrooted_force = Sample_py_unrooted_force.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt','./PairsAlignemt/'+paralog1+'_'+paralog2)
+##
+##        with open(Sample_py_rooted_free,'rU') as f:
+##            with open(new_py_rooted_free,'w+') as g:
+##                for line in f:
+##                    g.write(line.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2))
+##
+##        with open(Sample_py_rooted_force,'rU') as f:
+##            with open(new_py_rooted_force,'w+') as g:
+##                for line in f:
+##                    g.write(line.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2))
+##        
+##        with open(Sample_py_unrooted_free,'rU') as f:
+##            with open(new_py_unrooted_free,'w+') as g:
+##                for line in f:
+##                    g.write(line.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2))
+##
+##        with open(Sample_py_unrooted_force,'rU') as f:
+##            with open(new_py_unrooted_force,'w+') as g:
+##                for line in f:
+##                    g.write(line.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2))
+##
+#####
+###Now generate sh file for cluster
+#####
+##    with open('./PairsAlignemt/run_all_yeast_pairs_HKY.sh','w+') as f:
+##        f.write('#!/bin/bash'+'\n')
+##        for pair in Pairs_for_alignment:
+##            paralog1 = pair[0]
+##            paralog2 = pair[1]
+##            py_list = [Sample_py_rooted_free,Sample_py_rooted_force,Sample_py_unrooted_free,Sample_py_unrooted_force]
+##            for py_file in py_list:
+##                target_py_file = py_file.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt/','')
+##                sh_file = py_file.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt/','./PairsAlignemt/'+paralog1+'_'+paralog2+'/Run_').replace('.py','_script.sh')
+##                f.write(' '.join(['sbatch -o CodonGeneconv-%j.out -p bigmem -w node92 --mail-type=FAIL --mail-user=xji3@ncsu.edu',sh_file.replace('./PairsAlignemt/','./')])+'\n')
+##                with open(sh_file,'w+') as g:
+##                    g.write('#!/bin/bash'+'\n')
+##                    g.write('cd '+paralog1+'_'+paralog2+'\n')
+##                    g.write(' '.join(['python',target_py_file,'>',target_py_file.replace('.py','_PrintScreen.txt')]))
+##
+#####
+###Now generate sh file for local comp to run HKY 
+#####
+##    with open('./PairsAlignemt/run_all_yeast_pairs_HKY_local.sh','w+') as f:
+##        f.write('#!/bin/bash'+'\n')
+##        for pair in Pairs_for_alignment:
+##            paralog1 = pair[0]
+##            paralog2 = pair[1]
+##            py_list = [Sample_py_rooted_free,Sample_py_rooted_force,Sample_py_unrooted_free,Sample_py_unrooted_force]
+##            for py_file in py_list:
+##                target_py_file = py_file.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt/','')
+##                sh_file = py_file.replace(replace_paralog1,paralog1).replace(replace_paralog2,paralog2).replace('./PairsAlignemt/','./PairsAlignemt/'+paralog1+'_'+paralog2+'/Run_').replace('.py','_script.sh')
+##                f.write(' '.join(['chmod', '+x', sh_file.replace('./PairsAlignemt/','./')])+'\n')
+##                f.write(' '.join([sh_file.replace('./PairsAlignemt/','./')])+'\n')
+##                with open(sh_file,'w+') as g:
+##                    g.write('#!/bin/bash'+'\n')
+##                    g.write('cd '+paralog1+'_'+paralog2+'\n')
+##                    g.write(' '.join(['/Library/Frameworks/Python.framework/Versions/7.3/bin/python',target_py_file,'>',target_py_file.replace('.py','_PrintScreen.txt')]))
+##

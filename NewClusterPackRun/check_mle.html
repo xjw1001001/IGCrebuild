@@ -243,14 +243,18 @@ for (target.summary in summary.list.gBGC){
     paralog &lt;- strsplit(pair, split = &quot;_&quot;)[[1]]
     pair.sh.name &lt;- paste(&quot;./NewRun/&quot;, pair, sh.suffix, &quot;suspicious.sh&quot;, sep = &quot;&quot;)
     pair.sh &lt;- file(pair.sh.name, &quot;w+&quot;)
-    txt.suffix &lt;- paste(pair, sh.suffix, &quot;suspicious_PrintScreen.txt&quot;, sep = &quot;&quot;)
-    sh.txt &lt;- paste(&quot;python&quot;, &quot;Run_unfinished.py&quot;, 
+    #txt.suffix &lt;- paste(pair, sh.suffix, &quot;suspicious_basinhopping_PrintScreen.txt&quot;, sep = &quot;&quot;)
+    txt.suffix &lt;- paste(pair, sh.suffix, &quot;suspicious_plotLL_PrintScreen.txt&quot;, sep = &quot;&quot;)
+    #sh.txt &lt;- paste(&quot;python&quot;, &quot;Run_unfinished.py&quot;, 
+    sh.txt &lt;- paste(&quot;python&quot;, &quot;PlotLL.py&quot;,                 
+    #sh.txt &lt;- paste(&quot;/Library/Frameworks/Python.framework/Versions/7.3/bin/python&quot;, &quot;Run_unfinished.py&quot;, 
                     &quot;--paralog1&quot;, paralog[1], &quot;--paralog2&quot;, paralog[2], 
                     force.cmd, gBGC.cmd, dir.cmd, clock.cmd, &quot;--model&quot;, model, 
                     &quot;&gt;&quot;, txt.suffix, sep = &quot; &quot;)
     writeLines(c(&quot;#!/bin/bash&quot;, sh.txt), pair.sh)
     close(pair.sh)
     writeLines(paste(sh.prefix, pair.sh.name, sep = &quot; &quot;), rerun.sh)
+    #writeLines(cbind(paste(&quot;chmod +x&quot;, pair.sh.name, sep = &quot; &quot;), pair.sh.name), rerun.sh)
     }
   close(rerun.sh)
 }</code></pre>
@@ -354,7 +358,8 @@ check.suspicious(sh.file, summary = Force_HKY_clock_summary, model = &quot;HKY&q
 check.suspicious(sh.file, summary = Force_HKY_nonclock_summary, model = &quot;HKY&quot;,clock = FALSE, gBGC = FALSE,
                  dir = FALSE, force = TRUE, threshold = threshold)</code></pre>
 <pre><code>## character(0)</code></pre>
-<p>Now check lnL improvements</p>
+<div id="now-check-lnl-improvements" class="section level4">
+<h4>Now check lnL improvements</h4>
 <pre class="r"><code># nonclock models
 # HKY
 HKY_nonclock_summary[2, ] - Force_HKY_nonclock_summary[2, ]</code></pre>
@@ -705,6 +710,203 @@ Dir_gBGC_MG94_clock_summary[2, ] - Dir_MG94_clock_summary[2, ]</code></pre>
 ## YMR142C_YDL082W YER102W_YBL072C YAL056W_YOR371C YDR438W_YML018C 
 ##       3.603e-03       1.177e+00       2.591e+00       3.983e+00</code></pre>
 <pre class="r"><code>#Dir_gBGC_MG94_clock_summary[2, ] - gBGC_MG94_clock_summary[2, ]</code></pre>
+</div>
+<div id="now-check-lnl-improvements-between-clock-and-nonclock-cases" class="section level4">
+<h4>Now check lnL improvements between clock and nonclock cases</h4>
+<pre class="r"><code># HKY
+Force_HKY_nonclock_summary[2, ] - Force_HKY_clock_summary[2, ]</code></pre>
+<pre><code>## YLR406C_YDL075W YER131W_YGL189C YDR502C_YLR180W YML026C_YDR450W 
+##           5.620           7.705          23.951           6.909 
+## YNL301C_YOL120C YHR106W_YDR353W YIL057C_YER067W YPL087W_YBR183W 
+##           6.180          33.346           9.884          29.314 
+## YNL069C_YIL133C YDR518W_YCL043C YGR043C_YLR354C YPR157W_YGR141W 
+##           6.597          48.121          42.031          20.669 
+## YDR099W_YER177W YBR024W_YBR037C YPL037C_YDR252W YMR143W_YDL083C 
+##          26.923          25.615          46.037          12.060 
+## YPR159W_YGR143W YJL177W_YKL180W YGL133W_YPL216W YJR048W_YEL039C 
+##          31.488           9.405         119.416          12.471 
+## YBR191W_YPL079W YER074W_YIL069C YDR418W_YEL054C YNL049C_YIL109C 
+##          14.567          13.790          11.880          78.988 
+## YBR117C_YPR074C YPL232W_YMR183C YLR284C_YOR180C YBL087C_YER117W 
+##          66.131          16.132          30.223           7.403 
+## YGL062W_YBR218C YIR033W_YKL020C YMR243C_YOR316C YLR333C_YGR027C 
+##          44.967          47.528          35.655          14.153 
+## YMR142C_YDL082W YER102W_YBL072C YAL056W_YOR371C YDR438W_YML018C 
+##           8.330           7.051          56.230          54.197</code></pre>
+<pre class="r"><code>HKY_nonclock_summary[2, ] - HKY_clock_summary[2, ]</code></pre>
+<pre><code>## YLR406C_YDL075W YER131W_YGL189C YDR502C_YLR180W YML026C_YDR450W 
+##           5.274          14.824          66.100           7.516 
+## YNL301C_YOL120C YHR106W_YDR353W YIL057C_YER067W YPL087W_YBR183W 
+##           8.969          53.416          10.808          36.218 
+## YNL069C_YIL133C YDR518W_YCL043C YGR043C_YLR354C YPR157W_YGR141W 
+##          18.948          56.902          61.573          30.532 
+## YDR099W_YER177W YBR024W_YBR037C YPL037C_YDR252W YMR143W_YDL083C 
+##          31.128          38.191          44.197          12.081 
+## YPR159W_YGR143W YJL177W_YKL180W YGL133W_YPL216W YJR048W_YEL039C 
+##          30.547           7.267         135.687          12.446 
+## YBR191W_YPL079W YER074W_YIL069C YDR418W_YEL054C YNL049C_YIL109C 
+##          15.795           5.419          14.239         115.644 
+## YBR117C_YPR074C YPL232W_YMR183C YLR284C_YOR180C YBL087C_YER117W 
+##          86.962          33.687          29.250           8.811 
+## YGL062W_YBR218C YIR033W_YKL020C YMR243C_YOR316C YLR333C_YGR027C 
+##         119.681          65.794          54.428           4.112 
+## YMR142C_YDL082W YER102W_YBL072C YAL056W_YOR371C YDR438W_YML018C 
+##          10.140          10.057          52.538          64.495</code></pre>
+<pre class="r"><code>Dir_HKY_nonclock_summary[2, ] - Dir_HKY_clock_summary[2, ]</code></pre>
+<pre><code>## YLR406C_YDL075W YER131W_YGL189C YDR502C_YLR180W YML026C_YDR450W 
+##           5.227          16.272          66.959           7.507 
+## YNL301C_YOL120C YHR106W_YDR353W YIL057C_YER067W YPL087W_YBR183W 
+##          11.874          53.557          10.826          35.502 
+## YNL069C_YIL133C YDR518W_YCL043C YGR043C_YLR354C YPR157W_YGR141W 
+##          18.971         153.052          64.733          30.995 
+## YDR099W_YER177W YBR024W_YBR037C YPL037C_YDR252W YMR143W_YDL083C 
+##          31.379          38.161          42.284          12.082 
+## YPR159W_YGR143W YJL177W_YKL180W YGL133W_YPL216W YJR048W_YEL039C 
+##          30.649           7.665         151.246          12.012 
+## YBR191W_YPL079W YER074W_YIL069C YDR418W_YEL054C YNL049C_YIL109C 
+##          15.887           5.447          14.204         118.852 
+## YBR117C_YPR074C YPL232W_YMR183C YLR284C_YOR180C YBL087C_YER117W 
+##          88.463          33.793          29.530           8.512 
+## YGL062W_YBR218C YIR033W_YKL020C YMR243C_YOR316C YLR333C_YGR027C 
+##         119.711          66.147          54.014           4.406 
+## YMR142C_YDL082W YER102W_YBL072C YAL056W_YOR371C YDR438W_YML018C 
+##          10.617           9.738          52.503          67.094</code></pre>
+<pre class="r"><code>gBGC_HKY_nonclock_summary[2, ] - gBGC_HKY_clock_summary[2, ]</code></pre>
+<pre><code>## YLR406C_YDL075W YER131W_YGL189C YDR502C_YLR180W YML026C_YDR450W 
+##           5.461          14.345          74.494           8.231 
+## YNL301C_YOL120C YHR106W_YDR353W YIL057C_YER067W YPL087W_YBR183W 
+##          11.071          54.341          10.895          44.936 
+## YNL069C_YIL133C YDR518W_YCL043C YGR043C_YLR354C YPR157W_YGR141W 
+##          21.816          59.557          65.267          34.373 
+## YDR099W_YER177W YBR024W_YBR037C YPL037C_YDR252W YMR143W_YDL083C 
+##          32.979          38.347          44.632          11.384 
+## YPR159W_YGR143W YJL177W_YKL180W YGL133W_YPL216W YJR048W_YEL039C 
+##          47.430           7.683         339.427          13.937 
+## YBR191W_YPL079W YER074W_YIL069C YDR418W_YEL054C YNL049C_YIL109C 
+##          14.405           5.627          14.266         123.009 
+## YBR117C_YPR074C YPL232W_YMR183C YLR284C_YOR180C YBL087C_YER117W 
+##          93.530          33.858          29.154          27.675 
+## YGL062W_YBR218C YIR033W_YKL020C YMR243C_YOR316C YLR333C_YGR027C 
+##         133.576          69.402          60.603           3.282 
+## YMR142C_YDL082W YER102W_YBL072C YAL056W_YOR371C YDR438W_YML018C 
+##          10.380          10.821          52.315          64.860</code></pre>
+<pre class="r"><code>Dir_gBGC_HKY_nonclock_summary[2, ] - Dir_gBGC_HKY_clock_summary[2, ]</code></pre>
+<pre><code>## YLR406C_YDL075W YER131W_YGL189C YDR502C_YLR180W YML026C_YDR450W 
+##           5.219          15.737          75.924           8.325 
+## YNL301C_YOL120C YHR106W_YDR353W YIL057C_YER067W YPL087W_YBR183W 
+##          12.003          54.515          10.897          36.153 
+## YNL069C_YIL133C YDR518W_YCL043C YGR043C_YLR354C YPR157W_YGR141W 
+##          23.499          61.764          69.412          34.065 
+## YDR099W_YER177W YBR024W_YBR037C YPL037C_YDR252W YMR143W_YDL083C 
+##          35.500          38.262          43.186          11.666 
+## YPR159W_YGR143W YJL177W_YKL180W YGL133W_YPL216W YJR048W_YEL039C 
+##          47.404           8.280         156.705          13.540 
+## YBR191W_YPL079W YER074W_YIL069C YDR418W_YEL054C YNL049C_YIL109C 
+##          14.358           5.447          14.266         126.616 
+## YBR117C_YPR074C YPL232W_YMR183C YLR284C_YOR180C YBL087C_YER117W 
+##         211.015          34.295          29.821          12.111 
+## YGL062W_YBR218C YIR033W_YKL020C YMR243C_YOR316C YLR333C_YGR027C 
+##         133.131          69.672          59.858           4.064 
+## YMR142C_YDL082W YER102W_YBL072C YAL056W_YOR371C YDR438W_YML018C 
+##          11.335          10.550          52.330          67.899</code></pre>
+<pre class="r"><code># MG94
+Force_MG94_nonclock_summary[2, ] - Force_MG94_clock_summary[2, ]</code></pre>
+<pre><code>## YLR406C_YDL075W YER131W_YGL189C YDR502C_YLR180W YML026C_YDR450W 
+##           4.479           5.732          22.215           6.087 
+## YNL301C_YOL120C YHR106W_YDR353W YIL057C_YER067W YPL087W_YBR183W 
+##           6.735          21.269           7.262          16.866 
+## YNL069C_YIL133C YDR518W_YCL043C YGR043C_YLR354C YPR157W_YGR141W 
+##           5.948          30.828          29.217          13.467 
+## YDR099W_YER177W YBR024W_YBR037C YPL037C_YDR252W YMR143W_YDL083C 
+##          14.886          12.848          45.700          10.794 
+## YPR159W_YGR143W YJL177W_YKL180W YGL133W_YPL216W YJR048W_YEL039C 
+##          16.291           7.330          94.175           7.954 
+## YBR191W_YPL079W YER074W_YIL069C YDR418W_YEL054C YNL049C_YIL109C 
+##          12.329          14.303          10.548          70.065 
+## YBR117C_YPR074C YPL232W_YMR183C YLR284C_YOR180C YBL087C_YER117W 
+##          45.807          20.793          18.024           6.403 
+## YGL062W_YBR218C YIR033W_YKL020C YMR243C_YOR316C YLR333C_YGR027C 
+##          59.385          28.550          21.730          11.940 
+## YMR142C_YDL082W YER102W_YBL072C YAL056W_YOR371C YDR438W_YML018C 
+##           8.668           7.285          36.072          47.340</code></pre>
+<pre class="r"><code>MG94_nonclock_summary[2, ] - MG94_clock_summary[2, ]</code></pre>
+<pre><code>## YLR406C_YDL075W YER131W_YGL189C YDR502C_YLR180W YML026C_YDR450W 
+##           4.037           5.893          28.462           4.895 
+## YNL301C_YOL120C YHR106W_YDR353W YIL057C_YER067W YPL087W_YBR183W 
+##           3.010          23.198           6.948          17.283 
+## YNL069C_YIL133C YDR518W_YCL043C YGR043C_YLR354C YPR157W_YGR141W 
+##          11.254          33.909          31.542          13.044 
+## YDR099W_YER177W YBR024W_YBR037C YPL037C_YDR252W YMR143W_YDL083C 
+##          13.385          14.248          43.391           8.979 
+## YPR159W_YGR143W YJL177W_YKL180W YGL133W_YPL216W YJR048W_YEL039C 
+##          13.242           5.237          97.800           6.140 
+## YBR191W_YPL079W YER074W_YIL069C YDR418W_YEL054C YNL049C_YIL109C 
+##          11.539           5.864          12.064          74.575 
+## YBR117C_YPR074C YPL232W_YMR183C YLR284C_YOR180C YBL087C_YER117W 
+##          50.585          21.955          18.096           4.464 
+## YGL062W_YBR218C YIR033W_YKL020C YMR243C_YOR316C YLR333C_YGR027C 
+##          21.602          34.134          23.873           3.269 
+## YMR142C_YDL082W YER102W_YBL072C YAL056W_YOR371C YDR438W_YML018C 
+##           5.210           4.027          32.539          49.944</code></pre>
+<pre class="r"><code>Dir_MG94_nonclock_summary[2, ] - Dir_MG94_clock_summary[2, ]</code></pre>
+<pre><code>## YLR406C_YDL075W YER131W_YGL189C YDR502C_YLR180W YML026C_YDR450W 
+##           4.412           6.000          28.935           4.856 
+## YNL301C_YOL120C YHR106W_YDR353W YIL057C_YER067W YPL087W_YBR183W 
+##           3.815          23.204           7.150          17.044 
+## YNL069C_YIL133C YDR518W_YCL043C YGR043C_YLR354C YPR157W_YGR141W 
+##          11.264          33.197          32.077          13.419 
+## YDR099W_YER177W YBR024W_YBR037C YPL037C_YDR252W YMR143W_YDL083C 
+##          13.381          14.250          42.738           8.983 
+## YPR159W_YGR143W YJL177W_YKL180W YGL133W_YPL216W YJR048W_YEL039C 
+##          13.516           4.717         101.488           6.010 
+## YBR191W_YPL079W YER074W_YIL069C YDR418W_YEL054C YNL049C_YIL109C 
+##          11.560           5.132          12.001          74.048 
+## YBR117C_YPR074C YPL232W_YMR183C YLR284C_YOR180C YBL087C_YER117W 
+##          50.790          21.830          18.111           4.259 
+## YGL062W_YBR218C YIR033W_YKL020C YMR243C_YOR316C YLR333C_YGR027C 
+##          21.594          35.048          23.942          -3.262 
+## YMR142C_YDL082W YER102W_YBL072C YAL056W_YOR371C YDR438W_YML018C 
+##           5.544           3.778          32.946          51.575</code></pre>
+<pre class="r"><code>gBGC_MG94_nonclock_summary[2, ] - gBGC_MG94_clock_summary[2, ]</code></pre>
+<pre><code>## Warning: longer object length is not a multiple of shorter object length</code></pre>
+<pre><code>## YLR406C_YDL075W YER131W_YGL189C YDR502C_YLR180W YML026C_YDR450W 
+##           4.101           6.035          36.604           5.019 
+## YNL301C_YOL120C YHR106W_YDR353W YIL057C_YER067W YPL087W_YBR183W 
+##           3.878          22.978           7.040          17.208 
+## YNL069C_YIL133C YDR518W_YCL043C YGR043C_YLR354C YPR157W_YGR141W 
+##          12.402          34.142          33.161          17.801 
+## YDR099W_YER177W YBR024W_YBR037C YPL037C_YDR252W YMR143W_YDL083C 
+##          13.384          14.393          43.167       13026.883 
+## YPR159W_YGR143W YJL177W_YKL180W YGL133W_YPL216W YJR048W_YEL039C 
+##      -12374.538       26521.233      -26379.192        -399.240 
+## YBR191W_YPL079W YER074W_YIL069C YDR418W_YEL054C YNL049C_YIL109C 
+##        -206.836         500.214       17181.789       -5411.605 
+## YBR117C_YPR074C YPL232W_YMR183C YLR284C_YOR180C YBL087C_YER117W 
+##       -7578.053        1572.615       -5959.457       17495.440 
+## YGL062W_YBR218C YIR033W_YKL020C YMR243C_YOR316C YLR333C_YGR027C 
+##        2927.860      -12995.003       -7431.624         798.542 
+## YMR142C_YDL082W YER102W_YBL072C YAL056W_YOR371C YDR438W_YML018C 
+##           8.140       16495.822      -10055.746       -7233.293</code></pre>
+<pre class="r"><code>Dir_gBGC_MG94_nonclock_summary[2, ] - Dir_gBGC_MG94_clock_summary[2, ]</code></pre>
+<pre><code>## YLR406C_YDL075W YER131W_YGL189C YDR502C_YLR180W YML026C_YDR450W 
+##           4.414           6.015          52.606           5.163 
+## YNL301C_YOL120C YHR106W_YDR353W YIL057C_YER067W YPL087W_YBR183W 
+##           3.965          23.367           7.958          17.031 
+## YNL069C_YIL133C YDR518W_YCL043C YGR043C_YLR354C YPR157W_YGR141W 
+##          12.871          34.852          33.842          25.167 
+## YDR099W_YER177W YBR024W_YBR037C YPL037C_YDR252W YMR143W_YDL083C 
+##          14.798          14.208          43.729          10.041 
+## YPR159W_YGR143W YJL177W_YKL180W YGL133W_YPL216W YJR048W_YEL039C 
+##          14.838           4.720         102.728           5.740 
+## YBR191W_YPL079W YER074W_YIL069C YDR418W_YEL054C YNL049C_YIL109C 
+##          10.677           5.705          11.704          76.716 
+## YBR117C_YPR074C YPL232W_YMR183C YLR284C_YOR180C YBL087C_YER117W 
+##          55.346          21.937          17.492           4.561 
+## YGL062W_YBR218C YIR033W_YKL020C YMR243C_YOR316C YLR333C_YGR027C 
+##          37.703          36.245          25.488           3.395 
+## YMR142C_YDL082W YER102W_YBL072C YAL056W_YOR371C YDR438W_YML018C 
+##           6.193           3.978          32.233          53.363</code></pre>
+</div>
 
 
 </div>

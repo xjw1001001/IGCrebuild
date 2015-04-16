@@ -295,7 +295,7 @@ check.suspicious(sh.file, summary = Force_HKY_nonclock_summary, model = "HKY",cl
   
 ```
 
-Now check lnL improvements
+####Now check lnL improvements
 
 ```{r}
 # nonclock models
@@ -327,4 +327,22 @@ Dir_MG94_clock_summary[2, ] - MG94_clock_summary[2, ]
 #gBGC_MG94_clock_summary[2, ] - MG94_clock_summary[2, ]
 Dir_gBGC_MG94_clock_summary[2, ] - Dir_MG94_clock_summary[2, ]
 #Dir_gBGC_MG94_clock_summary[2, ] - gBGC_MG94_clock_summary[2, ]
+```
+
+
+####Now check lnL improvements between clock and nonclock cases
+
+```{r}
+# HKY
+Force_HKY_nonclock_summary[2, ] - Force_HKY_clock_summary[2, ]
+HKY_nonclock_summary[2, ] - HKY_clock_summary[2, ]
+Dir_HKY_nonclock_summary[2, ] - Dir_HKY_clock_summary[2, ]
+gBGC_HKY_nonclock_summary[2, ] - gBGC_HKY_clock_summary[2, ]
+Dir_gBGC_HKY_nonclock_summary[2, ] - Dir_gBGC_HKY_clock_summary[2, ]
+# MG94
+Force_MG94_nonclock_summary[2, ] - Force_MG94_clock_summary[2, ]
+MG94_nonclock_summary[2, ] - MG94_clock_summary[2, ]
+Dir_MG94_nonclock_summary[2, ] - Dir_MG94_clock_summary[2, ]
+gBGC_MG94_nonclock_summary[2, ] - gBGC_MG94_clock_summary[2, ]
+Dir_gBGC_MG94_nonclock_summary[2, ] - Dir_gBGC_MG94_clock_summary[2, ]
 ```

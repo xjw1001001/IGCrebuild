@@ -473,7 +473,8 @@ class gBGCCodonGeneconv(ReCodonGeneconv):
 
 def main(args):
     paralog = [args.paralog1, args.paralog2]
-    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    #alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    alignment_file = './NewPairsAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
     path = './NewPackageNewRun/'
     summary_path = './NewPackageNewRun/'
@@ -485,12 +486,12 @@ def main(args):
     Force_hky = None
     
     test_hky = gBGCCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = False)
-    result_hky = test_hky.get_mle(display = False)
+    result_hky = test_hky.get_mle(display = False, derivative = True, em_iterations = 1, method = 'BFGS')
     test_hky.get_individual_summary(summary_path = summary_path)
     test_hky.save_to_file(path = path)
 
     test2_hky = gBGCCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
-    result2_hky = test2_hky.get_mle(display = False)
+    result2_hky = test2_hky.get_mle(display = False, derivative = True, em_iterations = 1, method = 'BFGS')
     test2_hky.get_individual_summary(summary_path = summary_path)
     test2_hky.save_to_file(path = path)
 
@@ -499,14 +500,14 @@ def main(args):
     #x = np.concatenate((test_hky.x_process[:-2], np.log([omega_guess]), test_hky.x_process[-2:], test_hky.x_rates))
     #test.update_by_x(x)
     
-    result = test.get_mle(display = True, em_iterations = 1)
+    result = test.get_mle(display = True, derivative = True, em_iterations = 1, method = 'BFGS')
     test.get_individual_summary(summary_path = summary_path)
     test.save_to_file(path = path)
 
     test2 = gBGCCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
     #x_clock = np.concatenate((test2_hky.x_process[:-2], np.log([omega_guess]), test2_hky.x_process[-2:], test2_hky.x_Lr))
     #test2.update_by_x_clock(x_clock)
-    result = test2.get_mle(display = True, em_iterations = 1)
+    result = test2.get_mle(display = True, derivative = True, em_iterations = 0, method = 'BFGS')
     
     test2.get_individual_summary(summary_path = summary_path)
     test2.save_to_file(path = path)

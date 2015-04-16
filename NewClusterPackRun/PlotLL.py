@@ -4,6 +4,7 @@ from gBGCDirGeneconv import gBGCDirGeneconv
 from gBGCCodonGeneconv import gBGCCodonGeneconv
 import argparse
 import numpy as np
+import matplotlib.pyplot as plt
 
 def main(args):
     model = args.model
@@ -48,7 +49,13 @@ def main(args):
         test.get_mle(False, True, 1, 'BFGS')
         ll_list.append(test.ll)
 
-
+##    plt.plot(out_group_blen, ll_list, 'ro-')
+##    plt.ylabel('lnL')
+##    plt.xlabel('outgroup branch length')
+##    plt.title(txtname)
+##    plt.savefig('./testlikelihood_' + txtname + '.jpg')
+##    plt.close()
+    
     np.savetxt(open('./testlikelihood_' + txtname + '.txt', 'w+'), np.matrix([ll_list, out_group_blen]), delimiter = ' ')
 
     

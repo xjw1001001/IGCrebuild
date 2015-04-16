@@ -9,6 +9,7 @@ from CodonGeneconFunc import *
 import argparse
 from jsonctmctree.extras import optimize_em
 import ast
+import matplotlib.pyplot as plt
 
 class ReCodonGeneconv:
     def __init__(self, tree_newick, alignment, paralog, Model = 'MG94', nnsites = None, clock = False, Force = None):
@@ -63,6 +64,8 @@ class ReCodonGeneconv:
         self.tau            = 1.4       # real values
 
         self.processes      = None      # list of basic and geneconv rate matrices. Each matrix is a dictionary used for json parsing
+
+        self.scene_ll       = None      # used for lnL calculation
 
         # Prior distribution on the root
         self.prior_feasible_states  = None
@@ -167,10 +170,10 @@ class ReCodonGeneconv:
         print 'number of sites to be analyzed: ', self.nsites
 
         # assign observable parameters
-        self.observable_names = self.name_to_seq.keys()
+        suffix_len = len(self.paralog[0])
+        self.observable_names = [n for n in self.name_to_seq.keys() if n[:-suffix_len] in self.node_to_num.keys()]
         paralog_len = [len(a) for a in self.paralog]
         assert(paralog_len[1:] == paralog_len[:-1])  # check if all paralog names have same length
-        suffix_len = len(self.paralog[0])
         suffix_to_axis = {n:i for (i, n) in enumerate(list(set(self.paralog))) }
         self.observable_nodes = [self.node_to_num[n[:-suffix_len]] for n in self.observable_names]
         self.observable_axes = [suffix_to_axis[s[-suffix_len:]] for s in self.observable_names]
@@ -545,7 +548,7 @@ class ReCodonGeneconv:
             node2 = self.num_to_node[self.tree['col'][i]]
             self.tree['rate'][i] = self.edge_to_blen[(node1, node2)]
 
-    def _loglikelihood(self, edge_derivative = False):
+    def _loglikelihood(self, store = True, edge_derivative = False):
         '''
         Modified from Alex's objective_and_gradient function in ctmcaas/adv-log-likelihoods/mle_geneconv_common.py
         '''
@@ -594,11 +597,15 @@ class ReCodonGeneconv:
         return ll, edge_derivs
 
 
-    def _loglikelihood2(self, edge_derivative = False):
+    def _loglikelihood2(self, store = True, edge_derivative = False):
         '''
         Modified from Alex's objective_and_gradient function in ctmcaas/adv-log-likelihoods/mle_geneconv_common.py
         '''
-        scene = self.get_scene()
+        if store:
+            self.scene_ll = self.get_scene()
+            scene = self.scene_ll
+        else:
+            scene = self.get_scene()
         
         log_likelihood_request = {'property':'snnlogl'}
         derivatives_request = {'property':'sdnderi'}
@@ -607,7 +614,7 @@ class ReCodonGeneconv:
         else:
             requests = [log_likelihood_request]
         j_in = {
-            'scene' : scene,
+            'scene' : self.scene_ll,
             'requests' : requests
             }
         j_out = jsonctmctree.interface.process_json_in(j_in)
@@ -677,7 +684,7 @@ class ReCodonGeneconv:
             x_plus_delta = np.array(self.x)
             x_plus_delta[i] += delta
             self.update_by_x(x_plus_delta)
-            ll_delta, _ = fn(edge_derivative = False)
+            ll_delta, _ = fn(store = True, edge_derivative = False)
             d_estimate = (ll_delta - ll) / delta           
             other_derivs.append(d_estimate)
             # restore self.x
@@ -935,10 +942,10 @@ class ReCodonGeneconv:
             self.GeneconvTransRed = self.get_geneconvTransRed()
 
         if package == 'new':
-            scene = self.get_scene()
+            self.scene_ll = self.get_scene()
             requests = [{'property' : 'SDNTRAN', 'transition_reduction' : self.GeneconvTransRed}]
             j_in = {
-                'scene' : scene,
+                'scene' : self.scene_ll,
                 'requests' : requests
                 }        
             j_out = jsonctmctree.interface.process_json_in(j_in)
@@ -952,7 +959,7 @@ class ReCodonGeneconv:
     def _ExpectedHetDwellTime(self, package = 'new', display = False):
 
         if package == 'new':
-            scene = self.get_scene()
+            self.scene_ll = self.get_scene()
             if self.Model == 'MG94':
                 heterogeneous_states = [(a, b) for (a, b) in list(product(range(len(self.codon_to_state)), repeat = 2)) if a != b]
             elif self.Model == 'HKY':
@@ -966,7 +973,7 @@ class ReCodonGeneconv:
             )]
             
             j_in = {
-                'scene' : scene,
+                'scene' : self.scene_ll,
                 'requests' : dwell_request,
                 }        
             j_out = jsonctmctree.interface.process_json_in(j_in)
@@ -980,11 +987,11 @@ class ReCodonGeneconv:
     def _ExpectedDirectionalNumGeneconv(self, package = 'new', display = False):
         DirectionalNumGeneconvRed = self.get_directionalNumGeneconvRed()
         if package == 'new':
-            scene = self.get_scene()
+            self.scene_ll = self.get_scene()
             requests = [{'property' : 'SDNTRAN', 'transition_reduction' : i} for i in DirectionalNumGeneconvRed]
             assert(len(requests) == 2)  # should be exactly 2 requests
             j_in = {
-                'scene' : scene,
+                'scene' : self.scene_ll,
                 'requests' : requests
                 }            
             j_out = jsonctmctree.interface.process_json_in(j_in)
@@ -1165,7 +1172,8 @@ class ReCodonGeneconv:
 
 def main(args):
     paralog = [args.paralog1, args.paralog2]
-    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    #alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    alignment_file = './NewPairsAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
     path = './NewPackageNewRun/'
     summary_path = './NewPackageNewRun/'
@@ -1184,14 +1192,14 @@ def main(args):
         Force_hky = None
 
     test_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = False)
-    result_hky = test_hky.get_mle(display = False)
+    result_hky = test_hky.get_mle(display = False, derivative = True, em_iterations = 1, method = 'BFGS')
     test_hky.get_ExpectedNumGeneconv()
     test_hky.get_ExpectedHetDwellTime()
     test_hky.get_individual_summary(summary_path = summary_path)
     test_hky.save_to_file(path = path)
 
     test2_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
-    result2_hky = test2_hky.get_mle(display = False)
+    result2_hky = test2_hky.get_mle(display = False, derivative = True, em_iterations = 1, method = 'BFGS')
     test2_hky.get_ExpectedNumGeneconv()
     test2_hky.get_ExpectedHetDwellTime()
     test2_hky.get_individual_summary(summary_path = summary_path)
@@ -1202,7 +1210,7 @@ def main(args):
     x = np.concatenate((test_hky.x_process[:-1], np.log([omega_guess]), test_hky.x_process[-1:], test_hky.x_rates))
     test.update_by_x(x)
     
-    result = test.get_mle(display = True, em_iterations = 1)
+    result = test.get_mle(display = True, derivative = True, em_iterations = 1, method = 'BFGS')
     test.get_ExpectedNumGeneconv()
     test.get_ExpectedHetDwellTime()
     test.get_individual_summary(summary_path = summary_path)
@@ -1211,40 +1219,44 @@ def main(args):
     test2 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
     #x_clock = np.concatenate((test2_hky.x_process[:-1], np.log([omega_guess]), test2_hky.x_process[-1:], test2_hky.x_Lr))
     #test2.update_by_x_clock(x_clock)
-    result = test2.get_mle(display = True, em_iterations = 1)
+    result = test2.get_mle(display = True, derivative = True, em_iterations = 0, method = 'BFGS')
     test2.get_ExpectedNumGeneconv()
     test2.get_individual_summary(summary_path = summary_path)
     test2.save_to_file(path = path)
     
 
 if __name__ == '__main__':
-##    parser = argparse.ArgumentParser()
-##    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
-##    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
-##    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
-##    
-##    main(parser.parse_args())
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
+    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
+    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
+    
+    main(parser.parse_args())
 
-    paralog1 = 'YNL069C'
-    paralog2 = 'YIL133C'
-    paralog1 = 'YBL087C'
-    paralog2 = 'YER117W'
-    paralog1 = 'YDR502C'
-    paralog2 = 'YLR180W'
-    #paralog1 = 'YML026C'
-    #paralog2 = 'YDR450W'
-##    path = './NewPackageNewRun/'
-####    paralog1 = 'ECP'
-####    paralog2 = 'EDN'
-####
-##    Force    = {5:0.0}
-####
-    paralog = [paralog1, paralog2]
-    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-    #alignment_file = '../data/cleaned_input_data.fasta'
-    #alignment_file = '../data/cleanedfasta.fasta'
-    newicktree = '../PairsAlignemt/YeastTree.newick'
-    #newicktree = '../data/input_tree.newick'
+##    paralog1 = 'YNL069C'
+##    paralog2 = 'YIL133C'
+##    paralog1 = 'YBL087C'
+##    paralog2 = 'YER117W'
+##    paralog1 = 'YDR502C'
+##    paralog2 = 'YLR180W'
+##    paralog1 = 'YLR406C'
+##    paralog2 = 'YDL075W'
+##    #paralog1 = 'YML026C'
+##    #paralog2 = 'YDR450W'
+####    path = './NewPackageNewRun/'
+######    paralog1 = 'ECP'
+######    paralog2 = 'EDN'
+######
+####    Force    = {5:0.0}
+######
+##    paralog = [paralog1, paralog2]
+##    #alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+##    alignment_file = './NewPairsAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+##    #alignment_file = '../data/cleaned_input_data.fasta'
+##    #alignment_file = '../data/cleanedfasta.fasta'
+##    #newicktree = './YeastTree_remove_Cas.newick'
+##    newicktree = '../PairsAlignemt/YeastTree.newick'
+##    #newicktree = '../data/input_tree.newick'
 
 ##    x = np.array([-0.72980621, -0.56994663, -0.96216856,  1.73940961, -1.71054117,  0.54387332,
 ##                  -1.33866266, -3.47424374, -1.68831105, -1.80543811, -3.62520339, -2.69364618,
@@ -1253,19 +1265,20 @@ if __name__ == '__main__':
 ##    x_clock = np.array([-0.69711204, -0.49848498, -1.33603066,  1.861808,   -2.21507185,  5.23430255,
 ##                        -5.82838102, -0.07656569, -1.56484193, -0.18590612, -0.16381505, -0.41778555,
 ##                        -0.18178853])
-##
-    out_group_blen = np.arange(0.0001, 0.01, 0.005)
-    ll_list = []
-    #test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', nnsites = 102, Force = None, clock = False)
-    #test.get_mle(False, False, 1, 'BFGS')
-    for blen in out_group_blen:
-        test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = {6:blen}, clock = False)
-        #test.Force = Force = {6:blen}
-        #test.update_by_x()
-        test.get_mle(False, True, 1, 'BFGS')
-        ll_list.append(test.ll)
+####
+##    out_group_blen = np.arange(0.0001, 0.01, 0.005)
+##    ll_list = []
+##    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = False)
+##    test.get_mle(True, True, 1, 'BFGS')
+
+##    for blen in out_group_blen:
+##        test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = {6:blen}, clock = False)
+##        #test.Force = Force = {6:blen}
+##        #test.update_by_x()
+##        test.get_mle(False, True, 1, 'BFGS')
+##        ll_list.append(test.ll)
     
-    np.savetxt(open('./testlikelihood.txt', 'w+'), np.matrix([ll_list, out_group_blen]), delimiter = ' ')
+##    np.savetxt(open('./testlikelihood.txt', 'w+'), np.matrix([ll_list, out_group_blen]), delimiter = ' ')
 ##    test.get_mle(False, False, 1, 'basin-hopping')
     
 ##    test3.update_by_x(x)

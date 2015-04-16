@@ -5,7 +5,7 @@ from DirGeneconv import *
 class gBGCDirGeneconv(DirGeneconv):
     # add gamma parameter which is equivalent to B in Lartillot's 2013 MBE paper (Phylogenetic Patterns of GC-Biased Gene Conversion...)
     # gamma parameter isn't log-transformed in self.x but used itself
-    def get_initial_x_process(self):
+    def get_initial_x_process(self, transformation = 'log'):
         self.gamma = 1.0
         count = np.array([0, 0, 0, 0], dtype = float) # count for A, C, G, T in all seq
         for name in self.name_to_seq:
@@ -25,17 +25,37 @@ class gBGCDirGeneconv(DirGeneconv):
                                   self.kappa]))
             self.x_process = np.concatenate((self.x_process, np.log(self.tau), [self.gamma]))
 
-        self.x_rates = np.log(0.01 * np.array([ self.edge_to_blen[edge] for edge in self.edge_to_blen.keys()]))
+        self.x_rates = np.log(np.array([ 0.01 * self.edge_to_blen[edge] for edge in self.edge_to_blen.keys()]))
+
+        if transformation == 'log':    
+            self.x = np.concatenate((self.x_process, self.x_rates))
+        elif transformation == 'None':
+            self.x_process[:-1] = np.exp(self.x_process[:-1])
+            self.x_rates = np.exp(self.x_rates)
+        elif transformation == 'Exp_Neg':
+            self.x_process[:-1] = np.exp(self.x_process[:-1])
+            self.x_process = np.exp(-self.x_process)
+            self.x_rates = np.exp(-np.exp(self.x_rates))
+            
+        #self.x_rates = np.log(0.01 * np.array([ self.edge_to_blen[edge] for edge in self.edge_to_blen.keys()]))
         self.x = np.concatenate((self.x_process, self.x_rates))
 
 
         if self.clock:   # set-up x_clock if it's a clock model
             l = len(self.edge_to_blen) / 2 + 1               # number of leaves
             self.x_Lr = np.log(np.ones((l)) * 0.9)
-            self.x_clock = np.concatenate((self.x_process, self.x_Lr))
-            self.unpack_x_clock()
 
-        self.update_by_x()
+            if transformation == 'log':
+                self.x_clock = np.concatenate((self.x_process, self.x_Lr))
+            elif transformation == 'None':
+                self.x_Lr = np.exp(self.x_Lr)
+            elif transformation == 'Exp_Neg':
+                self.x_Lr = np.exp(-np.exp(self.x_Lr))
+                
+            self.x_clock = np.concatenate((self.x_process, self.x_Lr))
+            self.unpack_x_clock(transformation = transformation)
+
+        self.update_by_x(transformation = transformation)
 
     def unpack_x_process(self, transformation, Force_process = None):
         
@@ -410,7 +430,8 @@ class gBGCDirGeneconv(DirGeneconv):
 
 def main(args):
     paralog = [args.paralog1, args.paralog2]
-    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    #alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    alignment_file = './NewPairsAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
     path = './NewPackageNewRun/'
     summary_path = './NewPackageNewRun/'
@@ -422,13 +443,13 @@ def main(args):
     Force_hky = None
 
     test_hky = gBGCDirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = False)
-    result_hky = test_hky.get_mle(display = False)
+    result_hky = test_hky.get_mle(display = False, derivative = True, em_iterations = 1, method = 'BFGS')
     test_hky.get_individual_summary(summary_path = summary_path)
     test_hky.save_to_file(path = path)
     
 
     test2_hky = gBGCDirGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
-    result2_hky = test2_hky.get_mle(display = False)
+    result2_hky = test2_hky.get_mle(display = False, derivative = True, em_iterations = 1, method = 'BFGS')
     test2_hky.get_individual_summary(summary_path = summary_path)
     test2_hky.save_to_file(path = path)
 
@@ -436,14 +457,14 @@ def main(args):
     #x = np.concatenate((test_hky.x_process[:-3], np.log([omega_guess]), test_hky.x_process[-3:], test_hky.x_rates))
     #test.update_by_x(x)
     
-    result = test.get_mle(display = True, em_iterations = 1)
+    result = test.get_mle(display = True, derivative = True, em_iterations = 1, method = 'BFGS')
     test.get_individual_summary(summary_path = summary_path)
     test.save_to_file(path = path)
 
     test2 = gBGCDirGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
     #x_clock = np.concatenate((test2_hky.x_process[:-3], np.log([omega_guess]), test2_hky.x_process[-3:], test2_hky.x_Lr))
     #test2.update_by_x_clock(x_clock)
-    result = test2.get_mle(display = True, em_iterations = 1)
+    result = test2.get_mle(display = True, derivative = True, em_iterations = 0, method = 'BFGS')
     test2.get_individual_summary(summary_path = summary_path)
     test2.save_to_file(path = path)
     
