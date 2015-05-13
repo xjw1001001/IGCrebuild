@@ -29,32 +29,53 @@ def get_individual_summary(pair, pair_path, model, summary_path, clock, force):
     np.savetxt(open(summary_file, 'w+'), summary.T, delimiter = ' ', footer = footer)
 
 def main(args):
-    pair = [args.paralog1, args.paralog2]
-    clock = args.clock
-    force = args.force
+    #pair = [args.paralog1, args.paralog2]
+    #clock = args.clock
+    #force = args.force
     summary_path = args.sump
     model = args.model
     pair_path = args.pairp
 
-    get_individual_summary(pair, pair_path, model, summary_path, clock, force)
+    pairs = []
+    all_pairs = '../All_Pairs.txt'
+    jeff_pairs = './Jeff_pairs_list.txt'
+    with open(all_pairs, 'r') as f:
+        for line in f.readlines():
+            pairs.append(line.replace('\n','').split('_'))
+
+    for pair in pairs:
+        get_individual_summary(pair, pair_path, model, summary_path, clock = True, force = False)
+        get_individual_summary(pair, pair_path, model, summary_path, clock = False, force = False)
+        get_individual_summary(pair, pair_path, model, summary_path, clock = True, force = True)
+        get_individual_summary(pair, pair_path, model, summary_path, clock = False, force = True)
 
 if __name__ == '__main__':
-##    pair = ['YAL056W', 'YOR371C']
-##    clock = True
+    
+##    clock = False
 ##    force = False
-##    summary_path = './'
+##    summary_path = '/Users/xji3/FromCluster03172015/NewPackageNewRun/'
 ##    model = 'HKY'
-##    pair_path = './NewPackageNewRun/'
+##    pair_path = '/Users/xji3/FromCluster03172015/NewPackageNewRun/'
 ##
-##    get_individual_summary(pair, pair_path, model, summary_path, clock, force)
+##    pairs = []
+##    all_pairs = '../All_Pairs.txt'
+##    jeff_pairs = './Jeff_pairs_list.txt'
+##    with open(all_pairs, 'r') as f:
+##        for line in f.readlines():
+##            pairs.append(line.replace('\n','').split('_'))
+##    if ['YLR028C', 'YMR120C'] in pairs:
+##        pairs.remove(['YLR028C', 'YMR120C'])
+##
+##    for pair in pairs:
+##        get_individual_summary(pair, pair_path, model, summary_path, clock, force)
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
-    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
-    parser.add_argument('--force', dest = 'force', action = 'store_true', help = 'Tau parameter control')
-    parser.add_argument('--no-force', dest = 'force', action = 'store_false', help = 'Tau parameter control')
-    parser.add_argument('--clock', dest = 'clock', action = 'store_true', help = 'clock control')
-    parser.add_argument('--no-clock', dest = 'clock', action = 'store_false', help = 'clock control')
+##    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
+##    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
+##    parser.add_argument('--force', dest = 'force', action = 'store_true', help = 'Tau parameter control')
+##    parser.add_argument('--no-force', dest = 'force', action = 'store_false', help = 'Tau parameter control')
+##    parser.add_argument('--clock', dest = 'clock', action = 'store_true', help = 'clock control')
+##    parser.add_argument('--no-clock', dest = 'clock', action = 'store_false', help = 'clock control')
     parser.add_argument('--model', required = True, help = 'model control')
     parser.add_argument('--sump', required = True, help = 'summary file path')
     parser.add_argument('--pairp', required = True, help = 'pair file path')

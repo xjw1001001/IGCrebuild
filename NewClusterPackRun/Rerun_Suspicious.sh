@@ -1,5 +1,4 @@
 #!/bin/bash
-sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YLR333C_YGR027C_dir_MG94_nonclock_suspicious.sh
 sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YER131W_YGL189C_dir_gBGC_HKY_nonclock_suspicious.sh
 sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YDR502C_YLR180W_dir_gBGC_HKY_nonclock_suspicious.sh
 sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YML026C_YDR450W_dir_gBGC_HKY_nonclock_suspicious.sh
@@ -7,7 +6,6 @@ sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/
 sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YNL069C_YIL133C_dir_gBGC_HKY_nonclock_suspicious.sh
 sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YMR143W_YDL083C_dir_gBGC_HKY_nonclock_suspicious.sh
 sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YJL177W_YKL180W_dir_gBGC_HKY_nonclock_suspicious.sh
-sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YER074W_YIL069C_dir_gBGC_HKY_nonclock_suspicious.sh
 sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YBL087C_YER117W_dir_gBGC_HKY_nonclock_suspicious.sh
 sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YGL062W_YBR218C_dir_gBGC_HKY_nonclock_suspicious.sh
 sbatch -o suspicious-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YMR142C_YDL082W_dir_gBGC_HKY_nonclock_suspicious.sh

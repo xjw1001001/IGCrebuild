@@ -1226,12 +1226,12 @@ def main(args):
     
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
-    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
-    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
-    
-    main(parser.parse_args())
+##    parser = argparse.ArgumentParser()
+##    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
+##    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
+##    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
+##    
+##    main(parser.parse_args())
 
 ##    paralog1 = 'YNL069C'
 ##    paralog2 = 'YIL133C'
@@ -1239,8 +1239,8 @@ if __name__ == '__main__':
 ##    paralog2 = 'YER117W'
 ##    paralog1 = 'YDR502C'
 ##    paralog2 = 'YLR180W'
-##    paralog1 = 'YLR406C'
-##    paralog2 = 'YDL075W'
+    paralog1 = 'YLR406C'
+    paralog2 = 'YDL075W'
 ##    #paralog1 = 'YML026C'
 ##    #paralog2 = 'YDR450W'
 ####    path = './NewPackageNewRun/'
@@ -1249,13 +1249,14 @@ if __name__ == '__main__':
 ######
 ####    Force    = {5:0.0}
 ######
-##    paralog = [paralog1, paralog2]
+    paralog = [paralog1, paralog2]
+    alignment_file = './simulation/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '.fasta'
 ##    #alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
 ##    alignment_file = './NewPairsAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
 ##    #alignment_file = '../data/cleaned_input_data.fasta'
 ##    #alignment_file = '../data/cleanedfasta.fasta'
 ##    #newicktree = './YeastTree_remove_Cas.newick'
-##    newicktree = '../PairsAlignemt/YeastTree.newick'
+    newicktree = '../PairsAlignemt/YeastTree.newick'
 ##    #newicktree = '../data/input_tree.newick'
 
 ##    x = np.array([-0.72980621, -0.56994663, -0.96216856,  1.73940961, -1.71054117,  0.54387332,
@@ -1268,8 +1269,8 @@ if __name__ == '__main__':
 ####
 ##    out_group_blen = np.arange(0.0001, 0.01, 0.005)
 ##    ll_list = []
-##    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = False)
-##    test.get_mle(True, True, 1, 'BFGS')
+    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = False)
+    test.get_mle(True, True, 1, 'BFGS')
 
 ##    for blen in out_group_blen:
 ##        test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = {6:blen}, clock = False)

@@ -1,6 +1,7 @@
 from CodonGeneconFunc import *
 from scipy.sparse import csr_matrix
 
+
 class SimGeneconv:
     def __init__(self, tree_newick, paralog, x, Model = 'MG94', nnsites = 1000, Dir = False, gBGC = False):
         self.newicktree = tree_newick
@@ -17,6 +18,9 @@ class SimGeneconv:
         self.num_to_node  = None
         self.edge_list    = None
 
+        self.outgroup     = [('N0', 'kluyveri')]
+        self.leaves       = None
+
 
         # Constants for Sequence operations
         bases = 'tcag'.upper()
@@ -24,11 +28,15 @@ class SimGeneconv:
         amino_acids = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
         
         self.nt_to_state    = {a:i for (i, a) in enumerate('ACGT')}
+        self.state_to_nt    = {i:a for (i, a) in enumerate('ACGT')}
         self.codon_table    = dict(zip(codons, amino_acids))
         self.codon_nonstop  = [a for a in self.codon_table.keys() if not self.codon_table[a]=='*']
         self.codon_to_state = {a.upper() : i for (i, a) in enumerate(self.codon_nonstop)}
         self.state_to_codon = {i:a.upper() for (i, a) in enumerate(self.codon_nonstop)}
-        self.pair_to_state  = {pair:i for i, pair in enumerate(product(self.codon_nonstop, repeat = 2))}
+        if self.Model == 'MG94':
+            self.pair_to_state  = {pair:i for i, pair in enumerate(product(self.codon_nonstop, repeat = 2))}
+        elif self.Model == 'HKY':
+            self.pair_to_state  = {pair:i for i, pair in enumerate(product('ACGT', repeat = 2))}
         self.state_to_pair  = {self.pair_to_state[pair]:pair for pair in self.pair_to_state}
 
 
@@ -49,11 +57,19 @@ class SimGeneconv:
         # Node sequence
         self.node_to_sequence = None
 
+        # Rate Matrices
+        self.Geneconv_mat     = None
+        self.Basic_mat        = None
+
         self.initiate()
 
     def initiate(self):
         self.get_tree()
         self.unpack_x()
+        if self.Model == 'MG94':
+            self.Geneconv_mat, self.Basic_mat = self.get_MG94Geneconv_and_MG94()
+        elif self.Model == 'HKY':
+            self.Geneconv_mat, self.Basic_mat = self.get_HKYGeneconv_and_HKY()
 
     def unpack_x(self):
         k = len(self.edge_to_blen)
@@ -98,6 +114,22 @@ class SimGeneconv:
             if self.gBGC:
                 self.gamma = self.x_process[-1]
 
+        elif self.Model == 'HKY':
+            # x_process[] = %AG, %A, %C, kappa, tau
+            pi_a = x_process[0] * x_process[1]
+            pi_c = (1 - x_process[0]) * x_process[2]
+            pi_g = x_process[0] * (1 - x_process[1])
+            pi_t = (1 - x_process[0]) * (1 - x_process[2])
+            self.pi = [pi_a, pi_c, pi_g, pi_t]
+            self.kappa = x_process[3]
+            if self.Dir:
+                self.tau = x_process[4:6]
+            else:
+                self.tau = [x_process[4]] * 2
+            if self.gBGC:
+                self.gamma = self.x_process[-1]            
+
+        self.node_to_sequence = {node:[] for node in self.node_to_num.keys()}
         self.get_prior()
             
             
@@ -123,6 +155,7 @@ class SimGeneconv:
 
         # Now assign node_to_num
         leaves = set(v for v, degree in T.degree().items() if degree == 1)
+        self.leaves = list(leaves)
         internal_nodes = set(list(T)).difference(leaves)
         node_names = list(internal_nodes) + list(leaves)
         self.node_to_num = {n:i for i, n in enumerate(node_names)}
@@ -170,6 +203,7 @@ class SimGeneconv:
             distn = [ self.pi['ACGT'.index(nt)] for nt in 'ACGT' ]
             distn = np.array(distn) / sum(distn)
         self.prior_distribution = distn
+        #self.sim_root()
 
     def get_MG94Basic(self):
         Qbasic = np.zeros((61, 61), dtype = float)
@@ -290,31 +324,206 @@ class SimGeneconv:
         basic_mat = csr_matrix((process_basic['rate'], (mat_row, mat_col)), shape = (61**2, 61**2), dtype = float)
         return Geneconv_mat, basic_mat
 
-    def draw_from_distribution(self, prob, size):
-        if self.Model == 'MG94':
-            values = self.pair_to_state.keys()
+    def get_HKYBasic(self):
+        Qbasic = np.array([
+            [0, 1.0, self.kappa, 1.0],
+            [1.0, 0, 1.0, self.kappa],
+            [self.kappa, 1.0, 0, 1.0],
+            [1.0, self.kappa, 1.0, 0],
+            ]) * np.array(self.pi)
+        expected_rate = np.dot(self.prior_distribution, Qbasic.sum(axis = 1))
+        Qbasic = Qbasic / expected_rate
+        return Qbasic
+        
+
+    def get_HKYGeneconv_and_HKY(self):
+        #print 'tau = ', self.tau
+        Qbasic = self.get_HKYBasic()
+        row = []
+        col = []
+        rate_geneconv = []
+        rate_basic = []
+
+        for i, pair_from in enumerate(product('ACGT', repeat = 2)):
+            na, nb = pair_from
+            sa = self.nt_to_state[na]
+            sb = self.nt_to_state[nb]
+            for j, pair_to in enumerate(product('ACGT', repeat = 2)):
+                nc, nd = pair_to
+                sc = self.nt_to_state[nc]
+                sd = self.nt_to_state[nd]
+                if i == j:
+                    continue
+
+                if (na != nc and nb!= nd) or (na == nc and nb == nd):
+                    GeneconvRate = 0.0
+                if na ==nc and nb != nd:
+                    Qb = Qbasic['ACGT'.index(nb), 'ACGT'.index(nd)]
+                    if na == nd:
+                        GeneconvRate = Qb + self.tau[0] * self.get_GC_fitness(nb, na)
+                    else:
+                        GeneconvRate = Qb
+                if nb == nd and na != nc:
+                    Qb = Qbasic['ACGT'.index(na), 'ACGT'.index(nc)]
+                    if nb == nc:
+                        GeneconvRate = Qb + self.tau[1] * self.get_GC_fitness(na, nb)
+                    else:
+                        GeneconvRate = Qb
+
+                if GeneconvRate != 0.0:
+                    row.append((sa, sb))
+                    col.append((sc, sd))
+                    rate_geneconv.append(GeneconvRate)
+                    rate_basic.append(0.0)
+                if na == nb and nc == nd:
+                    row.append((sa, sb))
+                    col.append((sc, sd))
+                    rate_geneconv.append(GeneconvRate)
+                    rate_basic.append(Qbasic['ACGT'.index(na), 'ACGT'.index(nc)])
+
+        process_geneconv = dict(
+            row = row,
+            col = col,
+            rate = rate_geneconv
+            )
+        process_basic = dict(
+            row = row,
+            col = col,
+            rate = rate_basic
+            )
+        mat_row = [self.pair_to_state[(self.state_to_nt[i[0]], self.state_to_nt[i[1]])] for i in row]
+        mat_col = [self.pair_to_state[(self.state_to_nt[i[0]], self.state_to_nt[i[1]])] for i in col]
+        Geneconv_mat = csr_matrix((process_geneconv['rate'], (mat_row, mat_col)), shape = (4**2, 4**2), dtype = float)
+        basic_mat = csr_matrix((process_basic['rate'], (mat_row, mat_col)), shape = (4**2, 4**2), dtype = float)
+        return Geneconv_mat, basic_mat
+
+
+    def draw_from_distribution(self, prob, size, values = None):
+        if values == None:
+            values = [self.state_to_pair[i] for i in range(len(self.state_to_pair))]
         bins = np.add.accumulate(prob)
-        return values[np.digitize(np.random.random_sample(size), bins)]
+        if size == 1:
+            return values[np.digitize(np.random.random_sample(size), bins)]
+        else:
+            return [values[i] for i in np.digitize(np.random.random_sample(size), bins)]
+
+    def sim_one_branch(self, starting_state, rate_matrix, blen):
+        cummulate_time = 0.0
+        #starting_state = self.pair_to_state[starting_pair]
+        prob = np.array(rate_matrix.getrow(starting_state).todense())[0,:]
+        while(cummulate_time < blen):
+            #print cummulate_time, starting_pair, starting_state
+            if sum(prob) == 0.0:
+                break
+            cummulate_time += np.random.exponential(1.0 / sum(prob))
+            if cummulate_time > blen:
+                break
+            else:
+                starting_state = self.draw_from_distribution(deepcopy(prob)/sum(prob), 1, range(len(prob)))
+                prob = np.array(rate_matrix.getrow(starting_state).todense())[0,:]
+                #starting_state = self.pair_to_state[starting_pair]
+
+        return starting_state#starting_pair#, starting_state, cummulate_time
+
+    def sim_root(self):
+        if self.Model == 'MG94':
+            seq = self.draw_from_distribution(self.prior_distribution, self.nsites, self.codon_nonstop)
+        elif self.Model == 'HKY':
+            seq = self.draw_from_distribution(self.prior_distribution, self.nsites, 'ACGT')
+        self.node_to_sequence['N0'] = np.array([self.pair_to_state[(i, i)] for i in seq])
+
+    #vec_sim_one_branch = np.vectorize(self.sim_one_branch, excluded = ['rate_matrix', 'blen'])
+
+    def sim(self):
+        self.sim_root()
+        for edge in self.edge_list:
+            print edge
+            if edge in self.outgroup:
+                rate_mat = self.Basic_mat
+            else:
+                rate_mat = self.Geneconv_mat
+
+            end_seq = []
+            for site in self.node_to_sequence[edge[0]]:
+                #print site
+                end_seq.append(self.sim_one_branch(site, rate_mat, self.edge_to_blen[edge]))
+            self.node_to_sequence[edge[1]] = end_seq
+
+        for node in self.node_to_sequence.keys():
+            seq1 = ''.join([self.state_to_pair[i][0] for i in self.node_to_sequence[node]])
+            seq2 = ''.join([self.state_to_pair[i][1] for i in self.node_to_sequence[node]])
+            self.node_to_sequence[node] = (seq1, seq2)
+
+                
+    def output_seq(self, path = './simulation/', Force = False, clock = False):
+        file_name = '_'.join(self.paralog) + '_' + self.Model
+        if self.Dir:
+            file_name += '_dir'
+        if self.gBGC:
+            file_name += '_gBGC'
+        if clock:
+            file_name += '_clock'
+        if Force:
+            file_name += '_force'
+
+        output_file = path + '_'.join(self.paralog) + '/' + file_name + '.fasta'
+        outgroup_leaves = [i[1] for i in self.outgroup]
+        with open(output_file, 'w+') as f:
+            for node in self.leaves:
+                if node in outgroup_leaves:
+                    f.write('>' + node + self.paralog[0] + '\n')
+                    f.write(self.node_to_sequence[node][0] + '\n')
+                else:
+                    f.write('>' + node + self.paralog[0] + '\n')
+                    f.write(self.node_to_sequence[node][0] + '\n')
+                    f.write('>' + node + self.paralog[1] + '\n')
+                    f.write(self.node_to_sequence[node][1] + '\n')
+                    
+                
+        
+            
+        
 
 
 if __name__ == '__main__':
     
-    paralog1 = 'YLR406C'
-    paralog2 = 'YDL075W'
+    paralog1 = 'YDR502C'
+    paralog2 = 'YLR180W'
 
     paralog = [paralog1, paralog2]
-    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
-    log_omega = np.log(8.562946237878546474e-02)
-    x = np.exp([-0.69356832, -0.50733147, -0.88584866,  2.33732053, log_omega,  2.08070563,
-       -3.17876664, -3.06491686, -3.3344096 , -3.59554012, -5.05790222,
-       -3.70204719, -5.24464693, -4.11413797, -6.24278987, -3.75290647,
-       -4.5716839 , -4.44936138])
+    #log_omega = np.log(8.562946237878546474e-02)
+    x = np.exp([-0.76043136, -0.56202514, -0.86577248,  1.34559939, -3.18120517,
+       -0.53628023, -1.58482627, -1.45313697, -1.48522716, -0.51722434,
+       -2.40816466, -2.06956473, -2.4618848 , -1.75893577, -2.61506075,
+       -1.66772197, -2.38438532, -2.40841467])
+
+    #YBR117C_YPR074C
+    x_HKY = np.exp([-0.75572536, -0.57064656, -0.78114092,  1.43680162, -0.12676788,
+       -1.79601116, -3.14039449, -2.25513103, -1.79522678, -3.6940989 ,
+       -3.04007122, -3.73703586, -3.06174264, -4.02058201, -2.91143155,
+       -3.28320901, -3.56320802])
+
+    x_HKY[4] = 0.0
+
+    x_gBGC_dir = np.exp([-0.76332984, -0.6035293 , -0.77587976,  1.36553822, -3.2183019 ,
+       -1.85738889, -0.22358248, -3.41664095, -1.54763648, -1.54711367,
+       -1.43821404, -0.42501841, -2.32832516, -1.94156997, -2.37697147,
+       -1.7136708 , -2.50543922, -1.64307197, -2.38638795, -2.33371383])
     
-    test = SimGeneconv( newicktree, paralog, x, Model = 'MG94', nnsites = 2)
+    #test = SimGeneconv( newicktree, paralog, x_gBGC_dir, Model = 'MG94', nnsites = 1000)
+    #test = SimGeneconv( newicktree, paralog, x_HKY, Model = 'HKY', nnsites = 1000)
 
+    Dir = True
+    #Dir = False
+    gBGC = True
+    #gBGC = False
+    test = SimGeneconv( newicktree, paralog, x_gBGC_dir, Model = 'MG94', nnsites = 381, Dir = Dir, gBGC = gBGC)
     self = test
+    test.sim()
 
-    g, b = self.get_MG94Geneconv_and_MG94()
-    prob = np.array(g.getrow(0).todense())[0,:]
-    self.draw_from_distribution(prob, 1)
+    print self.node_to_sequence['N0'][0].count('A'), self.node_to_sequence['N0'][0].count('A') / (self.nsites * 3.0)
+    print self.node_to_sequence['kluyveri'][0].count('A'), self.node_to_sequence['kluyveri'][0].count('A') / (self.nsites * 3.0)
+    print self.pi
+
+    #self.output_seq()

@@ -12,7 +12,13 @@ This R script is used for checking MLE of the Geneconv project
 rm(list=ls())  # clean up workspace
 setwd("/Users/xji3/Genconv/NewClusterPackRun")
 path.HKY <- "/Users/xji3/FromCluster03232015_4/NewPackageNewRun/"
-path.MG94 <- "/Users/xji3/FromCluster03212015/NewPackageNewRun/"
+#path.MG94 <- "/Users/xji3/FromCluster03212015/NewPackageNewRun/"
+path.MG94 <- "/Users/xji3/FromCluster03162015/NewPackageNewRun/"
+
+path.HKY <- "/Users/xji3/MixedFromCluster/NewPackageNewRun/"
+path.MG94 <- "/Users/xji3/MixedFromCluster/NewPackageNewRun/"
+
+#path.MG94 <- "/Users/xji3/FromCluster03192015/NewPackageNewRun/"
 #path.HKY <- path.MG94
 #path.MG94 = path.HKY
 #path <- "G:/Geneconv/NewClusterPackRun/NewPackageNewRun/"
@@ -324,9 +330,9 @@ Dir_gBGC_HKY_clock_summary[2, ] - gBGC_HKY_clock_summary[2, ]
 # MG94
 MG94_clock_summary[2, ] - Force_MG94_clock_summary[2, ]
 Dir_MG94_clock_summary[2, ] - MG94_clock_summary[2, ]
-#gBGC_MG94_clock_summary[2, ] - MG94_clock_summary[2, ]
+gBGC_MG94_clock_summary[2, ] - MG94_clock_summary[2, ]
 Dir_gBGC_MG94_clock_summary[2, ] - Dir_MG94_clock_summary[2, ]
-#Dir_gBGC_MG94_clock_summary[2, ] - gBGC_MG94_clock_summary[2, ]
+Dir_gBGC_MG94_clock_summary[2, ] - gBGC_MG94_clock_summary[2, ]
 ```
 
 
@@ -345,4 +351,68 @@ MG94_nonclock_summary[2, ] - MG94_clock_summary[2, ]
 Dir_MG94_nonclock_summary[2, ] - Dir_MG94_clock_summary[2, ]
 gBGC_MG94_nonclock_summary[2, ] - gBGC_MG94_clock_summary[2, ]
 Dir_gBGC_MG94_nonclock_summary[2, ] - Dir_gBGC_MG94_clock_summary[2, ]
+```
+
+##05082015
+####Now create summary lnL table
+
+```{r}
+paml.summary.file <- "/Users/xji3/Genconv/NewClusterPackRun/NewPairsAlignment/paml_summary.txt"
+all <- readLines(paml.summary.file, n = -1)
+col.names <- strsplit(all[1], ' ')[[1]][-1]
+row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+paml_mat <- as.matrix(read.table(paml.summary.file, 
+                                    row.names = row.names, 
+                                    col.names = col.names))
+col.names <- colnames(HKY_nonclock_summary)
+lnL.mat <- cbind(#colnames(Dir_gBGC_HKY_clock_summary), 
+                 Force_HKY_nonclock_summary[2, ],
+                 HKY_nonclock_summary[2, ],
+                 Dir_HKY_nonclock_summary[2, ],
+                 gBGC_HKY_nonclock_summary[2, ],
+                 Dir_gBGC_HKY_nonclock_summary[2, ], 
+                 Force_MG94_nonclock_summary[2, ],
+                 MG94_nonclock_summary[2, ],
+                 Dir_MG94_nonclock_summary[2, ],
+                 gBGC_MG94_nonclock_summary[2, ],
+                 Dir_gBGC_MG94_nonclock_summary[2, ],
+                 
+                 Force_HKY_clock_summary[2, ],
+                 HKY_clock_summary[2, ],
+                 Dir_HKY_clock_summary[2, ],
+                 gBGC_HKY_clock_summary[2, ],
+                 Dir_gBGC_HKY_clock_summary[2, ], 
+                 Force_MG94_clock_summary[2, ],
+                 MG94_clock_summary[2, ],
+                 Dir_MG94_clock_summary[2, ],
+                 gBGC_MG94_clock_summary[2, ],
+                 Dir_gBGC_MG94_clock_summary[2, ], 
+                 
+                 # add paml results
+                 paml_mat[1, col.names], 
+                 paml_mat[2, col.names],
+                 paml_mat[5, col.names],
+                 paml_mat[6, col.names]
+                 )
+col.names <- c(#"pairs", 
+               "HKY Force nonclock", "HKY nonclock", "HKY Dir nonclock",
+               "HKY gBGC nonclock", "HKY gBGC Dir nonclock",
+               "MG94 Force nonclock", "MG94 nonclock", "MG94 Dir nonclock",
+               "MG94 gBGC nonclock", "MG94 gBGC Dir nonclock", 
+               
+               "HKY Force clock", "HKY clock", "HKY Dir clock",
+               "HKY gBGC clock", "HKY gBGC Dir clock",
+               "MG94 Force clock", "MG94 clock", "MG94 Dir clock",
+               "MG94 gBGC clock", 
+               "MG94 gBGC Dir clock", 
+               
+               # add paml results
+               "MG94 codeml tree length",
+               "MG94 codeml lnL",
+               "HKY baseml tree length",
+               "HKY baseml lnL"
+               )
+colnames(lnL.mat) <- col.names
+write.table(lnL.mat, paste( "/Users/xji3/MixedFromCluster/", "lnL_matrix", sep = ""))
+#b <- read.table(paste( "/Users/xji3/MixedFromCluster/", "lnL_matrix", sep = ""))
 ```

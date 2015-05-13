@@ -1,6 +1,6 @@
-      seqfile = /Users/xji3/Genconv/CodemlTest/input_data_compare_paml.fasta
-     treefile = /Users/xji3/Genconv/CodemlTest/input_tree_compare_paml.newick
-      outfile = mlc
+      seqfile = /Users/xji3/Genconv/CodemlTest/YML026C_YDR450W_input.fasta
+     treefile = /Users/xji3/Genconv/CodemlTest/YeastTree.newick
+      outfile = YML026C_YDR450W_codeml
 
         noisy = 9
       verbose = 1
@@ -8,8 +8,8 @@
 
 
       seqtype = 1
-    CodonFreq = 0
-      estFreq = 0
+    CodonFreq = 4
+      estFreq = 1
 
         ndata = 1
         clock = 0

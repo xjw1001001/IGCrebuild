@@ -1,2 +1,5 @@
-Supplemental results for CODEML (seqf: /Users/xji3/Genconv/CodemlTest/input_data_compare_paml.fasta  treef: /Users/xji3/Genconv/CodemlTest/input_tree_compare_paml.newick)
+Supplemental results for BASEML
+
+seqf:  /Users/xji3/Genconv/CodemlTest/input_data_compare_paml.fasta
+treef: /Users/xji3/Genconv/CodemlTest/input_tree_compare_paml.newick
 
