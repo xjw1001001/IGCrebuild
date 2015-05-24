@@ -701,6 +701,54 @@ class ReCodonGeneconv:
         g = -np.concatenate((other_derivs, edge_derivs))
         return f, g
 
+    def loglikelihood_and_gradient2(self, package = 'new', display = False):
+        '''
+        Modified from Alex's objective_and_gradient function in ctmcaas/adv-log-likelihoods/mle_geneconv_common.py
+        '''
+        self.update_by_x()
+        delta = 1e-8
+        x = deepcopy(self.x)  # store the current x array
+        if package == 'new':
+            fn = self._loglikelihood2
+        else:
+            fn = self._loglikelihood
+
+        ll, edge_derivs = fn(edge_derivative = True)
+        
+        m = len(self.x) - len(self.edge_to_blen)
+
+        # use finite differences to estimate derivatives with respect to these parameters
+        other_derivs = []
+        
+        for i in range(m):
+            if self.Force != None:
+                if i in self.Force.keys():  # check here
+                    other_derivs.append(0.0)
+                    continue
+            x_plus_delta = np.array(self.x)
+            x_plus_delta[i] += delta / 2.0
+            self.update_by_x(x_plus_delta)
+            ll_delta_plus, _ = fn(store = True, edge_derivative = False)
+            x_plus_delta[i] -= delta
+            self.update_by_x(x_plus_delta)
+            ll_delta_minus, _ = fn(store = True, edge_derivative = False)
+            x_plus_delta[i] += delta / 2.0
+            d_estimate = (ll_delta_plus - ll_delta_minus) / delta           
+            other_derivs.append(d_estimate)
+            # restore self.x
+            self.update_by_x(x)
+        other_derivs = np.array(other_derivs)
+        if display:
+            print 'log likelihood = ', ll
+            print 'Edge derivatives = ', edge_derivs
+            print 'other derivatives:', other_derivs
+            print 'Current x array = ', self.x
+
+        self.ll = ll
+        f = -ll
+        g = -np.concatenate((other_derivs, edge_derivs))
+        return f, g
+
     def objective_and_gradient(self, display, x):
         self.update_by_x(x)
         f, g = self.loglikelihood_and_gradient(display = display)
@@ -875,13 +923,16 @@ class ReCodonGeneconv:
             elist = {self.edge_list[a]:x_rates[a] for a in range(len(self.edge_list)) if self.edge_list[a][0] == 'N' + str(i)}
             elenlist = [elist[t] for t in elist]
             if i == 0:
-                Lr.append(max(elenlist))
-                Lr.append(0.9)
-                Lr.append(1 - min(elenlist) / max(elenlist))
+                extra_list = [x_rates[a] for a in range(len(self.edge_list)) if self.edge_list[a][0] == 'N' + str(1) and self.edge_list[a][1][0] != 'N']
+                L = (sum(elenlist) + extra_list[0]) / 2
+                r0 = 2.0 - (sum(elenlist) - elist[('N0', 'N1')]) / L
+                Lr.append(L)
+                Lr.append(r0)
+                Lr.append(extra_list[0] / (L * r0))
             else:
                 Lr.append(1 - min(elenlist) / max(elenlist))
-        self.Lr = np.log(Lr)
-        self.x_clock = np.concatenate((self.x_process, self.Lr))
+        self.x_Lr = np.array(Lr)
+        self.x_clock = np.concatenate((self.x_process, np.log(self.x_Lr)))
  
     def get_geneconvTransRed(self, get_rate = False):
         row_states = []

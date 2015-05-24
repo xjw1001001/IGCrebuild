@@ -607,6 +607,8 @@ class DirGeneconv:
 
         ll, edge_derivs = j_ll['log_likelihood'], j_ll['edge_derivatives']
 
+        self.ll = ll
+
         return ll, edge_derivs
 
 
@@ -635,6 +637,8 @@ class DirGeneconv:
             edge_derivs = j_out['responses'][1]
         else:
             edge_derivs = []
+
+        self.ll = ll
 
         return ll, edge_derivs
     
@@ -911,9 +915,12 @@ class DirGeneconv:
             elist = {self.edge_list[a]:x_rates[a] for a in range(len(self.edge_list)) if self.edge_list[a][0] == 'N' + str(i)}
             elenlist = [elist[t] for t in elist]
             if i == 0:
-                Lr.append(max(elenlist))
-                Lr.append(0.9)
-                Lr.append(1 - min(elenlist) / max(elenlist))
+                extra_list = [x_rates[a] for a in range(len(self.edge_list)) if self.edge_list[a][0] == 'N' + str(1) and self.edge_list[a][1][0] != 'N']
+                L = (sum(elenlist) + extra_list[0]) / 2
+                r0 = 2.0 - (sum(elenlist) - elist[('N0', 'N1')]) / L
+                Lr.append(L)
+                Lr.append(r0)
+                Lr.append(extra_list[0] / (L * r0))
             else:
                 Lr.append(1 - min(elenlist) / max(elenlist))
         self.Lr = np.log(Lr)
