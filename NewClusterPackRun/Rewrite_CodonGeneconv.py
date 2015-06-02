@@ -299,7 +299,7 @@ class ReCodonGeneconv:
         
     def update_by_x(self, x = None, transformation = 'log'):
         k = len(self.edge_to_blen)
-        if x != None:
+        if not x == None:
             self.x = x
         self.x_process, self.x_rates = self.x[:-k], self.x[-k:]
         Force_process = None
