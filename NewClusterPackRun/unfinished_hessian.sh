@@ -1,6 +1,5 @@
 #!/bin/bash
 sbatch -o cd-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YPR157W_YGR141W_gBGC_HKY_Hessian_unfinished.sh
-sbatch -o cd-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YBR117C_YPR074C_Dir_gBGC_HKY_Hessian_unfinished.sh
 sbatch -o cd-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YIR033W_YKL020C_Dir_gBGC_HKY_Hessian_unfinished.sh
 sbatch -o cd-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YML026C_YDR450W__MG94_Hessian_unfinished.sh
 sbatch -o cd-%j.out --mail-type=FAIL --mail-user=xji3@ncsu.edu ./NewRun/YER074W_YIL069C__MG94_Hessian_unfinished.sh
