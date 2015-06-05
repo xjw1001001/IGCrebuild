@@ -7,16 +7,16 @@ import argparse
 def main(args):
     model = args.model
     paralog = [args.paralog1, args.paralog2]
-    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-    switched_alignment_file = './TestTau/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_switched.fasta'
+    alignment_file = './ZebraFish/' + '_'.join(paralog) + '_input.fasta'
+    switched_alignment_file = './ZebraFish/' + '_'.join(paralog) + '_switched.fasta'
     if args.switch:
-        newicktree = './TestTau/YeastTestTree.newick'
-        path = './TestTau/'
-        summary_path = './TestTau/'
+        newicktree = './ZebraFish/FishTree.newick'
+        path = './ZebraFish/'
+        summary_path = './ZebraFish/'
     else:
-        newicktree = '../PairsAlignemt/YeastTree.newick'
-        path = './NewPackageNewRun/'
-        summary_path = './NewPackageNewRun/'
+        newicktree = './ZebraFish/FishTree.newick'
+        path = './ZebraFish/'
+        path = './ZebraFish/'
     omega_guess = 0.1    
 
     print 'Now calculate MLE for pair', paralog
