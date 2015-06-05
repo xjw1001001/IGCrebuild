@@ -1,0 +1,6 @@
+---
+title: "SwitchTest"
+author: "Xiang Ji"
+date: "June 5, 2015"
+output: html_document
+---

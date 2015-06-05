@@ -82,7 +82,7 @@ if __name__ == '__main__':
         ]
 
     summary_path_list = ['/Users/xji3/MixedFromCluster/NewPackageNewRun/']
-    #summary_path_list = ["/Users/xji3/FromCluster03212015/NewPackageNewRun/"]
+    summary_path_list = ["/Users/xji3/FromCluster06052015/TestTau/", '/Users/xji3/FromCluster06052015/TestTau/switched_']
 ####################################################################################################################################################
     for path_it in range(len(summary_path_list)):
         summary_path = summary_path_list[path_it]
