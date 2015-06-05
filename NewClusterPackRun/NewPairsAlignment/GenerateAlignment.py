@@ -74,35 +74,34 @@ def GapRemovedFasta(align, output_fasta):
 
     
 if __name__ == '__main__':
-    path = '/Users/xji3/Genconv/NewClusterPackRun/NewPairsAlignment/'
-    pairs = []
-    with open('/Users/xji3/Genconv/NewClusterPackRun/NewPairsAlignment/pairs_list.txt', 'r') as f:
-        for line in f.readlines():
-            pairs.append(line.replace('\n','').split('_'))
+##    path = '/Users/xji3/Genconv/NewClusterPackRun/NewPairsAlignment/'
+##    pairs = []
+##    with open('/Users/xji3/Genconv/NewClusterPackRun/NewPairsAlignment/pairs_list.txt', 'r') as f:
+##        for line in f.readlines():
+##            pairs.append(line.replace('\n','').split('_'))
+##
+##    pairs.remove(['YLR028C', 'YMR120C'])
+##    for pair in pairs:
+##        #mkdir_cmd = ['mkdir', '_'.join(pair)]
+##        MAFFT_cmd = ['/usr/local/bin/mafft', '--auto',
+##                     path + '_'.join(pair) + '/' + '_'.join(pair) + '_AA.fa', '>',
+##                     path + '_'.join(pair) + '/' + '_'.join(pair) + '_AA_MAFFT.fa']
+##        #cp_cmd = ['cp',
+##        #          '../PairsAlignemt/' + '_'.join(pair) + '/' + '_'.join(pair) + '.fa',
+##        #          './' + '_'.join(pair) + '/' + '_'.join(pair) + '.fa']
+##        #subprocess.call(mkdir_cmd)
+##        #subprocess.call(cp_cmd)
+##        
+##        translateDNAtoAA('./' + '_'.join(pair) + '/' + '_'.join(pair) + '.fa',
+##                         './' + '_'.join(pair) + '/' + '_'.join(pair) + '_AA.fa')
+##        os.system(' '.join(MAFFT_cmd))
+##        format_fasta(path + '_'.join(pair) + '/' + '_'.join(pair) + '_AA_MAFFT.fa',
+##                     path + '_'.join(pair) + '/' + '_'.join(pair) + '_AA_MAFFT_formated.fa')
+##        translateAAAlignmentDNAAlignment('./' + '_'.join(pair) + '/' + '_'.join(pair) + '_AA_MAFFT_formated.fa',
+##                                         './' + '_'.join(pair) + '/' + '_'.join(pair) + '.fa',
+##                                         './' + '_'.join(pair) + '/' + '_'.join(pair) + '_MAFFT.fa')
+##
+##        GapRemovedFasta(processAlignment('./' + '_'.join(pair) + '/' + '_'.join(pair) + '_MAFFT.fa'),
+##                        './' + '_'.join(pair) + '/' + '_'.join(pair) + '_input.fasta')
+##                                         
 
-    pairs.remove(['YLR028C', 'YMR120C'])
-    for pair in pairs:
-        #mkdir_cmd = ['mkdir', '_'.join(pair)]
-        MAFFT_cmd = ['/usr/local/bin/mafft', '--auto',
-                     path + '_'.join(pair) + '/' + '_'.join(pair) + '_AA.fa', '>',
-                     path + '_'.join(pair) + '/' + '_'.join(pair) + '_AA_MAFFT.fa']
-        #cp_cmd = ['cp',
-        #          '../PairsAlignemt/' + '_'.join(pair) + '/' + '_'.join(pair) + '.fa',
-        #          './' + '_'.join(pair) + '/' + '_'.join(pair) + '.fa']
-        #subprocess.call(mkdir_cmd)
-        #subprocess.call(cp_cmd)
-        
-        translateDNAtoAA('./' + '_'.join(pair) + '/' + '_'.join(pair) + '.fa',
-                         './' + '_'.join(pair) + '/' + '_'.join(pair) + '_AA.fa')
-        os.system(' '.join(MAFFT_cmd))
-        format_fasta(path + '_'.join(pair) + '/' + '_'.join(pair) + '_AA_MAFFT.fa',
-                     path + '_'.join(pair) + '/' + '_'.join(pair) + '_AA_MAFFT_formated.fa')
-        translateAAAlignmentDNAAlignment('./' + '_'.join(pair) + '/' + '_'.join(pair) + '_AA_MAFFT_formated.fa',
-                                         './' + '_'.join(pair) + '/' + '_'.join(pair) + '.fa',
-                                         './' + '_'.join(pair) + '/' + '_'.join(pair) + '_MAFFT.fa')
-
-        GapRemovedFasta(processAlignment('./' + '_'.join(pair) + '/' + '_'.join(pair) + '_MAFFT.fa'),
-                        './' + '_'.join(pair) + '/' + '_'.join(pair) + '_input.fasta')
-                                         
-                                         
-    

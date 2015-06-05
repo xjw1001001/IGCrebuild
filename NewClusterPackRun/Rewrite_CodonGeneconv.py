@@ -1301,13 +1301,16 @@ if __name__ == '__main__':
 ####    Force    = {5:0.0}
 ######
     paralog = [paralog1, paralog2]
-    alignment_file = './simulation/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '.fasta'
+    #alignment_file = './simulation/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '.fasta'
+    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    #alignment_file = './TestTau/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_switched.fasta'
 ##    #alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
 ##    alignment_file = './NewPairsAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
 ##    #alignment_file = '../data/cleaned_input_data.fasta'
 ##    #alignment_file = '../data/cleanedfasta.fasta'
 ##    #newicktree = './YeastTree_remove_Cas.newick'
-    newicktree = '../PairsAlignemt/YeastTree.newick'
+    #newicktree = '../PairsAlignemt/YeastTree.newick'
+    newicktree = './TestTau/YeastTestTree.newick'
 ##    #newicktree = '../data/input_tree.newick'
 
 ##    x = np.array([-0.72980621, -0.56994663, -0.96216856,  1.73940961, -1.71054117,  0.54387332,
@@ -1320,8 +1323,13 @@ if __name__ == '__main__':
 ####
 ##    out_group_blen = np.arange(0.0001, 0.01, 0.005)
 ##    ll_list = []
-    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = False)
-    test.get_mle(True, True, 1, 'BFGS')
+    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = True)
+    test.get_mle(False, True, 0, 'BFGS')
+    print test.tau
+
+    test2 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = {4:0.0}, clock = True)
+    test2.get_mle(False, True, 0, 'BFGS')
+    print test2.tau
 
 ##    for blen in out_group_blen:
 ##        test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = {6:blen}, clock = False)
