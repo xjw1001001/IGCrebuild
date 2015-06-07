@@ -16,9 +16,12 @@ from functools import partial
 def readSummaryFile(summary_file):
     return np.loadtxt(summary_file)
 
-def get_site_ExpectedNumGeneconv(test):
+def get_site_ExpectedNumGeneconv(test, Dir = False):
     if test.GeneconvTransRed is None:
-        test.GeneconvTransRed = test.get_geneconvTransRed()
+        if Dir:
+            test.GeneconvTransRed = test.get_directionalNumGeneconvRed()
+        else:
+            test.GeneconvTransRed = test.get_geneconvTransRed()
 
     scene_ll = test.get_scene()
     requests = [{'property' : 'DDNTRAN', 'transition_reduction' : test.GeneconvTransRed}]
@@ -101,10 +104,10 @@ def main(args):
     test.x = transformed_x
     test.update_by_x()
         
-    b = pickle.load(open(prefix + '_'.join(paralog) + suffix_pickle, 'rb'))
+    #b = pickle.load(open(prefix + '_'.join(paralog) + suffix_pickle, 'rb'))
     
     test._loglikelihood2()
-    print test.ll, gBGC, b['ll']#, transformed_x
+    print test.ll, gBGC#, b['ll']#, transformed_x
 
     ExpectedGeneconv_mat = get_site_ExpectedNumGeneconv(test)
     footer = ' '.join(['_'.join(edge) for edge in test.edge_list])

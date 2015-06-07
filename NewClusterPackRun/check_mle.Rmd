@@ -10,13 +10,14 @@ This R script is used for checking MLE of the Geneconv project
 1, Read in tables
 ```{r}
 rm(list=ls())  # clean up workspace
-setwd("/Users/xji3/Genconv/NewClusterPackRun")
+#setwd("/Users/xji3/Genconv/NewClusterPackRun")
+setwd("G:/Geneconv/Genconv/FromClusterNewPackage/")
 
 path.HKY <- "/Users/xji3/MixedFromCluster/NewPackageNewRun/"
 path.MG94 <- "/Users/xji3/MixedFromCluster/NewPackageNewRun/"
 
-path.HKY <- "/Users/xji3/FromCluster06012015/DataFiles/"
-path.MG94 <- "/Users/xji3/FromCluster06012015/DataFiles/"
+path.HKY <- "G:/Geneconv/DataFiles/"
+path.MG94 <- "G:/Geneconv/DataFiles/"
 
 summary.list.MG94 <- c( 
   "MG94_clock_summary",
@@ -353,6 +354,8 @@ Dir_gBGC_MG94_nonclock_summary[2, ] - Dir_gBGC_MG94_clock_summary[2, ]
 
 ```{r}
 paml.summary.file <- "/Users/xji3/Genconv/NewClusterPackRun/NewPairsAlignment/paml_summary.txt"
+paml.summary.file <- paste(path.HKY, "paml_summary.txt", sep = "")
+
 all <- readLines(paml.summary.file, n = -1)
 col.names <- strsplit(all[1], ' ')[[1]][-1]
 row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
@@ -408,7 +411,7 @@ col.names <- c(#"pairs",
   "HKY baseml lnL"
   )
 colnames(lnL.mat) <- col.names
-write.table(lnL.mat, paste( "/Users/xji3/MixedFromCluster/", "lnL_matrix", sep = ""))
+#write.table(lnL.mat, paste( "/Users/xji3/MixedFromCluster/", "lnL_matrix", sep = ""))
 #b <- read.table(paste( "/Users/xji3/MixedFromCluster/", "lnL_matrix", sep = ""))
 ```
 
@@ -426,7 +429,7 @@ summary.list <- c( "HKY_nonclock_hessian",
                    "gBGC_MG94_nonclock_hessian"
                    )
 path.hessian <- "/Users/xji3/FromCluster06012015/NewPackageNewRun/"
-path.hessian <- "/Users/xji3/FromCluster06012015/DataFiles/"
+path.hessian <- "G:/Geneconv/DataFiles/"
 for (target.summary in summary.list){
   summary_file <- paste(path.hessian, target.summary, '.txt', sep = '')
   all <- readLines(summary_file, n = -1)
