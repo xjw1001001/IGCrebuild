@@ -16,15 +16,13 @@ from functools import partial
 def readSummaryFile(summary_file):
     return np.loadtxt(summary_file)
 
-def get_site_ExpectedNumGeneconv(test, Dir = False):
+def get_site_ExpectedNumGeneconv(test):
     if test.GeneconvTransRed is None:
-        if Dir:
-            test.GeneconvTransRed = test.get_directionalNumGeneconvRed()
-        else:
-            test.GeneconvTransRed = test.get_geneconvTransRed()
+        test.GeneconvTransRed = test.get_directionalNumGeneconvRed()
 
     scene_ll = test.get_scene()
-    requests = [{'property' : 'DDNTRAN', 'transition_reduction' : test.GeneconvTransRed}]
+    requests = [{'property' : 'DDNTRAN', 'transition_reduction' : i} for i in test.GeneconvTransRed]
+    assert(len(requests) == 2)
     j_in = {
         'scene' : scene_ll,
         'requests' : requests
@@ -32,9 +30,10 @@ def get_site_ExpectedNumGeneconv(test, Dir = False):
     j_out = jsonctmctree.interface.process_json_in(j_in)
 
     status = j_out['status']
-    ExpectedGeneconv_mat = np.matrix(j_out['responses'][0]).T
+    ExpectedGeneconv_mat12 = np.matrix(j_out['responses'][0]).T
+    ExpectedGeneconv_mat21 = np.matrix(j_out['responses'][1]).T
     #ExpectedGeneconv = {test.edge_list[i] : ExpectedGeneconv_mat[i,:].tolist()[0] for i in range(len(test.edge_list))}
-    return ExpectedGeneconv_mat
+    return ExpectedGeneconv_mat12, ExpectedGeneconv_mat21
 
 def main(args):
     paralog = [args.paralog1, args.paralog2]
@@ -109,9 +108,10 @@ def main(args):
     test._loglikelihood2()
     print test.ll, gBGC#, b['ll']#, transformed_x
 
-    ExpectedGeneconv_mat = get_site_ExpectedNumGeneconv(test, Dir)
-    footer = ' '.join(['_'.join(edge) for edge in test.edge_list])
-    np.savetxt(open(prefix.replace(summary_path, path) + '_'.join(paralog) + suffix.replace('summary', 'SiteExpectedGeneconv'), 'w+'), ExpectedGeneconv_mat, delimiter = ' ', footer = footer)    
+    ExpectedGeneconv_mat12, ExpectedGeneconv_mat21 = get_site_ExpectedNumGeneconv(test)
+    footer = ' '.join(['_'.join(edge) + '_12' for edge in test.edge_list]) + ' '.join(['_'.join(edge) + '_21' for edge in test.edge_list])
+    np.savetxt(open(prefix.replace(summary_path, path) + '_'.join(paralog) + suffix.replace('summary', 'SiteExpectedGeneconv'), 'w+'),
+               np.concatenate((ExpectedGeneconv_mat12, ExpectedGeneconv_mat21)), delimiter = ' ', footer = footer)    
     
 
 if __name__ == '__main__':
@@ -134,9 +134,9 @@ if __name__ == '__main__':
     paralog = ['YDR418W', 'YEL054C']
     model = 'HKY'
     force = False
-    clock = True
+    clock = False
     gBGC = False
-    Dir = True
+    Dir = False
     alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = '../PairsAlignemt/YeastTree.newick'
     path = './NewPackageNewRun/'
@@ -203,9 +203,11 @@ if __name__ == '__main__':
     test._loglikelihood2()
     print test.ll, gBGC#, b['ll']#, transformed_x
 
-    ExpectedGeneconv_mat = get_site_ExpectedNumGeneconv(test, Dir)
-    footer = ' '.join(['_'.join(edge) for edge in test.edge_list])
-    np.savetxt(open(prefix.replace(summary_path, path) + '_'.join(paralog) + suffix.replace('summary', 'SiteExpectedGeneconv'), 'w+'), ExpectedGeneconv_mat, delimiter = ' ', footer = footer)    
+    ExpectedGeneconv_mat12, ExpectedGeneconv_mat21 = get_site_ExpectedNumGeneconv(test)
+    footer = ' '.join(['_'.join(edge) + '_12' for edge in test.edge_list]) + ' '.join(['_'.join(edge) + '_21' for edge in test.edge_list])
+    np.savetxt(open(prefix.replace(summary_path, path) + '_'.join(paralog) + suffix.replace('summary', 'SiteExpectedGeneconv'), 'w+'),
+               np.concatenate((ExpectedGeneconv_mat12, ExpectedGeneconv_mat21)), delimiter = ' ', footer = footer)    
+     
     
 
 
