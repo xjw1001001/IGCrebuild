@@ -4,3 +4,116 @@ author: "Xiang Ji"
 date: "June 5, 2015"
 output: html_document
 ---
+
+Switch tests are designed using subset of each yeast dataset. The subtree for these
+tests is ((cerevisiae,castellii),kluyveri). Paralog sequences of species castellii 
+were switched in each dataset.
+
+```{r}
+rm(list=ls())  # clean up workspace
+path.switch <- "/Users/xji3/FromCluster06082015/TestTau/"
+summary.list <- c( 
+  #HKY
+  "HKY_clock_summary",
+  #"Force_HKY_clock_summary",
+  "Dir_HKY_clock_summary",
+  "gBGC_HKY_clock_summary",
+  "Dir_gBGC_HKY_clock_summary",
+  
+  #MG94
+  "MG94_clock_summary",
+  "Force_MG94_clock_summary",
+  "Dir_MG94_clock_summary",
+  "gBGC_MG94_clock_summary",
+  "Dir_gBGC_MG94_clock_summary",
+
+  #HKY
+  "switched_HKY_clock_summary",
+  #"switched_Force_HKY_clock_summary",
+  "switched_Dir_HKY_clock_summary",
+  "switched_gBGC_HKY_clock_summary",
+  "switched_Dir_gBGC_HKY_clock_summary",
+  
+  #MG94
+  "switched_MG94_clock_summary",
+  "switched_Force_MG94_clock_summary",
+  "switched_Dir_MG94_clock_summary",
+  "switched_gBGC_MG94_clock_summary",
+  "switched_Dir_gBGC_MG94_clock_summary"
+  )
+
+for (target.summary in summary.list){
+  summary_file <- paste(path.switch, target.summary, '.txt', sep = '')
+  all <- readLines(summary_file, n = -1)
+  col.names <- strsplit(all[1], ' ')[[1]][-1]
+  row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+  summary_mat <- as.matrix(read.table(summary_file, 
+                                      row.names = row.names, 
+                                      col.names = col.names))
+  assign(target.summary, summary_mat)
+  }
+
+HKY.clock.pair.names <- intersect(colnames(HKY_clock_summary), colnames(switched_HKY_clock_summary))
+Dir.HKY.clock.pair.names <- intersect(colnames(Dir_HKY_clock_summary), colnames(switched_Dir_HKY_clock_summary))
+gBGC.HKY.clock.pair.names <- intersect(colnames(gBGC_HKY_clock_summary), colnames(switched_gBGC_HKY_clock_summary))
+Dir.gBGC.HKY.clock.pair.names <- intersect(colnames(Dir_gBGC_HKY_clock_summary), colnames(switched_Dir_gBGC_HKY_clock_summary))
+
+MG94.clock.pair.names <- intersect(colnames(MG94_clock_summary), colnames(switched_MG94_clock_summary))
+Dir.MG94.clock.pair.names <- intersect(colnames(Dir_MG94_clock_summary), colnames(switched_Dir_MG94_clock_summary))
+gBGC.MG94.clock.pair.names <- intersect(colnames(gBGC_MG94_clock_summary), colnames(switched_gBGC_MG94_clock_summary))
+Dir.gBGC.MG94.clock.pair.names <- intersect(colnames(Dir_gBGC_MG94_clock_summary), colnames(switched_Dir_gBGC_MG94_clock_summary))
+
+```
+
+####Now show lnL difference between real and control sequences for each model
+
+```{r}
+#HKY
+HKY_clock_summary[2, HKY.clock.pair.names] - switched_HKY_clock_summary[2, HKY.clock.pair.names]
+Dir_HKY_clock_summary[2, Dir.HKY.clock.pair.names] - switched_Dir_HKY_clock_summary[2, Dir.HKY.clock.pair.names]
+gBGC_HKY_clock_summary[2, gBGC.HKY.clock.pair.names] - switched_gBGC_HKY_clock_summary[2, gBGC.HKY.clock.pair.names]
+Dir_gBGC_HKY_clock_summary[2, Dir.gBGC.HKY.clock.pair.names] - switched_Dir_gBGC_HKY_clock_summary[2, Dir.gBGC.HKY.clock.pair.names]
+#MG94
+MG94_clock_summary[2, MG94.clock.pair.names] - switched_MG94_clock_summary[2, MG94.clock.pair.names]
+Dir_MG94_clock_summary[2, Dir.MG94.clock.pair.names] - switched_Dir_MG94_clock_summary[2, Dir.MG94.clock.pair.names]
+gBGC_MG94_clock_summary[2, gBGC.MG94.clock.pair.names] - switched_gBGC_MG94_clock_summary[2, gBGC.MG94.clock.pair.names]
+Dir_gBGC_MG94_clock_summary[2, Dir.gBGC.MG94.clock.pair.names] - switched_Dir_gBGC_MG94_clock_summary[2, Dir.gBGC.MG94.clock.pair.names]
+```
+
+####Now show lnL increase of IGC from force case
+```{r}
+#MG94
+MG94.clock.pair.names <- intersect(intersect(MG94.clock.pair.names, colnames(Force_MG94_clock_summary)), colnames(switched_Force_MG94_clock_summary))
+lnL.increase.mat <- cbind(MG94_clock_summary[2, MG94.clock.pair.names] - Force_MG94_clock_summary[2, MG94.clock.pair.names], 
+                          switched_MG94_clock_summary[2, MG94.clock.pair.names] - switched_Force_MG94_clock_summary[2, MG94.clock.pair.names], 
+                          ((MG94_clock_summary[2, MG94.clock.pair.names] - Force_MG94_clock_summary[2, MG94.clock.pair.names])
+                           - (switched_MG94_clock_summary[2, MG94.clock.pair.names] - switched_Force_MG94_clock_summary[2, MG94.clock.pair.names])))
+colnames(lnL.increase.mat) <- c("original lnL increase", 
+                                "switched lnL increase", 
+                                "difference")
+lnL.increase.mat
+```
+
+####Now show Tau estimate difference
+
+```{r}
+Tau.diff.mat <- cbind(MG94_clock_summary["tau", MG94.clock.pair.names], 
+                      switched_MG94_clock_summary["tau", MG94.clock.pair.names], 
+                      MG94_clock_summary["tau", MG94.clock.pair.names] - switched_MG94_clock_summary["tau", MG94.clock.pair.names],
+                      (MG94_clock_summary["tau", MG94.clock.pair.names] - switched_MG94_clock_summary["tau", MG94.clock.pair.names]) / MG94_clock_summary["tau", MG94.clock.pair.names] * 100.0
+                      )
+colnames(Tau.diff.mat) <- c("Tau from MG94 clock", 
+                            "Tau from switched MG94 clock", 
+                            "difference",
+                            "difference/MG94 estimate %")
+Tau.diff.mat
+```
+
+
+###08162015
+
+```{r}
+filtered.pairs <- rownames(read.table("/Users/xji3/Genconv/NewClusterPackRun/Yeast14pairs", row.names = 2))
+lnL.increase.mat[filtered.pairs, ]
+Tau.diff.mat[filtered.pairs, ]
+```

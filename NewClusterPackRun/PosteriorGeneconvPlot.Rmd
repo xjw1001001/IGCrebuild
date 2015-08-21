@@ -1,0 +1,40 @@
+---
+title: "PosteriorGeneconvPlot"
+author: "Xiang Ji"
+date: "June 8, 2015"
+output: html_document
+---
+
+This R script is used for summarizing the posterior Expected Number of 
+Geneconv events happened on each branch of the phylogenetic tree. 
+
+```{r}
+rm(list=ls())  # clean up workspace
+Yeast.14.Pairs <- readLines("/Users/xji3/Genconv/NewClusterPackRun/Yeast14pairs")
+summary.list <- c(
+  #HKY
+  "HKY_pair_clock_SiteExpectedGeneconv.txt",
+  "Dir_HKY_pair_clock_SiteExpectedGeneconv.txt",
+  "gBGC_HKY_pair_clock_SiteExpectedGeneconv.txt",
+  "gBGC_Dir_HKY_pair_clock_SiteExpectedGeneconv.txt",
+  #MG94
+  "MG94_pair_clock_SiteExpectedGeneconv.txt",
+  "Dir_MG94_pair_clock_SiteExpectedGeneconv.txt",
+  "gBGC_MG94_pair_clock_SiteExpectedGeneconv.txt",
+  "gBGC_Dir_MG94_pair_clock_SiteExpectedGeneconv.txt"  
+  )
+summary.path <- "/Users/xji3/FromCluster06082015/NewPackageNewRun/"
+for (pair in Yeast.14.Pairs){
+  print(pair)
+  for(target.file in summary.list){
+    geneconv.file <- gsub("pair", pair, paste(summary.path, target.file, sep = ""))
+    all <- readLines(geneconv.file, n = -1)
+    #col.names <- strsplit(all[1], ' ')[[1]][-1]
+    row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+    summary_mat <- as.matrix(read.table(geneconv.file, 
+                                        row.names = row.names, 
+                                        #col.names = col.names
+                                        ))
+  }
+}
+```

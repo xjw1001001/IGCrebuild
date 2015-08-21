@@ -1303,7 +1303,7 @@ if __name__ == '__main__':
     paralog = [paralog1, paralog2]
     #alignment_file = './simulation/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '.fasta'
     alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-    #alignment_file = './TestTau/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_switched.fasta'
+    alignment_file = './TestTau/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_switched.fasta'
 ##    #alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
 ##    alignment_file = './NewPairsAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
 ##    #alignment_file = '../data/cleaned_input_data.fasta'
@@ -1323,6 +1323,7 @@ if __name__ == '__main__':
 ####
 ##    out_group_blen = np.arange(0.0001, 0.01, 0.005)
 ##    ll_list = []
+
     test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = True)
     test.get_mle(False, True, 0, 'BFGS')
     print test.tau
@@ -1330,6 +1331,20 @@ if __name__ == '__main__':
     test2 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = {4:0.0}, clock = True)
     test2.get_mle(False, True, 0, 'BFGS')
     print test2.tau
+
+##    paralog1 = 'YER131W'
+##    paralog2 = 'YGL189C'
+##    paralog = [paralog1, paralog2]
+##    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+##
+##    newicktree = '../PairsAlignemt/YeastTree.newick'
+##    test3 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = True)
+##    test3.get_mle(True, True, 0, 'BFGS')
+##    print test3.tau
+##
+##    test4 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = True)
+##    test4.get_mle(True, False, 0, 'BFGS')
+##    print test4.tau
 
 ##    for blen in out_group_blen:
 ##        test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = {6:blen}, clock = False)

@@ -23,6 +23,8 @@ def main(args):
     if args.force:
         if model == 'MG94':
             Force = {5:0.0}
+        elif model == 'HKY':
+            Force = {4:0.0}
     else:
         Force = None
     if args.gBGC:

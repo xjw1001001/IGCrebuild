@@ -14,7 +14,12 @@ if __name__ == '__main__':
                  ' --model HKY --clock --no-force --no-dir --no-gBGC',
                  ' --model HKY --clock --no-force --no-dir --gBGC',
                  ' --model HKY --clock --no-force --dir --no-gBGC',
-                 ' --model HKY --clock --no-force --dir --gBGC']
+                 ' --model HKY --clock --no-force --dir --gBGC',
+                 ' --model HKY --no-clock --force --no-dir --no-gBGC',
+                 ' --model HKY --no-clock --no-force --no-dir --no-gBGC',
+                 ' --model HKY --no-clock --no-force --no-dir --gBGC',
+                 ' --model HKY --no-clock --no-force --dir --no-gBGC',
+                 ' --model HKY --no-clock --no-force --dir --gBGC']
     with open('./SitePosterior.sh', 'w+') as f:
         f.write('#!/bin/bash' + '\n')
         for pair in pairs:

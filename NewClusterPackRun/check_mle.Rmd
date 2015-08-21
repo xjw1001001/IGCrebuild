@@ -10,14 +10,14 @@ This R script is used for checking MLE of the Geneconv project
 1, Read in tables
 ```{r}
 rm(list=ls())  # clean up workspace
-#setwd("/Users/xji3/Genconv/NewClusterPackRun")
-setwd("G:/Geneconv/Genconv/FromClusterNewPackage/")
+setwd("/Users/xji3/Genconv/NewClusterPackRun")
+#setwd("G:/Geneconv/Genconv/FromClusterNewPackage/")
 
 path.HKY <- "/Users/xji3/MixedFromCluster/NewPackageNewRun/"
 path.MG94 <- "/Users/xji3/MixedFromCluster/NewPackageNewRun/"
 
-path.HKY <- "G:/Geneconv/DataFiles/"
-path.MG94 <- "G:/Geneconv/DataFiles/"
+#path.HKY <- "G:/Geneconv/DataFiles/"
+#path.MG94 <- "G:/Geneconv/DataFiles/"
 
 summary.list.MG94 <- c( 
   "MG94_clock_summary",
@@ -354,7 +354,7 @@ Dir_gBGC_MG94_nonclock_summary[2, ] - Dir_gBGC_MG94_clock_summary[2, ]
 
 ```{r}
 paml.summary.file <- "/Users/xji3/Genconv/NewClusterPackRun/NewPairsAlignment/paml_summary.txt"
-paml.summary.file <- paste(path.HKY, "paml_summary.txt", sep = "")
+#paml.summary.file <- paste(path.HKY, "paml_summary.txt", sep = "")
 
 all <- readLines(paml.summary.file, n = -1)
 col.names <- strsplit(all[1], ' ')[[1]][-1]
@@ -429,7 +429,7 @@ summary.list <- c( "HKY_nonclock_hessian",
                    "gBGC_MG94_nonclock_hessian"
                    )
 path.hessian <- "/Users/xji3/FromCluster06012015/NewPackageNewRun/"
-path.hessian <- "G:/Geneconv/DataFiles/"
+#path.hessian <- "G:/Geneconv/DataFiles/"
 for (target.summary in summary.list){
   summary_file <- paste(path.hessian, target.summary, '.txt', sep = '')
   all <- readLines(summary_file, n = -1)
@@ -443,7 +443,7 @@ for (target.summary in summary.list){
 
 new.lnL.mat <- lnL.mat[lnL.mat[, "MG94 codeml tree length"] < 3.0, ]
 filtered.pairs <- rownames(new.lnL.mat)
-
+write.table(filtered.pairs, "/Users/xji3/Genconv/NewClusterPackRun/Yeast14pairs")
 ```
 
 ####Check posterior estimates
@@ -553,3 +553,58 @@ for (i in 1:length(filtered.pairs)){
 Pair "YNL301C_YOL120C" and pair "YER074W_YIL069C" seem good evidence as directional pattern from the posterior expected number of directional geneconversion events 
 from a non-directional model. The ratio of pair "YER074W_YIL069C" starts from 5th edge because the "N0-N1" branch length is estimated ~ 0.0 which 
 shifts the duplication point to node N1.
+
+##08162015
+
+####Now check lnL improvements
+
+```{r}
+# nonclock models
+# HKY
+HKY_nonclock_summary[2, filtered.pairs] - Force_HKY_nonclock_summary[2, filtered.pairs]
+# Dir_HKY_nonclock_summary[2, filtered.pairs] - HKY_nonclock_summary[2, filtered.pairs]
+# gBGC_HKY_nonclock_summary[2, filtered.pairs] - HKY_nonclock_summary[2, filtered.pairs]
+# Dir_gBGC_HKY_nonclock_summary[2, filtered.pairs] - Dir_HKY_nonclock_summary[2, filtered.pairs]
+# Dir_gBGC_HKY_nonclock_summary[2, filtered.pairs] - gBGC_HKY_nonclock_summary[2, filtered.pairs]
+# MG94
+MG94_nonclock_summary[2, filtered.pairs] - Force_MG94_nonclock_summary[2, filtered.pairs]
+# Dir_MG94_nonclock_summary[2, filtered.pairs] - MG94_nonclock_summary[2, filtered.pairs]
+# gBGC_MG94_nonclock_summary[2, filtered.pairs] - MG94_nonclock_summary[2, filtered.pairs]
+# Dir_gBGC_MG94_nonclock_summary[2, filtered.pairs] - Dir_MG94_nonclock_summary[2, filtered.pairs]
+# Dir_gBGC_MG94_nonclock_summary[2, filtered.pairs] - gBGC_MG94_nonclock_summary[2, filtered.pairs]
+```
+
+```{r}
+# clock models
+# HKY
+HKY_clock_summary[2, filtered.pairs] - Force_HKY_clock_summary[2, filtered.pairs]
+# Dir_HKY_clock_summary[2, filtered.pairs] - HKY_clock_summary[2, filtered.pairs]
+# gBGC_HKY_clock_summary[2, filtered.pairs] - HKY_clock_summary[2, filtered.pairs]
+# Dir_gBGC_HKY_clock_summary[2, filtered.pairs] - Dir_HKY_clock_summary[2, filtered.pairs]
+# Dir_gBGC_HKY_clock_summary[2, filtered.pairs] - gBGC_HKY_clock_summary[2, filtered.pairs]
+# MG94
+MG94_clock_summary[2, filtered.pairs] - Force_MG94_clock_summary[2, filtered.pairs]
+# Dir_MG94_clock_summary[2, filtered.pairs] - MG94_clock_summary[2, filtered.pairs]
+# gBGC_MG94_clock_summary[2, filtered.pairs] - MG94_clock_summary[2, filtered.pairs]
+# Dir_gBGC_MG94_clock_summary[2, filtered.pairs] - Dir_MG94_clock_summary[2, filtered.pairs]
+# Dir_gBGC_MG94_clock_summary[2, filtered.pairs] - gBGC_MG94_clock_summary[2, filtered.pairs]
+```
+
+
+####Now check lnL improvements between clock and nonclock cases
+
+```{r}
+# HKY
+Force_HKY_nonclock_summary[2, filtered.pairs] - Force_HKY_clock_summary[2, filtered.pairs]
+HKY_nonclock_summary[2, filtered.pairs] - HKY_clock_summary[2, filtered.pairs]
+# Dir_HKY_nonclock_summary[2, filtered.pairs] - Dir_HKY_clock_summary[2, filtered.pairs]
+# gBGC_HKY_nonclock_summary[2, filtered.pairs] - gBGC_HKY_clock_summary[2, filtered.pairs]
+# Dir_gBGC_HKY_nonclock_summary[2, filtered.pairs] - Dir_gBGC_HKY_clock_summary[2, filtered.pairs]
+# MG94
+Force_MG94_nonclock_summary[2, filtered.pairs] - Force_MG94_clock_summary[2, filtered.pairs]
+MG94_nonclock_summary[2, filtered.pairs] - MG94_clock_summary[2, filtered.pairs]
+# Dir_MG94_nonclock_summary[2, filtered.pairs] - Dir_MG94_clock_summary[2, filtered.pairs]
+# gBGC_MG94_nonclock_summary[2, filtered.pairs] - gBGC_MG94_clock_summary[2, filtered.pairs]
+# Dir_gBGC_MG94_nonclock_summary[2, filtered.pairs] - Dir_gBGC_MG94_clock_summary[2, filtered.pairs]
+```
+

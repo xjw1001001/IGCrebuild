@@ -64,6 +64,7 @@ if __name__=='__main__':
 
 ###
 #Read ortholog info from http://www.broadinstitute.org/regev/orthogroups/
+#Related Nature Paper: Natural history and evolutionary principles of gene duplication in fungi
 ###
 #One to One mapping : http://www.broadinstitute.org/regev/orthogroups//orthologs.html
 ###

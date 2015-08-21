@@ -49,6 +49,7 @@ class SimGeneconv:
         self.omega          = None      # real values
         self.tau            = None      # real values  Tau12, Tau21
         self.gamma          = 0.0
+        self.L              = 200.0       # average gene conversion length
 
         # Prior distribution on the root
         self.prior_feasible_states  = None
@@ -425,6 +426,84 @@ class SimGeneconv:
 
         return starting_state#starting_pair#, starting_state, cummulate_time
 
+    def sim_one_branch_tract(self, starting_seq_pair, blen):
+        assert(len(starting_seq_pair[0]) == len(starting_seq_pair[1]))
+        # TODO: output total number of geneconv events
+        cummulate_time = 0.0
+        Qbasic = self.get_MG94Basic()
+        diagonal_rates = Qbasic.sum(axis = 1)
+
+        # prepare rate array for sampling exponential waiting time
+        seq_rate_1 = [diagonal_rates[self.codon_to_state[starting_seq_pair[0][i * 3:(i + 1) * 3]]] for i in range(len(starting_seq_pair[0]) / 3)]
+        seq_rate_2 = [diagonal_rates[self.codon_to_state[starting_seq_pair[1][i * 3:(i + 1) * 3]]] for i in range(len(starting_seq_pair[1]) / 3)]
+
+        # Now prepare "rate matrix" for the gene conversion event
+        # row number is the starting position, column number is the ending position
+        S = len(starting_seq_pair[0])
+        J = np.zeros((S, S))  # copying my formula part from Alex's script
+        l = np.arange(S+1, dtype=float)
+        p = (1/self.L) * (1 - 1/self.L)**l  # geometric distribution
+        for i in range(S):
+            for j in range(i, S):
+                l = j - i  # This is the number of failures in Geometric distribution
+                # start and end inside the gene with length l <= S - 2
+                if 0 < i <= j < S - 1:
+                    J[i, j] += p[l]
+                # start before gene, end within gene with length l <= S - 1
+                if 0 == i <= j < S - 1:
+                    J[i, j] += p[l] * self.L
+                # start within gene, end after gene with length l <= S - 1
+                if 0 < i <= j == S - 1:
+                    J[i, j] += p[l] * self.L
+                # start before gene, end after gene with length l = S
+                if 0 == i <= j == S - 1:
+                    J[i, j] += p[l] * self.L ** 2                
+        # Now assign initiation rate using tau parameter
+        init_rate = sum(self.tau) / 2.0 / self.L
+        J *= init_rate
+
+        mut_prob = np.array(seq_rate_1 + seq_rate_2)
+        IGC_prob = np.ravel(J)
+        total_rate = mut_prob.sum() + IGC_prob.sum() * 2
+        
+        while(cummulate_time < blen):
+            #Now sample exponential distributed waiting time for next event (either point mutation or IGC)    
+            if total_rate == 0.0:
+                break
+            cummulate_time += np.random.exponential(1.0 / total_rate)
+            if cummulate_time > blen:
+                break
+            else:
+                # an event happening
+                event = self.draw_from_distribution(np.concatenate((mut_prob, IGC_prob, IGC_prob)) / total_rate, 1, range(len(mut_prob) + len(IGC_prob) * 2))
+                #event = np.floor(np.random.uniform() * (len(mut_prob) + len(IGC_prob) * 2))
+                if event < len(mut_prob):  # point mutation event
+                    if event < len(seq_rate_1):  # mutation on seq 1
+                        prob = np.array(Qbasic.getrow(self.codon_to_state[starting_seq_pair[0][event * 3:(event + 1) * 3]])[0,:])
+                        new_codon = self.codon_nonstop[self.draw_from_distribution(deepcopy(prob) / sum(prob), 1, range(len(prob)))]
+                        starting_seq_pair[0] = starting_seq_pair[0][:event * 3] + new_codon + starting_seq_pair[0][(event + 1) * 3:]
+                    else:
+                        event = event - len(seq_rate_1)
+                        prob = np.array(Qbasic[self.codon_to_state[starting_seq_pair[1][event * 3:(event + 1) * 3]],:])
+                        new_codon = self.codon_nonstop[self.draw_from_distribution(deepcopy(prob) / sum(prob), 1, range(len(prob)))]
+                        starting_seq_pair[1] = starting_seq_pair[1][:event * 3] + new_codon + starting_seq_pair[1][(event + 1) * 3:]
+                        
+                else:  # IGC event
+                    event -= len(mut_prob)
+                    if event > len(IGC_prob):  # seq 2 being donor seq
+                        event -= len(IGC_prob)
+                        init_pos = int(np.floor((event / S)))  # starting position
+                        stop_pos = event - init_pos * S  # stop position
+                        # now copy from donor seq to recipient seq
+                        starting_seq_pair[0] = starting_seq_pair[0][:init_pos] + starting_seq_pair[0][init_pos:(stop_pos + 1)] + starting_seq_pair[0][(stop_pos + 1):]
+                    else:
+                        init_pos = int(np.floor((event / S)))  # starting position
+                        stop_pos = event - init_pos * S  # stop position
+                        # now copy from donor seq to recipient seq
+                        starting_seq_pair[1] = starting_seq_pair[1][:init_pos] + starting_seq_pair[1][init_pos:(stop_pos + 1)] + starting_seq_pair[1][(stop_pos + 1):]                        
+                    
+        return starting_seq_pair#starting_pair#, starting_state, cummulate_time
+
     def sim_root(self):
         if self.Model == 'MG94':
             seq = self.draw_from_distribution(self.prior_distribution, self.nsites, self.codon_nonstop)
@@ -453,6 +532,28 @@ class SimGeneconv:
             seq1 = ''.join([self.state_to_pair[i][0] for i in self.node_to_sequence[node]])
             seq2 = ''.join([self.state_to_pair[i][1] for i in self.node_to_sequence[node]])
             self.node_to_sequence[node] = (seq1, seq2)
+
+    def sim_tract(self):
+        self.sim_root()
+        self.node_to_sequence['N0'] = [''.join([self.state_to_pair[i][0] for i in self.node_to_sequence['N0']]),
+                                       ''.join([self.state_to_pair[i][1] for i in self.node_to_sequence['N0']])]
+        for edge in self.edge_list:
+            print edge
+            if edge in self.outgroup:
+                rate_mat = self.Basic_mat
+            else:
+                rate_mat = self.Geneconv_mat
+
+            end_seq = []
+            for site in self.node_to_sequence[edge[0]]:
+                #print site
+                end_seq.append(self.sim_one_branch(site, rate_mat, self.edge_to_blen[edge]))
+            self.node_to_sequence[edge[1]] = end_seq
+
+        for node in self.node_to_sequence.keys():
+            seq1 = ''.join([self.state_to_pair[i][0] for i in self.node_to_sequence[node]])
+            seq2 = ''.join([self.state_to_pair[i][1] for i in self.node_to_sequence[node]])
+            self.node_to_sequence[node] = (seq1, seq2)        
 
                 
     def output_seq(self, path = './simulation/', Force = False, clock = False):
@@ -520,10 +621,16 @@ if __name__ == '__main__':
     #gBGC = False
     test = SimGeneconv( newicktree, paralog, x_gBGC_dir, Model = 'MG94', nnsites = 381, Dir = Dir, gBGC = gBGC)
     self = test
-    test.sim()
-
-    print self.node_to_sequence['N0'][0].count('A'), self.node_to_sequence['N0'][0].count('A') / (self.nsites * 3.0)
-    print self.node_to_sequence['kluyveri'][0].count('A'), self.node_to_sequence['kluyveri'][0].count('A') / (self.nsites * 3.0)
-    print self.pi
+    self.sim_root()
+    self.node_to_sequence['N0'] = [''.join([self.state_to_pair[i][0] for i in self.node_to_sequence['N0']]),
+                                       ''.join([self.state_to_pair[i][1] for i in self.node_to_sequence['N0']])]
+    starting_seq_pair = self.node_to_sequence['N0']
+    blen = 0.1
+    
+##    test.sim()
+##
+##    print self.node_to_sequence['N0'][0].count('A'), self.node_to_sequence['N0'][0].count('A') / (self.nsites * 3.0)
+##    print self.node_to_sequence['kluyveri'][0].count('A'), self.node_to_sequence['kluyveri'][0].count('A') / (self.nsites * 3.0)
+##    print self.pi
 
     #self.output_seq()

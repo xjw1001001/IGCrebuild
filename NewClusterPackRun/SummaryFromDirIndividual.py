@@ -104,6 +104,7 @@ if __name__ == '__main__':
     if ['YLR028C', 'YMR120C'] in pairs:
         pairs.remove(['YLR028C', 'YMR120C'])
     summary_path_list = ['/Users/xji3/MixedFromCluster/NewPackageNewRun/']
+    summary_path_list = ["/Users/xji3/FromCluster06082015/TestTau/", '/Users/xji3/FromCluster06082015/TestTau/switched_']
 ####################################################################################################################################################
 ##
     for summary_path in summary_path_list:
