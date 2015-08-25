@@ -521,6 +521,7 @@ class ReCodonGeneconv:
             col = col,
             rate = rate_basic
             )
+        # process_basic is for HKY_Basic which is equivalent to 4by4 rate matrix
         return [process_basic, process_geneconv]
     
     def unpack_x_rates(self, transformation, Force_rates = None):  # TODO: Change it to fit general tree structure rather than cherry tree
