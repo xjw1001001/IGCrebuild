@@ -1300,6 +1300,37 @@ Force_MG94_nonclock_summary[2, filtered.pairs] - Force_MG94_clock_summary[2, fil
 # Dir_gBGC_MG94_nonclock_summary[2, filtered.pairs] - Dir_gBGC_MG94_clock_summary[2, filtered.pairs]</code></pre>
 </div>
 </div>
+<div id="section-3" class="section level2">
+<h2>09042015</h2>
+<p>Compare posterior geneconv events &amp; posterior edge specific tau estimate with the expected Pdiff of the MG94 + IGC model given the MLE.</p>
+<pre class="r"><code># Now construct the x axis (time from duplication node)
+time.from.duplication &lt;- MG94_nonclock_summary[10:21, ]
+for (i in 1:5){
+  time.from.duplication[(1 + 2*i):12, ] &lt;- sweep(time.from.duplication[(1 + 2*i):12, ], MARGIN = 2, time.from.duplication[(2 * i - 1), ], '+')
+}
+time.from.duplication &lt;- time.from.duplication - 0.5 * MG94_nonclock_summary[10:21, ]
+max.point &lt;- 10.0
+steps &lt;- 100
+basic.t &lt;- (0:(steps-1)) * (max.point / steps)
+par(mfrow = c(1, 1))
+for (paralog in filtered.pairs){
+  pdiff &lt;- read.table(paste(&quot;/Users/xji3/plotPdiff09032015/&quot;, paralog, &quot; MG94 max &quot;, 
+                            toString(max.point), &quot;.0 data.txt&quot;, sep = &quot;&quot;))[[1]]
+  pdiff.basic &lt;- pdiff[1:steps]
+  pdiff.geneconv &lt;- pdiff[(steps + 1):length(pdiff)]
+  jpeg(filename = paste(&quot;/Users/xji3/plotPdiff09032015/&quot;, paralog, &quot; MG94 max &quot;, 
+                            toString(max.point), &quot;.0 plot.jpg&quot;, sep = &quot;&quot;))
+  plot(basic.t, pdiff.basic, type = &quot;l&quot;, col = &quot;red&quot;, xlab = &quot;t&quot;, ylab = &quot;pdiff&quot;, ylim = c(0.0,1.0))
+  par(new = T)
+  plot(basic.t, pdiff.geneconv, type = &quot;l&quot;, col = &quot;blue&quot;, xlab = &quot;t&quot;, ylab = &quot;pdiff&quot;, ylim = c(0.0,1.0))
+  abline(v = time.from.duplication[,paralog], col = &quot;gray60&quot;)
+  par(new = F)
+  title(paste(paralog, &quot; MG94 max &quot;, toString(max.point), &quot;.0&quot;, sep = &quot;&quot;))
+  legend(x = &quot;bottomright&quot;, legend = c(&quot;MG94&quot;, &quot;IGC&quot;), lty = c(1, 1),
+        lwd = c(2.5, 2.5), col = c(&quot;red&quot;, &quot;blue&quot;))
+  dev.off()
+}</code></pre>
+</div>
 
 
 </div>

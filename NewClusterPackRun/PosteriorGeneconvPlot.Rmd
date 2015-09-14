@@ -10,7 +10,7 @@ Geneconv events happened on each branch of the phylogenetic tree.
 
 ```{r}
 rm(list=ls())  # clean up workspace
-Yeast.14.Pairs <- readLines("/Users/xji3/Genconv/NewClusterPackRun/Yeast14pairs")
+Yeast.14.Pairs <- readLines("/Users/xji3/Genconv/NewClusterPackRun/Filtered_pairs.txt")
 summary.list <- c(
   #HKY
   "HKY_pair_clock_SiteExpectedGeneconv.txt",

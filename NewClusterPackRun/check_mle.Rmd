@@ -608,3 +608,39 @@ MG94_nonclock_summary[2, filtered.pairs] - MG94_clock_summary[2, filtered.pairs]
 # Dir_gBGC_MG94_nonclock_summary[2, filtered.pairs] - Dir_gBGC_MG94_clock_summary[2, filtered.pairs]
 ```
 
+
+##09042015
+
+Compare posterior geneconv events & posterior edge specific tau estimate with the expected Pdiff of the MG94 + IGC model
+given the MLE.
+
+```{r}
+# Now construct the x axis (time from duplication node)
+time.from.duplication <- MG94_nonclock_summary[10:21, ]
+for (i in 1:5){
+  time.from.duplication[(1 + 2*i):12, ] <- sweep(time.from.duplication[(1 + 2*i):12, ], MARGIN = 2, time.from.duplication[(2 * i - 1), ], '+')
+}
+time.from.duplication <- time.from.duplication - 0.5 * MG94_nonclock_summary[10:21, ]
+max.point <- 10.0
+steps <- 100
+basic.t <- (0:(steps-1)) * (max.point / steps)
+par(mfrow = c(1, 1))
+for (paralog in filtered.pairs){
+  pdiff <- read.table(paste("/Users/xji3/plotPdiff09032015/", paralog, " MG94 max ", 
+                            toString(max.point), ".0 data.txt", sep = ""))[[1]]
+  pdiff.basic <- pdiff[1:steps]
+  pdiff.geneconv <- pdiff[(steps + 1):length(pdiff)]
+  jpeg(filename = paste("/Users/xji3/plotPdiff09032015/", paralog, " MG94 max ", 
+                            toString(max.point), ".0 plot.jpg", sep = ""))
+  plot(basic.t, pdiff.basic, type = "l", col = "red", xlab = "t", ylab = "pdiff", ylim = c(0.0,1.0))
+  par(new = T)
+  plot(basic.t, pdiff.geneconv, type = "l", col = "blue", xlab = "t", ylab = "pdiff", ylim = c(0.0,1.0))
+  abline(v = time.from.duplication[,paralog], col = "gray60")
+  par(new = F)
+  title(paste(paralog, " MG94 max ", toString(max.point), ".0", sep = ""))
+  legend(x = "bottomright", legend = c("MG94", "IGC"), lty = c(1, 1),
+        lwd = c(2.5, 2.5), col = c("red", "blue"))
+  dev.off()
+}
+
+```

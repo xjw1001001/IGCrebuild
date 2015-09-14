@@ -3,57 +3,8 @@ from DirGeneconv import DirGeneconv
 from gBGCDirGeneconv import gBGCDirGeneconv
 from gBGCCodonGeneconv import gBGCCodonGeneconv
 import argparse
-import numpy as np
-from scipy.linalg import expm
-from CodonGeneconFunc import *
-import matplotlib.pyplot as plt
+from Pdiff import *
 
-def repack_Geneconv_mat(test):
-    if test.Model == 'HKY':
-        state_size = 4
-        mat_basic = test.get_HKYBasic()
-        mat_geneconv = np.zeros((state_size**2, state_size**2))
-        mat_rcr = test.get_HKYGeneconv()[1]  # rcr stands for row column rate
-    elif test.Model == 'MG94':
-        state_size = 61
-        mat_basic = test.get_MG94Basic()
-        mat_geneconv = np.zeros((state_size ** 2, state_size ** 2))
-        mat_rcr = test.get_MG94Geneconv()[1]  # rcr stands for row column rate
-    row = [ state_size * i[0] + i[1] for i in mat_rcr['row']]
-    col = [ state_size * i[0] + i[1] for i in mat_rcr['col']]
-    mat_geneconv[row, col] = mat_rcr['rate']
-
-    # now add in diagonal entries
-    mat_basic = mat_basic - np.diag(mat_basic.sum(axis = 1))
-    mat_geneconv = mat_geneconv - np.diag(mat_geneconv.sum(axis = 1))
-    return mat_basic, mat_geneconv
-     
-def plot_pdiff(test,basic_t, p = None):
-    if p == None:
-        p = test.prior_distribution
-    mat_basic, mat_geneconv = repack_Geneconv_mat(test)
-    #basic_t = np.arange(0.0, 1.0, 0.1)
-    #geneconv_t = basic_t / 2.0
-    basic_psame = [np.matrix(test.prior_distribution) * np.power(expm(mat_basic * t), 2) for t in basic_t]
-    if test.Model == 'HKY':
-        dup_prior = np.zeros((16))
-        identical_state = np.zeros((16))
-        for i in range(4):
-            dup_prior[i * 4 + i] = test.prior_distribution[i]
-            identical_state[i * 4 + i] = 1.0
-    elif test.Model == 'MG94':
-        dup_prior = np.zeros((61**2))
-        identical_state = np.zeros((61**2))
-        for i in range(61):
-            dup_prior[i * 61 + i] = test.prior_distribution[i]
-            identical_state[i * 61 + i] = 1.0
-
-    geneconv_psame = [np.matrix(dup_prior) * np.matrix(expm(mat_geneconv * t)) for t in basic_t]
-
-    basic_pdiff = [1 - t.sum() for t in basic_psame]
-    geneconv_pdiff = [1.0 - (identical_state * t.T)[0,0] for t in geneconv_psame]
-    
-    return basic_pdiff, geneconv_pdiff
 
 def main(args):
     model = args.model
@@ -115,25 +66,97 @@ def main(args):
         test2.get_individual_summary(summary_path = summary_path + 'switched_')
         test2.save_to_file(path = path + 'switched_')
 
+def main2(args):
+    model = args.model
+    paralog = [args.paralog1, args.paralog2]
+    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    if args.switch:
+        newicktree = './TestTau/YeastTestTree.newick'
+        path = './TestTau/'
+        summary_path = './TestTau/'
+    else:
+        newicktree = '../PairsAlignemt/YeastTree.newick'
+        path = './NewPackageNewRun/'
+        summary_path = './MixedFromCluster/NewPackageNewRun/'
+    omega_guess = 0.1    
+
+    print 'Now plot Pdiff for pair', paralog
+    if args.force:
+        if model == 'MG94':
+            Force = {5:0.0}
+        elif model == 'HKY':
+            Force = {4:0.0}
+    else:
+        Force = None
+    if args.gBGC:
+        if args.dir:
+            test = gBGCDirGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)
+        else:
+            test = gBGCCodonGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)       
+    else:
+        if args.dir:
+            test = DirGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)
+        else:
+            test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)
+
+        x = read_txt(summary_path, paralog, model, Force, args.clock, args.dir, args.gBGC)
+        test.update_by_x(x)
+        #test.get_mle(True, True, 0, method)
+
+        #### Get plots for specific range
+        max_point = 10.0
+        number_dots = 100
+        step = max_point / number_dots 
+        basic_t = np.arange(0.0, max_point, step)
+        basic_pdiff_short, geneconv_pdiff_short, mut_odds_short, geneconv_odds_short = plot_pdiff(test, basic_t)
+        if abs(basic_pdiff_short[0]) < 1e-10:
+            basic_pdiff_short[0] = 0.0
+        if abs(geneconv_pdiff_short[0]) < 1e-10:
+            geneconv_pdiff_short[0] = 0.0
+        np.savetxt(open(path + '_'.join(paralog) + ' ' + test.Model + ' max ' + str(max_point) + ' data.txt', 'w+'),np.concatenate((basic_pdiff_short, geneconv_pdiff_short), axis = 0))
+##        plt.plot(basic_t, basic_pdiff_short, 'r-', label = 'Basic Model')
+##        plt.plot(basic_t, geneconv_pdiff_short, 'b-', label = 'IGC Model')
+##        plt.legend(bbox_to_anchor = (1,1), loc = 2, borderaxespad = 0.)
+##        plt.ylabel('P_diff')
+##        plt.title('_'.join(paralog) + ' '+ test.Model + ' max ' + str(max_point))
+##        plt.savefig(path + '_'.join(paralog) + ' ' + test.Model + ' max ' + str(max_point) + '.jpg', bbox_inches='tight')
+##        plt.close()
+
+        if abs(mut_odds_short[0]) < 1e-10:
+            mut_odds_short[0] = 0.0
+        if abs(geneconv_odds_short[0]) < 1e-10:
+            geneconv_odds_short[0] = 0.0
+        np.savetxt(open(path + '_'.join(paralog) + ' ' + test.Model + ' Mut IGC max ' + str(max_point) + ' data.txt', 'w+'),np.concatenate((mut_odds_short, geneconv_odds_short), axis = 0))
+        
+##        plt.plot(basic_t, mut_odds_short, 'r-', label = 'Mutation Odds')
+##        plt.plot(basic_t, geneconv_odds_short, 'b-', label = 'IGC Odds')
+##        plt.legend(bbox_to_anchor = (1,1), loc = 2, borderaxespad = 0.)
+##        plt.ylabel('Odds')
+##        plt.title('_'.join(paralog) + ' '+ test.Model + ' Mut IGC max ' + str(max_point))
+##        plt.savefig(path + '_'.join(paralog) + ' ' + test.Model + ' Mut IGC max ' + str(max_point) + '.jpg', bbox_inches='tight')
+##        plt.close()
+
+    
+
     
 if __name__ == '__main__':
-#    parser = argparse.ArgumentParser()
-#    parser.add_argument('--model', required = True, help = 'Substitution Model')
-#    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
-#    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
-#    parser.add_argument('--force', dest = 'force', action = 'store_true', help = 'Tau parameter control')
-#    parser.add_argument('--no-force', dest = 'force', action = 'store_false', help = 'Tau parameter control')
-#    parser.add_argument('--clock', dest = 'clock', action = 'store_true', help = 'clock control')
-#    parser.add_argument('--no-clock', dest = 'clock', action = 'store_false', help = 'clock control')
-#    parser.add_argument('--dir', dest = 'dir', action = 'store_true', help = 'dir control')
-#    parser.add_argument('--no-dir', dest = 'dir', action = 'store_false', help = 'dir control')
-#    parser.add_argument('--gBGC', dest = 'gBGC', action = 'store_true', help = 'gBGC control')
-#    parser.add_argument('--no-gBGC', dest = 'gBGC', action = 'store_false', help = 'gBGC control')
-#    parser.add_argument('--switch', dest = 'switch', action = 'store_true', help = 'switch test control')
-#    parser.add_argument('--no-switch', dest = 'switch', action = 'store_false', help = 'switch test control')
-#    
-#    
-#    main(parser.parse_args())
+##    parser = argparse.ArgumentParser()
+##    parser.add_argument('--model', required = True, help = 'Substitution Model')
+##    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
+##    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
+##    parser.add_argument('--force', dest = 'force', action = 'store_true', help = 'Tau parameter control')
+##    parser.add_argument('--no-force', dest = 'force', action = 'store_false', help = 'Tau parameter control')
+##    parser.add_argument('--clock', dest = 'clock', action = 'store_true', help = 'clock control')
+##    parser.add_argument('--no-clock', dest = 'clock', action = 'store_false', help = 'clock control')
+##    parser.add_argument('--dir', dest = 'dir', action = 'store_true', help = 'dir control')
+##    parser.add_argument('--no-dir', dest = 'dir', action = 'store_false', help = 'dir control')
+##    parser.add_argument('--gBGC', dest = 'gBGC', action = 'store_true', help = 'gBGC control')
+##    parser.add_argument('--no-gBGC', dest = 'gBGC', action = 'store_false', help = 'gBGC control')
+##    parser.add_argument('--switch', dest = 'switch', action = 'store_true', help = 'switch test control')
+##    parser.add_argument('--no-switch', dest = 'switch', action = 'store_false', help = 'switch test control')
+##    
+##    
+##    main2(parser.parse_args())
 
 
 ##    model = 'HKY'
@@ -148,26 +171,37 @@ if __name__ == '__main__':
 ##    gBGC = False
 ##    Dir = False
 ##    clock = False
+
+
     pairs = []
     all_pairs = './Filtered_pairs.txt'
     with open(all_pairs, 'r') as f:
         for line in f.readlines():
             pairs.append(line.replace('\n','').split('_'))
+    pairs = [pairs[0]]
 
-    #pairs = [pairs[0]]
-    
+##
+##    pairs = [['EDN', 'ECP']]
+##    
     for paralog in pairs:    
-        model = 'HKY'
+        model = 'MG94'
+        #model = 'HKY'
         #paralog1 = 'YLR406C'
         #paralog2 = 'YDL075W'
         #paralog = [paralog1, paralog2]
         alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+        #alignment_file = '../data/EDN_ECP_Cleaned.fasta'
         newicktree = './TestTau/YeastTestTree.newick'
+        newicktree = '../PairsAlignemt/YeastTree.newick'
+        #newicktree = '../data/input_tree.newick'
+        
         omega_guess = 0.1
         force = False
         gBGC = False
         Dir = False
         clock = False
+        summary_path = '/Users/xji3/MixedFromCluster/NewPackageNewRun/'
+        #summary_path = '/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/OldResults02112015/'
 
 
         print 'Now calculate MLE for pair', paralog
@@ -193,24 +227,50 @@ if __name__ == '__main__':
             method = 'BFGS'
         else:
             method = 'BFGS'
+        x = read_txt(summary_path, paralog, model, force, clock, Dir, gBGC)#, Spe = 'Primate')
+        test.update_by_x(x)
+        #test.get_mle(True, True, 0, method)
 
-        test.get_mle(False, True, 0, "BFGS")
-        basic_t = np.arange(0.0, 10.0, 0.001)
-        basic_pdiff, geneconv_pdiff = plot_pdiff(test, basic_t)
-        plt.plot(basic_t, basic_pdiff, 'r-', basic_t, geneconv_pdiff, 'b-')
+        #### Get plots for specific range
+        max_point = 10.0
+        number_dots = 100
+        step = max_point / number_dots 
+        basic_t = np.arange(0.0, max_point, step)
+        pdiff = np.loadtxt(open('/Users/xji3/plotPdiff09032015/' + '_'.join(paralog) + ' ' + test.Model + ' max ' + str(max_point) + ' data.txt'))
+        basic_pdiff_short, geneconv_pdiff_short = pdiff[:number_dots], pdiff[number_dots:]
+##        basic_pdiff_short, geneconv_pdiff_short, mut_odds_short, geneconv_odds_short = plot_pdiff(test, basic_t)
+        if abs(basic_pdiff_short[0]) < 1e-10:
+            basic_pdiff_short[0] = 0.0
+        if abs(geneconv_pdiff_short[0]) < 1e-10:
+            geneconv_pdiff_short[0] = 0.0
+##        np.savetxt(open('_'.join(paralog) + ' ' + test.Model + ' max ' + str(max_point) + ' data.txt', 'w+'),np.concatenate((basic_pdiff_short, geneconv_pdiff_short), axis = 0))
+        plt.plot(2 * basic_t, basic_pdiff_short, 'r-', label = 'Basic Model')
+        plt.plot(2 * basic_t, geneconv_pdiff_short, 'b-', label = 'IGC Model')
+        plt.legend(bbox_to_anchor = (1,1), loc = 2, borderaxespad = 0.)
         plt.ylabel('P_diff')
-        plt.title('_'.join(paralog) + ' '+ test.Model + ' long')
-        plt.savefig('_'.join(paralog) + ' ' + test.Model + ' long.jpg', bbox_inches='tight')
+        plt.title('_'.join(paralog) + ' '+ test.Model + ' max ' + str(max_point))
+        plt.savefig('_'.join(paralog) + ' ' + test.Model + ' max ' + str(max_point) + '.pdf', bbox_inches='tight')
         plt.close()
 
-        basic_t = np.arange(0.0, 0.2, 0.0001)
-        basic_pdiff, geneconv_pdiff = plot_pdiff(test, basic_t)
-        plt.plot(basic_t, basic_pdiff, 'r-', basic_t, geneconv_pdiff, 'b-')
-        plt.title('_'.join(paralog) + ' '+ test.Model + ' short')
-        plt.ylabel('P_diff')
-        plt.savefig('_'.join(paralog) + ' ' + test.Model + ' short.jpg', bbox_inches='tight')
-        plt.close()
+##        Mut = np.loadtxt(open('/Users/xji3/plotPdiff09032015/' + '_'.join(paralog) + ' ' + test.Model + ' Mut IGC max ' + str(max_point) + ' data.txt'))
+##        mut_odds_short, geneconv_odds_short = Mut[:number_dots], Mut[number_dots:]
+##        if abs(mut_odds_short[0]) < 1e-10:
+##            mut_odds_short[0] = 0.0
+##        if abs(geneconv_odds_short[0]) < 1e-10:
+##            geneconv_odds_short[0] = 0.0
+####        np.savetxt(open('_'.join(paralog) + ' ' + test.Model + ' Mut IGC max ' + str(max_point) + ' data.txt', 'w+'),np.concatenate((mut_odds_short, geneconv_odds_short), axis = 0))
+####        
+##        plt.plot(basic_t, mut_odds_short, 'r-', label = 'Mutation Odds')
+##        plt.plot(basic_t, geneconv_odds_short, 'b-', label = 'IGC Odds')
+##        plt.legend(bbox_to_anchor = (1,1), loc = 2, borderaxespad = 0.)
+##        plt.ylabel('Odds')
+##        plt.title('_'.join(paralog) + ' '+ test.Model + ' Mut IGC max ' + str(max_point))
+##        plt.savefig('_'.join(paralog) + ' ' + test.Model + ' Mut IGC max ' + str(max_point) + '.jpg', bbox_inches='tight')
+##        plt.close()
+
+
         
+
     ##    result = test.get_mle(display = False, em_iterations = 0, method = method)
     ##    test.get_ExpectedNumGeneconv()
     ##    test.get_ExpectedHetDwellTime()

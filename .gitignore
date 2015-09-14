@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -56,3 +57,23 @@ docs/_build/
 !*.fas
 !*.aln
 !*.pdf
+=======
+# compiled source
+*.pyc
+
+# setup.py working directory
+.buildinfo
+build
+
+# directory and file created by a coverage script
+htmlcov
+*.coverage
+
+# log files
+*.log
+
+
+# Stuff related to docs...
+docs/_build
+docs/_ext
+>>>>>>> 9d9c36c04128029a8ecf77ded5821985f9153f80

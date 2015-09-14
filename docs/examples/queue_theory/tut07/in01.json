@@ -1,0 +1,31 @@
+{
+	"scene" : {
+		"node_count" : 2,
+		"process_count" : 1,
+		"state_space_shape" : [2],
+		"tree" : {
+			"row_nodes" : [0],
+			"column_nodes" : [1],
+			"edge_rate_scaling_factors" : [5.00000001],
+			"edge_processes" : [0]
+		},
+		"root_prior" : {
+			"states" : [[1]],
+			"probabilities" : [1]
+		},
+		"process_definitions" : [{
+			"row_states" : [[1]],
+			"column_states" : [[0]],
+			"transition_rates" : [1]
+		}],
+		"observed_data" : {
+			"nodes" : [1],
+			"variables" : [0],
+			"iid_observations" : [[1]]
+		}
+	},
+	"requests" : [
+		{"property" : "SNNLOGL"},
+		{"property" : "SDNDERI"}
+	]
+}

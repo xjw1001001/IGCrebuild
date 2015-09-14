@@ -12,7 +12,7 @@ outfile = /Users/xji3/Genconv/NewClusterPackRun/NewPairsAlignment/YLR406C_YDL075
       estFreq = 1
 
         ndata = 1
-        clock = 0
+        clock = 1
        aaDist = 0
 
 
