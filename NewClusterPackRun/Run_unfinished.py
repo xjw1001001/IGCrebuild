@@ -178,7 +178,7 @@ if __name__ == '__main__':
     with open(all_pairs, 'r') as f:
         for line in f.readlines():
             pairs.append(line.replace('\n','').split('_'))
-    pairs = [pairs[0]]
+    #pairs = [pairs[0]]
 
 ##
 ##    pairs = [['EDN', 'ECP']]
@@ -229,28 +229,31 @@ if __name__ == '__main__':
             method = 'BFGS'
         x = read_txt(summary_path, paralog, model, force, clock, Dir, gBGC)#, Spe = 'Primate')
         test.update_by_x(x)
+
+        new_summary_path = './NewPackageNewRun/'
+        test.get_individual_summary(new_summary_path)
         #test.get_mle(True, True, 0, method)
 
-        #### Get plots for specific range
-        max_point = 10.0
-        number_dots = 100
-        step = max_point / number_dots 
-        basic_t = np.arange(0.0, max_point, step)
-        pdiff = np.loadtxt(open('/Users/xji3/plotPdiff09032015/' + '_'.join(paralog) + ' ' + test.Model + ' max ' + str(max_point) + ' data.txt'))
-        basic_pdiff_short, geneconv_pdiff_short = pdiff[:number_dots], pdiff[number_dots:]
-##        basic_pdiff_short, geneconv_pdiff_short, mut_odds_short, geneconv_odds_short = plot_pdiff(test, basic_t)
-        if abs(basic_pdiff_short[0]) < 1e-10:
-            basic_pdiff_short[0] = 0.0
-        if abs(geneconv_pdiff_short[0]) < 1e-10:
-            geneconv_pdiff_short[0] = 0.0
-##        np.savetxt(open('_'.join(paralog) + ' ' + test.Model + ' max ' + str(max_point) + ' data.txt', 'w+'),np.concatenate((basic_pdiff_short, geneconv_pdiff_short), axis = 0))
-        plt.plot(2 * basic_t, basic_pdiff_short, 'r-', label = 'Basic Model')
-        plt.plot(2 * basic_t, geneconv_pdiff_short, 'b-', label = 'IGC Model')
-        plt.legend(bbox_to_anchor = (1,1), loc = 2, borderaxespad = 0.)
-        plt.ylabel('P_diff')
-        plt.title('_'.join(paralog) + ' '+ test.Model + ' max ' + str(max_point))
-        plt.savefig('_'.join(paralog) + ' ' + test.Model + ' max ' + str(max_point) + '.pdf', bbox_inches='tight')
-        plt.close()
+##        #### Get plots for specific range
+##        max_point = 10.0
+##        number_dots = 100
+##        step = max_point / number_dots 
+##        basic_t = np.arange(0.0, max_point, step)
+##        pdiff = np.loadtxt(open('/Users/xji3/plotPdiff09032015/' + '_'.join(paralog) + ' ' + test.Model + ' max ' + str(max_point) + ' data.txt'))
+##        basic_pdiff_short, geneconv_pdiff_short = pdiff[:number_dots], pdiff[number_dots:]
+####        basic_pdiff_short, geneconv_pdiff_short, mut_odds_short, geneconv_odds_short = plot_pdiff(test, basic_t)
+##        if abs(basic_pdiff_short[0]) < 1e-10:
+##            basic_pdiff_short[0] = 0.0
+##        if abs(geneconv_pdiff_short[0]) < 1e-10:
+##            geneconv_pdiff_short[0] = 0.0
+####        np.savetxt(open('_'.join(paralog) + ' ' + test.Model + ' max ' + str(max_point) + ' data.txt', 'w+'),np.concatenate((basic_pdiff_short, geneconv_pdiff_short), axis = 0))
+##        plt.plot(2 * basic_t, basic_pdiff_short, 'r-', label = 'Basic Model')
+##        plt.plot(2 * basic_t, geneconv_pdiff_short, 'b-', label = 'IGC Model')
+##        plt.legend(bbox_to_anchor = (1,1), loc = 2, borderaxespad = 0.)
+##        plt.ylabel('P_diff')
+##        plt.title('_'.join(paralog) + ' '+ test.Model + ' max ' + str(max_point))
+##        plt.savefig('_'.join(paralog) + ' ' + test.Model + ' max ' + str(max_point) + '.pdf', bbox_inches='tight')
+##        plt.close()
 
 ##        Mut = np.loadtxt(open('/Users/xji3/plotPdiff09032015/' + '_'.join(paralog) + ' ' + test.Model + ' Mut IGC max ' + str(max_point) + ' data.txt'))
 ##        mut_odds_short, geneconv_odds_short = Mut[:number_dots], Mut[number_dots:]

@@ -1036,6 +1036,34 @@ class ReCodonGeneconv:
         else:
             print 'Need to implement this for old package'
 
+    def _ExpectedHomDwellTime(self, package = 'new', display = False):
+
+        if package == 'new':
+            self.scene_ll = self.get_scene()
+            if self.Model == 'MG94':
+                homogeneous_states = [(a, b) for (a, b) in list(product(range(len(self.codon_to_state)), repeat = 2)) if a == b]
+            elif self.Model == 'HKY':
+                homogeneous_states = [(a, b) for (a, b) in list(product(range(len(self.nt_to_state)), repeat = 2)) if a == b]
+            dwell_request = [dict(
+                property = 'SDWDWEL',
+                state_reduction = dict(
+                    states = homogeneous_states,
+                    weights = [2] * len(homogeneous_states)
+                )
+            )]
+            
+            j_in = {
+                'scene' : self.scene_ll,
+                'requests' : dwell_request,
+                }        
+            j_out = jsonctmctree.interface.process_json_in(j_in)
+
+            status = j_out['status']
+            ExpectedDwellTime = {self.edge_list[i] : j_out['responses'][0][i] for i in range(len(self.edge_list))}
+            return ExpectedDwellTime
+        else:
+            print 'Need to implement this for old package'
+
     def _ExpectedDirectionalNumGeneconv(self, package = 'new', display = False):
         DirectionalNumGeneconvRed = self.get_directionalNumGeneconvRed()
         if package == 'new':
@@ -1112,6 +1140,92 @@ class ReCodonGeneconv:
         return [{'row_states' : row12_states, 'column_states' : column12_states, 'weights' : proportions12},
                 {'row_states' : row21_states, 'column_states' : column21_states, 'weights' : proportions21}]
         
+    def get_pointMutationRed(self):
+        row_states = []
+        col_states = []
+        proportions = []
+        
+        if self.Model == 'MG94':
+            Qbasic = self.get_MG94Basic()
+            for i, pair in enumerate(product(self.codon_nonstop, repeat = 2)):
+                ca, cb = pair
+                sa = self.codon_to_state[ca]
+                sb = self.codon_to_state[cb]
+                if ca != cb:                        
+                    for cc in self.codon_nonstop:
+                        if cc == ca or cc == cb:
+                            continue
+                        sc = self.codon_to_state[cc]
+
+                        # (ca, cb) to (ca, cc)
+                        Qb = Qbasic[sb, sc]
+                        if Qb != 0:
+                            row_states.append((sa, sb))
+                            col_states.append((sa, sc))
+                            proportions.append(1.0)
+
+                        # (ca, cb) to (cc, cb)
+                        Qb = Qbasic[sa, sc]
+                        if Qb != 0:
+                            row_states.append((sa, sb))
+                            col_states.append((sc, sb))
+                            proportions.append(1.0)
+                    # (ca, cb) to (ca, ca)
+                    row_states.append((sa, sb))
+                    col_states.append((sa, sa))
+                    Qb = Qbasic[sb, sa]
+                    if isNonsynonymous(cb, ca, self.codon_table):
+                        Tgeneconv = self.tau * self.omega
+                    else:
+                        Tgeneconv = self.tau
+                    proportions.append(1.0 - Tgeneconv / (Qb + Tgeneconv) if (Qb + Tgeneconv) >0 else 0.0)
+
+                    # (ca, cb) to (cb, cb)
+                    row_states.append((sa, sb))
+                    col_states.append((sb, sb))
+                    Qb = Qbasic[sa, sb]
+                    proportions.append(1.0 - Tgeneconv / (Qb + Tgeneconv) if (Qb + Tgeneconv) >0 else 0.0)
+                else:
+                    for cc in self.codon_nonstop:
+                        if cc == ca:
+                            continue
+                        sc = self.codon_to_state[cc]
+
+                        # (ca, ca) to (ca,  cc)
+                        Qb = Qbasic[sa, sc]
+                        if Qb != 0:
+                            row_states.append((sa, sb))
+                            col_states.append((sa, sc))
+                            proportions.append(1.0)
+                        # (ca, ca) to (cc, ca)
+                            row_states.append((sa, sb))
+                            col_states.append((sc, sa))
+                            proportions.append(1.0)
+
+                        # (ca, ca) to (cc, cc)
+                            row_states.append((sa, sb))
+                            col_states.append((sc, sc))
+                            proportions.append(1.0)
+                    
+        return [{'row_states' : row_states, 'column_states' : col_states, 'weights' : proportions}]
+
+    def _ExpectedpointMutationNum(self, package = 'new', display = False):
+        pointMutationRed = self.get_pointMutationRed()
+        if package == 'new':
+            self.scene_ll = self.get_scene()
+            requests = [{'property' : 'SDNTRAN', 'transition_reduction' : i} for i in pointMutationRed]
+            assert(len(requests) == 1)  # should be exactly 1 request
+            j_in = {
+                'scene' : self.scene_ll,
+                'requests' : requests
+                }            
+            j_out = jsonctmctree.interface.process_json_in(j_in)
+            status = j_out['status']
+            ExpectedDirectionalNumGeneconv = {self.edge_list[i] : j_out['responses'][0][i] for i in range(len(self.edge_list))}
+            return ExpectedDirectionalNumGeneconv
+        else:
+            print 'Need to implement this for old package'
+
 
     def get_ExpectedNumGeneconv(self):
         self.ExpectedGeneconv = self._ExpectedNumGeneconv()
@@ -1191,6 +1305,12 @@ class ReCodonGeneconv:
         label.extend([ (a, b, '2->1') for (a, b) in self.edge_list])
         out.extend([ExpectedDirectionalNumGeneconv[i][1] for i in self.edge_list])
 
+
+        # Now add Expected # of point mutations
+
+        ExpectedPointMutation = self._ExpectedpointMutationNum()
+        label.extend([ (a, b, 'mut') for (a, b) in self.edge_list])
+        out.extend([ExpectedPointMutation[i] for i in self.edge_list])
 
         for i in range(k, len(label)):
             label[i] = '(' + ','.join(label[i]) + ')'
