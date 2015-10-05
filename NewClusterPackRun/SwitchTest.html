@@ -433,6 +433,50 @@ lnL.increase.mat[filtered.pairs, ]</code></pre>
 ## YLR333C_YGR027C     3.3280                     100.00
 ## YMR142C_YDL082W     4.9685                     100.00
 ## YER102W_YBL072C    10.4965                      99.78</code></pre>
+<pre class="r"><code>library(xtable)</code></pre>
+<pre><code>## Warning: package 'xtable' was built under R version 3.1.2</code></pre>
+<pre class="r"><code>report.mat &lt;- cbind(Tau.diff.mat[filtered.pairs, c(1, 2)], lnL.increase.mat[filtered.pairs, 3])
+colnames(report.mat) &lt;- c(&quot;Tau in scenario A&quot;, &quot;Tau in scenario B&quot;, &quot;lnL difference (A - B)&quot;)
+report.mat</code></pre>
+<pre><code>##                 Tau in scenario A Tau in scenario B lnL difference (A - B)
+## YLR406C_YDL075W             2.293         7.575e-01                 11.039
+## YER131W_YGL189C             1.221         6.442e-01                  2.819
+## YML026C_YDR450W             4.738         1.312e-01                 37.967
+## YNL301C_YOL120C             4.355         1.292e-01                 60.037
+## YNL069C_YIL133C             1.428         7.324e-01                 21.876
+## YMR143W_YDL083C             3.198         2.395e-05                 14.701
+## YJL177W_YKL180W             2.056         3.570e-01                 22.061
+## YBR191W_YPL079W             3.840         1.449e-01                 35.867
+## YER074W_YIL069C             6.036         9.762e-06                 58.989
+## YDR418W_YEL054C             1.679         2.959e-02                 23.577
+## YBL087C_YER117W             3.834         7.427e-02                 33.387
+## YLR333C_YGR027C             3.328         5.664e-05                 70.805
+## YMR142C_YDL082W             4.968         2.022e-05                 72.279
+## YER102W_YBL072C            10.520         2.358e-02                118.889</code></pre>
+<pre class="r"><code>latex.report.mat &lt;- xtable(report.mat)
+print(latex.report.mat, floating = FALSE)</code></pre>
+<pre><code>## % latex table generated in R 3.1.1 by xtable 1.7-4 package
+## % Fri Oct  2 12:56:09 2015
+## \begin{tabular}{rrrr}
+##   \hline
+##  &amp; Tau in scenario A &amp; Tau in scenario B &amp; lnL difference (A - B) \\ 
+##   \hline
+## YLR406C\_YDL075W &amp; 2.29 &amp; 0.76 &amp; 11.04 \\ 
+##   YER131W\_YGL189C &amp; 1.22 &amp; 0.64 &amp; 2.82 \\ 
+##   YML026C\_YDR450W &amp; 4.74 &amp; 0.13 &amp; 37.97 \\ 
+##   YNL301C\_YOL120C &amp; 4.35 &amp; 0.13 &amp; 60.04 \\ 
+##   YNL069C\_YIL133C &amp; 1.43 &amp; 0.73 &amp; 21.88 \\ 
+##   YMR143W\_YDL083C &amp; 3.20 &amp; 0.00 &amp; 14.70 \\ 
+##   YJL177W\_YKL180W &amp; 2.06 &amp; 0.36 &amp; 22.06 \\ 
+##   YBR191W\_YPL079W &amp; 3.84 &amp; 0.14 &amp; 35.87 \\ 
+##   YER074W\_YIL069C &amp; 6.04 &amp; 0.00 &amp; 58.99 \\ 
+##   YDR418W\_YEL054C &amp; 1.68 &amp; 0.03 &amp; 23.58 \\ 
+##   YBL087C\_YER117W &amp; 3.83 &amp; 0.07 &amp; 33.39 \\ 
+##   YLR333C\_YGR027C &amp; 3.33 &amp; 0.00 &amp; 70.80 \\ 
+##   YMR142C\_YDL082W &amp; 4.97 &amp; 0.00 &amp; 72.28 \\ 
+##   YER102W\_YBL072C &amp; 10.52 &amp; 0.02 &amp; 118.89 \\ 
+##    \hline
+## \end{tabular}</code></pre>
 </div>
 
 

@@ -1336,19 +1336,22 @@ class ReCodonGeneconv:
         else:
             return out        
 
-    def get_individual_summary(self, summary_path):
-        if not self.Force:
-            prefix_summary = summary_path + self.Model + '_'
-        else:
-            prefix_summary = summary_path + 'Force_' + self.Model + '_'
-            
+    def get_individual_summary(self, summary_path, file_name = None):
+        if file_name == None:
+            if not self.Force:
+                prefix_summary = summary_path + self.Model + '_'
+            else:
+                prefix_summary = summary_path + 'Force_' + self.Model + '_'
+                
 
-        if self.clock:
-            suffix_summary = '_clock_summary.txt'
-        else:
-            suffix_summary = '_nonclock_summary.txt'    
+            if self.clock:
+                suffix_summary = '_clock_summary.txt'
+            else:
+                suffix_summary = '_nonclock_summary.txt'    
 
-        summary_file = prefix_summary + '_'.join(self.paralog) + suffix_summary
+            summary_file = prefix_summary + '_'.join(self.paralog) + suffix_summary
+        else:
+            summary_file = file_name
         res = self.get_summary(True)
         summary = np.matrix(res[0])
         label = res[1]
@@ -1502,11 +1505,12 @@ if __name__ == '__main__':
 ##    out_group_blen = np.arange(0.0001, 0.01, 0.005)
 ##    ll_list = []
 
-    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = False, save_name = save_name)
+    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = False, save_name = save_name)
     #test.get_mle(False, True, 0, 'BFGS')
     print test.tau
     print test.gen_save_file_name()
-    test.save_x()
+    test._loglikelihood2()
+    test.get_individual_summary(summary_path = './BootStrapSummary/' + '_'.join(paralog) + '/', file_name = './BootStrapSummary/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1_summary.txt')
 
 
 

@@ -116,4 +116,10 @@ Tau.diff.mat
 filtered.pairs <- rownames(read.table("/Users/xji3/Genconv/NewClusterPackRun/Yeast14pairs", row.names = 2))
 lnL.increase.mat[filtered.pairs, ]
 Tau.diff.mat[filtered.pairs, ]
+library(xtable)
+report.mat <- cbind(Tau.diff.mat[filtered.pairs, c(1, 2)], lnL.increase.mat[filtered.pairs, 3])
+colnames(report.mat) <- c("Tau in scenario A", "Tau in scenario B", "lnL difference (A - B)")
+report.mat
+latex.report.mat <- xtable(report.mat)
+print(latex.report.mat, floating = FALSE)
 ```
