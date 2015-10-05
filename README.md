@@ -7,7 +7,8 @@ This is the first approach with the smallest possible multi-gene family (only tw
 
 Data: Yeast
 
-Dependent: [jsonctmctree package](http://jsonctmctree.readthedocs.org/en/latest/) (likelihood calculation engine)
+Dependent: [jsonctmctree package](http://jsonctmctree.readthedocs.org/en/latest/) (powerful likelihood  calculation 
+engine by Alex Griffing)
 
 Coding Language: Python
 
