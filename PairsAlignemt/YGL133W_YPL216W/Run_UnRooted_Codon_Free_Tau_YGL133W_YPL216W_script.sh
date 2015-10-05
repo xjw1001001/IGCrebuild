@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YGL133W_YPL216W
-python UnRooted_Codon_Free_Tau_YGL133W_YPL216W.py > UnRooted_Codon_Free_Tau_YGL133W_YPL216W_PrintScreen.txt

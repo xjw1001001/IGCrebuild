@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YNL069C_YIL133C
-python Rooted_Codon_Force_Tau_YNL069C_YIL133C.py > Rooted_Codon_Force_Tau_YNL069C_YIL133C_PrintScreen.txt

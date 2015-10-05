@@ -1,4 +1,0 @@
-http://pedant.gsf.de/pedant3htmlview/pedant3view?Method=analysis&Db=p3_r79343_Nau_caste
-p3_r79343_Nau_caste.fa
-http://www.ebi.ac.uk/ena/data/view/Taxon:27288&portal=coding_release&subtree=true
-ena.fasta

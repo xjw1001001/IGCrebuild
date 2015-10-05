@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YPL087W_YBR183W
-python UnRooted_Codon_Free_Tau_YPL087W_YBR183W.py > UnRooted_Codon_Free_Tau_YPL087W_YBR183W_PrintScreen.txt

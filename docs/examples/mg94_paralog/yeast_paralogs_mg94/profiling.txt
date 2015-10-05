@@ -1,2 +1,0 @@
-$ python -m cProfile -o profile_data.pyprof script_to_profile.py
-$ pyprof2calltree -i profile_data.pyprof -k

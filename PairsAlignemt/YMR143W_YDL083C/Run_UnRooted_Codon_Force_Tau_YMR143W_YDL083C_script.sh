@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YMR143W_YDL083C
-python UnRooted_Codon_Force_Tau_YMR143W_YDL083C.py > UnRooted_Codon_Force_Tau_YMR143W_YDL083C_PrintScreen.txt

@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YDR099W_YER177W
-python Rooted_Codon_Force_Tau_YDR099W_YER177W.py > Rooted_Codon_Force_Tau_YDR099W_YER177W_PrintScreen.txt

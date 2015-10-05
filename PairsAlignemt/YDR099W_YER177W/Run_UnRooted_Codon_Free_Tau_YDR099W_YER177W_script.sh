@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YDR099W_YER177W
-python UnRooted_Codon_Free_Tau_YDR099W_YER177W.py > UnRooted_Codon_Free_Tau_YDR099W_YER177W_PrintScreen.txt

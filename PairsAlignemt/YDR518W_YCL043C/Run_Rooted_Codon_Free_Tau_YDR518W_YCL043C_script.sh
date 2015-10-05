@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YDR518W_YCL043C
-python Rooted_Codon_Free_Tau_YDR518W_YCL043C.py > Rooted_Codon_Free_Tau_YDR518W_YCL043C_PrintScreen.txt

@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YLR284C_YOR180C
-python Rooted_Codon_Force_Tau_YLR284C_YOR180C.py > Rooted_Codon_Force_Tau_YLR284C_YOR180C_PrintScreen.txt

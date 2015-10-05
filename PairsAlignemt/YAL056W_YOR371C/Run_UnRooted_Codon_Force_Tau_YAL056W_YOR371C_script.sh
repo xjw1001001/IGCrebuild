@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YAL056W_YOR371C
-python UnRooted_Codon_Force_Tau_YAL056W_YOR371C.py > UnRooted_Codon_Force_Tau_YAL056W_YOR371C_PrintScreen.txt

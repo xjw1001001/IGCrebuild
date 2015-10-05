@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YGR043C_YLR354C
-python UnRooted_Codon_Force_Tau_YGR043C_YLR354C.py > UnRooted_Codon_Force_Tau_YGR043C_YLR354C_PrintScreen.txt

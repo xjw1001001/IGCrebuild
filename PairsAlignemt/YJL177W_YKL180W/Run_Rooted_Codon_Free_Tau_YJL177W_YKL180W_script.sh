@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YJL177W_YKL180W
-python Rooted_Codon_Free_Tau_YJL177W_YKL180W.py > Rooted_Codon_Free_Tau_YJL177W_YKL180W_PrintScreen.txt

@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YNL069C_YIL133C
-python UnRooted_Codon_Free_Tau_YNL069C_YIL133C.py > UnRooted_Codon_Free_Tau_YNL069C_YIL133C_PrintScreen.txt

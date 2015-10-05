@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YDR418W_YEL054C
-python UnRooted_Codon_Force_Tau_YDR418W_YEL054C.py > UnRooted_Codon_Force_Tau_YDR418W_YEL054C_PrintScreen.txt

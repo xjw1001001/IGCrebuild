@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YJR048W_YEL039C
-python UnRooted_Codon_Free_Tau_YJR048W_YEL039C.py > UnRooted_Codon_Free_Tau_YJR048W_YEL039C_PrintScreen.txt

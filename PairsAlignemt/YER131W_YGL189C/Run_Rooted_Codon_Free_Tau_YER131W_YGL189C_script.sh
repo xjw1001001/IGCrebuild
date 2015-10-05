@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YER131W_YGL189C
-python Rooted_Codon_Free_Tau_YER131W_YGL189C.py > Rooted_Codon_Free_Tau_YER131W_YGL189C_PrintScreen.txt

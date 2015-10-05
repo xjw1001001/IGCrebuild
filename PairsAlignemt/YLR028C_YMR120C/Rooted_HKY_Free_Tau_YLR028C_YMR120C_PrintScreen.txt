@@ -1,1 +1,0 @@
-('Clade', 'kluyveri', "doesn't haveYMR120C gene")

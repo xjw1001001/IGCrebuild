@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YPL232W_YMR183C
-python UnRooted_Codon_Free_Tau_YPL232W_YMR183C.py > UnRooted_Codon_Free_Tau_YPL232W_YMR183C_PrintScreen.txt

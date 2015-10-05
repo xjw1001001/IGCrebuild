@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YMR143W_YDL083C
-python Rooted_Codon_Free_Tau_YMR143W_YDL083C.py > Rooted_Codon_Free_Tau_YMR143W_YDL083C_PrintScreen.txt

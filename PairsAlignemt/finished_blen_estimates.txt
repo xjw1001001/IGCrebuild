@@ -1,1 +1,0 @@
-pair	length	('N0', 'N1')	('N5', 'cerevisiae')	('N2', 'N3')	('root', 'kluyveri')	('N4', 'N5')	('N3', 'kudriavzevii')	('N2', 'bayanus')	('N1', 'N2')	('N1', 'castellii')	('N5', 'paradoxus')	('N4', 'mikatae')	('N3', 'N4')	('root', 'N0')	('N0', 'kluyveri')

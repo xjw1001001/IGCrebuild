@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YAL056W_YOR371C
-python Rooted_Codon_Free_Tau_YAL056W_YOR371C.py > Rooted_Codon_Free_Tau_YAL056W_YOR371C_PrintScreen.txt

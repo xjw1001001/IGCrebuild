@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YDR438W_YML018C
-python Rooted_Codon_Free_Tau_YDR438W_YML018C.py > Rooted_Codon_Free_Tau_YDR438W_YML018C_PrintScreen.txt

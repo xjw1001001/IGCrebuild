@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YER102W_YBL072C
-python UnRooted_Codon_Force_Tau_YER102W_YBL072C.py > UnRooted_Codon_Force_Tau_YER102W_YBL072C_PrintScreen.txt

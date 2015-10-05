@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YBR191W_YPL079W
-python Rooted_Codon_Free_Tau_YBR191W_YPL079W.py > Rooted_Codon_Free_Tau_YBR191W_YPL079W_PrintScreen.txt

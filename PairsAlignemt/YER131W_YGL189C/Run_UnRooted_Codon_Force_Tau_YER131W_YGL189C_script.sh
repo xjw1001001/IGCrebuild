@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YER131W_YGL189C
-python UnRooted_Codon_Force_Tau_YER131W_YGL189C.py > UnRooted_Codon_Force_Tau_YER131W_YGL189C_PrintScreen.txt

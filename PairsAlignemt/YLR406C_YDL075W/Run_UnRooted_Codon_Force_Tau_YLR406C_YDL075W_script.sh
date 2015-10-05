@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YLR406C_YDL075W
-python UnRooted_Codon_Force_Tau_YLR406C_YDL075W.py > UnRooted_Codon_Force_Tau_YLR406C_YDL075W_PrintScreen.txt

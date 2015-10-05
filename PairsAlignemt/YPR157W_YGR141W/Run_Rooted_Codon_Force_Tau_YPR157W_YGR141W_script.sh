@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YPR157W_YGR141W
-python Rooted_Codon_Force_Tau_YPR157W_YGR141W.py > Rooted_Codon_Force_Tau_YPR157W_YGR141W_PrintScreen.txt

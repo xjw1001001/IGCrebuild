@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YPL087W_YBR183W
-python Rooted_Codon_Force_Tau_YPL087W_YBR183W.py > Rooted_Codon_Force_Tau_YPL087W_YBR183W_PrintScreen.txt

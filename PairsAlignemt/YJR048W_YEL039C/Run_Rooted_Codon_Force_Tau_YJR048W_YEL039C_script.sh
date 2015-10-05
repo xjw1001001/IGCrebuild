@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YJR048W_YEL039C
-python Rooted_Codon_Force_Tau_YJR048W_YEL039C.py > Rooted_Codon_Force_Tau_YJR048W_YEL039C_PrintScreen.txt

@@ -1,3 +1,0 @@
-#!/bin/bash
-cd YBR191W_YPL079W
-python UnRooted_Codon_Force_Tau_YBR191W_YPL079W.py > UnRooted_Codon_Force_Tau_YBR191W_YPL079W_PrintScreen.txt
