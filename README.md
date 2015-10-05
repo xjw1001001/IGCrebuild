@@ -5,8 +5,35 @@ Gene Conversion Project
 
 This is the first approach with the smallest possible multi-gene family (only two paralogs). 
 
-Data: Yeast and Primate (EDN ECP)
+Data: Yeast
 
-It's a **_MASS_** here! Need to trim off unnecessary parts and provide a 'final' version.
+Dependent: [jsonctmctree package](http://jsonctmctree.readthedocs.org/en/latest/) (likelihood calculation engine)
+
+Coding Language: Python
+
+Instruction of how to run this code:
+
+1, Install jsonctmctree package:
+
+`
+pip install --user git+https://github.com/argriffing/jsonctmctree.git
+`
+
+2, Similarly install any other python packages
 
 
+3, Use Run.py or RunBootstrap.py to perform analyses with following example commands:
+
+`
+python Run.py --model MG94 --paralog1 YBL087C --paralog2 YER117W --no-force --no-clock
+`
+
+or
+
+
+`
+python RunBootstrap.py  --paralog1 YBL087C --paralog2 YER117W --bootnum 1
+`
+
+Contact me at:
+xji3 _at_ ncsu.edu
