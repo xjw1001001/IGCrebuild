@@ -44,7 +44,7 @@ for (target.summary in summary.list.MG94){
   }
 
 target.summary = "MG94_nonclock_summary"
-path.MG94 = "/Users/xji3/Genconv/NewClusterPackRun/NewPackageNewRun/"
+path.MG94 = "/Users/xji3/Genconv_copy/NewClusterPackRun/NewPackageNewRun/"
 summary_file <- paste(path.MG94, target.summary, '.txt', sep = '')
 all <- readLines(summary_file, n = -1)
 col.names <- strsplit(all[1], ' ')[[1]][-1]

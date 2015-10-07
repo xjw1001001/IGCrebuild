@@ -1,0 +1,151 @@
+# Output of GENECONV for sequence file ./output/YMR142C_YDL082W/YMR142C_YDL082W_input.fasta
+# GENECONV version 1.81a
+# Command line:  GENECONV 
+#   ./output/YMR142C_YDL082W/YMR142C_YDL082W_input.fasta -nolog /lp /w822
+#   /p
+#
+# ./output/YMR142C_YDL082W/YMR142C_YDL082W_input.fasta: 13 sequences.
+#
+# Options and features: 13 protein sequences, 591 aligned bases,
+#   141 polymorphisms, FASTA format, mismatches in fragments not allowed,
+#   no groups defined, maxSimPairPval=0.05, maxSimGlobPval=0.05,
+#   no maxKAPairPval limits, no maxKAGlobPval limits,
+#   simPvals based on 10,000 permutations,
+#   global P-values based on BLAST-like global scores,
+#   fragment limits: minlength=1, minnpolys=2, minscore=2,
+#   pairwise max lists=2000, starting seed=822,
+#   contiguous sites with indels are one polymorphism, no indel blocks,
+#   no match (replacement) char in source file.
+# Sequence names:  bayanusYMR142C  bayanusYDL082W  cerevisiaeYMR142C
+#   cerevisiaeYDL082W  kudriavzeviiYMR142C  kudriavzeviiYDL082W
+#   mikataeYMR142C  mikataeYDL082W  paradoxusYMR142C  paradoxusYDL082W
+#   castelliiYMR142C  castelliiYDL082W  kluyveriYMR142C
+#
+# No mismatches in fragments (`gscale'=0)
+# Amino-acid codes in data:  A(2495)  C(1645)  D(0)  E(0)  F(0)  G(1751)
+#   H(0)  I(0)  K(0)  L(0)  M(0)  N(0)  P(0)  Q(0)  R(0)  S(0)  X(0)
+#   T(1792)  V(0)  W(0)  Y(0)
+# In terms of 3-letter codes:  Ala(2495)  Arg(0)  Asn(0)  Asp(0)
+#   Cys(1645)  Gln(0)  Glu(0)  Gly(1751)  His(0)  Ile(0)  Leu(0)  Lys(0)
+#   Met(0)  Phe(0)  Pro(0)  Ser1(0)  Ser2(0)  Thr(1792)  Trp(0)  Tyr(0)
+#   Val(0)
+# No non-amino-acid characters in data.
+# 141 polymorphic and 450 monomorphic sites with no indels.
+# No single polymorphic sites with indels.
+# No indel blocks with more than one site.
+# 141 amino-acid polymorphisms to be permuted.
+# 
+# Comparisons without any fragments (proteins):
+#   kudriavzeviiYMR142C (outer sequence frags): No sites are unique.
+# 
+# The starting random number seed is  822.
+# Simulated P-values are based on 10,000 permutations.
+# Maximum BLAST-like scores:
+# Inner      Max         Sim     S.D.s above     S.D. of
+#  frags    Score      P-value    sim. mean        sims
+# SCORE     9.065      0.0004         4.88       1.0793
+# OuterSeq
+#  frags    3.642      0.0296         1.85       1.2046
+#
+# Global lists: 1 I and 1 O significant fragments
+# Pairwise lists: 11 I and 1 O significant fragments
+#  where I means inner pair, O is outer seq, A is outer pair, and
+#  G means outer group (fragments).
+# Global P-values are based on BLAST-like global scores.
+#
+# Fragment offsets and lengths are in codons.
+# Bases other than `ACDEFGHIKLMNPQRSXTVWY' are treated as indels
+#   for the purpose of generating polymorphisms.
+#
+#
+# Global inner fragments (141 polymorphisms, 591 aligned bases):
+# (Inner fragments are runs of matching sites.)
+# (Sim and BC KA P-values are corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# BC KA means Bonferroni-corrected KA (BLAST-like) Pvalues.
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# In the following table, BC Pvalues are KA Pvalues multiplied by 78.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Dif   is the number of mismatches within the fragment.
+# Tot Difs  is the total number of mismatches between two sequences.
+# MisM Pen  is the penalty per mismatch for these two sequences.
+#
+#   Seq                                       Sim    BC KA    Aligned Offsets   Num  Num  Tot  MisM
+#   Names                                    Pvalue  Pvalue   Begin  End   Len  Poly Dif  Difs Pen.
+GI  kudriavzeviiYMR142C;kudriavzeviiYDL082W  0.0004  0.00902   322    548  227    56   0   28  None
+#
+# One inner fragment listed.
+#
+#
+# Global outer-sequence fragments (141 polymorphisms, 591 aligned bases):
+# (Outer-sequence fragments are runs of unique sites.)
+# (Sim and BC KA P-values are corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# BC KA means Bonferroni-corrected KA (BLAST-like) Pvalues.
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# In the following table, BC Pvalues are KA Pvalues multiplied by 13.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Mat   is the number of nonunique sites within the fragment.
+# Tot Mats  is the total number of nonunique sites for that sequence.
+# MisM Pen  is the penalty per nonunique site for this sequence.
+#
+#   Seq               Sim    BC KA    Aligned Offsets   Num  Num  Tot  MisM
+#   Name             Pvalue  Pvalue   Begin  End   Len  Poly Mat  Mats Pen.
+GO  kluyveriYMR142C  0.0296  0.33621   310    320   11     4   0  124  None
+#
+# One outer-sequence fragment listed.
+#
+#
+# Pairwise inner fragments (141 polymorphisms, 591 aligned bases):
+# (Inner fragments are runs of matching sites.)
+# (P-values are not corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# Multiply by 78 for Bonferroni-corrected KA Pvalues.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Dif   is the number of mismatches within the fragment.
+# Tot Difs  is the total number of mismatches between two sequences.
+# MisM Pen  is the penalty per mismatch for these two sequences.
+#
+#   Seq                                       Sim      KA     Aligned Offsets   Num  Num  Tot  MisM
+#   Names                                    Pvalue  Pvalue   Begin  End   Len  Poly Dif  Difs Pen.
+PI  bayanusYMR142C;castelliiYMR142C          0.0406  0.06068    10     94   85    14   0   54  None
+PI  bayanusYMR142C;kluyveriYMR142C           0.0246  0.03962   175    242   68    14   0   57  None
+PI  bayanusYDL082W;kluyveriYMR142C           0.0084  0.01524   178    242   65    13   0   67  None
+PI  cerevisiaeYMR142C;paradoxusYMR142C       0.0304  0.11634    91    335  245    65   0    9  None
+PI  cerevisiaeYMR142C;kluyveriYMR142C        0.0500  0.07458   175    236   62    12   0   60  None
+PI  kudriavzeviiYMR142C;kudriavzeviiYDL082W  0.0000  0.00012   322    548  227    56   0   28  None
+PI  kudriavzeviiYMR142C;castelliiYDL082W     0.0471  0.06957    16     95   80    14   0   53  None
+PI  mikataeYMR142C;mikataeYDL082W            0.0114  0.02047   157    260  104    21   0   43  None
+PI  paradoxusYMR142C;castelliiYMR142C        0.0289  0.04580    10     94   85    14   0   56  None
+PI  paradoxusYDL082W;castelliiYDL082W        0.0150  0.02491   402    462   61    12   0   68  None
+PI  paradoxusYDL082W;kluyveriYMR142C         0.0211  0.03155   373    426   54    11   0   71  None
+#
+# 11 inner fragments listed.
+#
+#
+# Pairwise outer-sequence fragments (141 polymorphisms, 591 aligned bases):
+# (Outer-sequence fragments are runs of unique sites.)
+# (P-values are not corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# Multiply by 13 for Bonferroni-corrected KA Pvalues.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Mat   is the number of nonunique sites within the fragment.
+# Tot Mats  is the total number of nonunique sites for that sequence.
+# MisM Pen  is the penalty per nonunique site for this sequence.
+#
+#   Seq               Sim      KA     Aligned Offsets   Num  Num  Tot  MisM
+#   Name             Pvalue  Pvalue   Begin  End   Len  Poly Mat  Mats Pen.
+PO  kluyveriYMR142C  0.0199  0.02586   310    320   11     4   0  124  None
+#
+# One outer-sequence fragment listed.
+#

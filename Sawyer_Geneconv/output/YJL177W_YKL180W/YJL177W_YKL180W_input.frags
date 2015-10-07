@@ -1,0 +1,138 @@
+# Output of GENECONV for sequence file ./output/YJL177W_YKL180W/YJL177W_YKL180W_input.fasta
+# GENECONV version 1.81a
+# Command line:  GENECONV 
+#   ./output/YJL177W_YKL180W/YJL177W_YKL180W_input.fasta -nolog /lp /w822
+#   /p
+#
+# ./output/YJL177W_YKL180W/YJL177W_YKL180W_input.fasta: 13 sequences.
+#
+# Options and features: 13 protein sequences, 549 aligned bases,
+#   128 polymorphisms, FASTA format, mismatches in fragments not allowed,
+#   no groups defined, maxSimPairPval=0.05, maxSimGlobPval=0.05,
+#   no maxKAPairPval limits, no maxKAGlobPval limits,
+#   simPvals based on 10,000 permutations,
+#   global P-values based on BLAST-like global scores,
+#   fragment limits: minlength=1, minnpolys=2, minscore=2,
+#   pairwise max lists=2000, starting seed=822,
+#   contiguous sites with indels are one polymorphism, no indel blocks,
+#   no match (replacement) char in source file.
+# Sequence names:  bayanusYJL177W  bayanusYKL180W  cerevisiaeYJL177W
+#   cerevisiaeYKL180W  kudriavzeviiYJL177W  kudriavzeviiYKL180W
+#   mikataeYJL177W  mikataeYKL180W  paradoxusYJL177W  paradoxusYKL180W
+#   castelliiYJL177W  castelliiYKL180W  kluyveriYJL177W
+#
+# No mismatches in fragments (`gscale'=0)
+# Amino-acid codes in data:  A(2215)  C(1630)  D(0)  E(0)  F(0)  G(1526)
+#   H(0)  I(0)  K(0)  L(0)  M(0)  N(0)  P(0)  Q(0)  R(0)  S(0)  X(0)
+#   T(1766)  V(0)  W(0)  Y(0)
+# In terms of 3-letter codes:  Ala(2215)  Arg(0)  Asn(0)  Asp(0)
+#   Cys(1630)  Gln(0)  Glu(0)  Gly(1526)  His(0)  Ile(0)  Leu(0)  Lys(0)
+#   Met(0)  Phe(0)  Pro(0)  Ser1(0)  Ser2(0)  Thr(1766)  Trp(0)  Tyr(0)
+#   Val(0)
+# No non-amino-acid characters in data.
+# 128 polymorphic and 421 monomorphic sites with no indels.
+# No single polymorphic sites with indels.
+# No indel blocks with more than one site.
+# 128 amino-acid polymorphisms to be permuted.
+# 
+# Comparisons without any fragments (proteins):
+#   bayanusYKL180W (outer sequence frags): No sites are unique.
+#   cerevisiaeYKL180W (outer sequence frags): No sites are unique.
+#   kudriavzeviiYJL177W (outer sequence frags): No sites are unique.
+#   mikataeYKL180W (outer sequence frags): No sites are unique.
+#   paradoxusYKL180W (outer sequence frags): No sites are unique.
+# 
+# The starting random number seed is  822.
+# Simulated P-values are based on 10,000 permutations.
+# Maximum BLAST-like scores:
+# Inner      Max         Sim     S.D.s above     S.D. of
+#  frags    Score      P-value    sim. mean        sims
+# SCORE     6.233      0.0263         2.36       1.0808
+# OuterSeq
+#  frags    1.347      0.4111         0.29       1.1480
+#
+# Global lists: 1 I and no O significant fragments
+# Pairwise lists: 16 I and no O significant fragments
+#  where I means inner pair, O is outer seq, A is outer pair, and
+#  G means outer group (fragments).
+# Global P-values are based on BLAST-like global scores.
+#
+# Fragment offsets and lengths are in codons.
+# Bases other than `ACDEFGHIKLMNPQRSXTVWY' are treated as indels
+#   for the purpose of generating polymorphisms.
+#
+#
+# Global inner fragments (128 polymorphisms, 549 aligned bases):
+# (Inner fragments are runs of matching sites.)
+# (Sim and BC KA P-values are corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# BC KA means Bonferroni-corrected KA (BLAST-like) Pvalues.
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# In the following table, BC Pvalues are KA Pvalues multiplied by 78.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Dif   is the number of mismatches within the fragment.
+# Tot Difs  is the total number of mismatches between two sequences.
+# MisM Pen  is the penalty per mismatch for these two sequences.
+#
+#   Seq                             Sim    BC KA    Aligned Offsets   Num  Num  Tot  MisM
+#   Names                          Pvalue  Pvalue   Begin  End   Len  Poly Dif  Difs Pen.
+GI  bayanusYKL180W;mikataeYJL177W  0.0263  0.15306   112    176   65    20   0   51  None
+#
+# One inner fragment listed.
+#
+#
+# Global outer-sequence fragments (128 polymorphisms, 549 aligned bases):
+# (Outer-sequence fragments are runs of unique sites.)
+# (Sim and BC KA P-values are corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+#
+# No outer-sequence fragments listed.
+#
+#
+# Pairwise inner fragments (128 polymorphisms, 549 aligned bases):
+# (Inner fragments are runs of matching sites.)
+# (P-values are not corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# Multiply by 78 for Bonferroni-corrected KA Pvalues.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Dif   is the number of mismatches within the fragment.
+# Tot Difs  is the total number of mismatches between two sequences.
+# MisM Pen  is the penalty per mismatch for these two sequences.
+#
+#   Seq                                    Sim      KA     Aligned Offsets   Num  Num  Tot  MisM
+#   Names                                 Pvalue  Pvalue   Begin  End   Len  Poly Dif  Difs Pen.
+PI  bayanusYJL177W;bayanusYKL180W         0.0081  0.01793   433    530   98    23   0   36  None
+PI  bayanusYJL177W;mikataeYKL180W         0.0417  0.06485   199    293   95    18   0   38  None
+PI  bayanusYKL180W;kudriavzeviiYKL180W    0.0089  0.03025     1    158  158    40   0   19  None
+PI  bayanusYKL180W;mikataeYJL177W         0.0004  0.00196   112    176   65    20   0   51  None
+PI  cerevisiaeYJL177W;mikataeYKL180W      0.0125  0.02636   112    173   62    19   0   41  None
+PI  cerevisiaeYJL177W;castelliiYKL180W    0.0384  0.05548   320    339   20    11   0   60  None
+PI  cerevisiaeYKL180W;castelliiYKL180W    0.0176  0.03111   111    152   42    13   0   56  None
+PI  kudriavzeviiYKL180W;mikataeYJL177W    0.0350  0.05543   112    158   47    14   0   49  None
+PI  kudriavzeviiYKL180W;castelliiYKL180W  0.0434  0.06378   111    146   36    11   0   59  None
+PI  mikataeYJL177W;mikataeYKL180W         0.0260  0.04301   127    194   68    16   0   45  None
+PI  mikataeYJL177W;paradoxusYKL180W       0.0301  0.04793   112    161   50    15   0   47  None
+PI  mikataeYJL177W;castelliiYKL180W       0.0378  0.05278   112    146   35    10   0   65  None
+PI  mikataeYJL177W;kluyveriYJL177W        0.0274  0.03967   154    194   41    10   0   67  None
+PI  mikataeYKL180W;kluyveriYJL177W        0.0169  0.02463   154    227   74    15   0   51  None
+PI  paradoxusYJL177W;castelliiYJL177W     0.0497  0.07308   320    339   20    11   0   58  None
+PI  castelliiYJL177W;kluyveriYJL177W      0.0496  0.07251   326    356   31    12   0   54  None
+#
+# 16 inner fragments listed.
+#
+#
+# Pairwise outer-sequence fragments (128 polymorphisms, 549 aligned bases):
+# (Outer-sequence fragments are runs of unique sites.)
+# (P-values are not corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# No outer-sequence fragments listed.
+#

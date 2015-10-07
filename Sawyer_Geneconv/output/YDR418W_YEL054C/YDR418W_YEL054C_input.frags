@@ -1,0 +1,150 @@
+# Output of GENECONV for sequence file ./output/YDR418W_YEL054C/YDR418W_YEL054C_input.fasta
+# GENECONV version 1.81a
+# Command line:  GENECONV 
+#   ./output/YDR418W_YEL054C/YDR418W_YEL054C_input.fasta -nolog /lp /w822
+#   /p
+#
+# ./output/YDR418W_YEL054C/YDR418W_YEL054C_input.fasta: 13 sequences.
+#
+# Options and features: 13 protein sequences, 489 aligned bases,
+#   123 polymorphisms, FASTA format, mismatches in fragments not allowed,
+#   no groups defined, maxSimPairPval=0.05, maxSimGlobPval=0.05,
+#   no maxKAPairPval limits, no maxKAGlobPval limits,
+#   simPvals based on 10,000 permutations,
+#   global P-values based on BLAST-like global scores,
+#   fragment limits: minlength=1, minnpolys=2, minscore=2,
+#   pairwise max lists=2000, starting seed=822,
+#   contiguous sites with indels are one polymorphism, no indel blocks,
+#   no match (replacement) char in source file.
+# Sequence names:  bayanusYDR418W  bayanusYEL054C  cerevisiaeYDR418W
+#   cerevisiaeYEL054C  kudriavzeviiYDR418W  kudriavzeviiYEL054C
+#   mikataeYDR418W  mikataeYEL054C  paradoxusYDR418W  paradoxusYEL054C
+#   castelliiYDR418W  castelliiYEL054C  kluyveriYDR418W
+#
+# No mismatches in fragments (`gscale'=0)
+# Amino-acid codes in data:  A(1926)  C(1327)  D(0)  E(0)  F(0)  G(1421)
+#   H(0)  I(0)  K(0)  L(0)  M(0)  N(0)  P(0)  Q(0)  R(0)  S(0)  X(0)
+#   T(1683)  V(0)  W(0)  Y(0)
+# In terms of 3-letter codes:  Ala(1926)  Arg(0)  Asn(0)  Asp(0)
+#   Cys(1327)  Gln(0)  Glu(0)  Gly(1421)  His(0)  Ile(0)  Leu(0)  Lys(0)
+#   Met(0)  Phe(0)  Pro(0)  Ser1(0)  Ser2(0)  Thr(1683)  Trp(0)  Tyr(0)
+#   Val(0)
+# No non-amino-acid characters in data.
+# 123 polymorphic and 366 monomorphic sites with no indels.
+# No single polymorphic sites with indels.
+# No indel blocks with more than one site.
+# 123 amino-acid polymorphisms to be permuted.
+# 
+# Comparisons without any fragments (proteins):
+#   bayanusYDR418W (outer sequence frags): No sites are unique.
+# 
+# The starting random number seed is  822.
+# Simulated P-values are based on 10,000 permutations.
+# Maximum BLAST-like scores:
+# Inner      Max         Sim     S.D.s above     S.D. of
+#  frags    Score      P-value    sim. mean        sims
+# SCORE     7.718      0.0045         3.69       1.0789
+# OuterSeq
+#  frags    2.801      0.1310         1.26       1.2116
+#
+# Global lists: 3 I and no O significant fragments
+# Pairwise lists: 8 I and 2 O significant fragments
+#  where I means inner pair, O is outer seq, A is outer pair, and
+#  G means outer group (fragments).
+# Global P-values are based on BLAST-like global scores.
+#
+# Fragment offsets and lengths are in codons.
+# Bases other than `ACDEFGHIKLMNPQRSXTVWY' are treated as indels
+#   for the purpose of generating polymorphisms.
+#
+#
+# Global inner fragments (123 polymorphisms, 489 aligned bases):
+# (Inner fragments are runs of matching sites.)
+# (Sim and BC KA P-values are corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# BC KA means Bonferroni-corrected KA (BLAST-like) Pvalues.
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# In the following table, BC Pvalues are KA Pvalues multiplied by 78.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Dif   is the number of mismatches within the fragment.
+# Tot Difs  is the total number of mismatches between two sequences.
+# MisM Pen  is the penalty per mismatch for these two sequences.
+#
+#   Seq                                    Sim    BC KA    Aligned Offsets   Num  Num  Tot  MisM
+#   Names                                 Pvalue  Pvalue   Begin  End   Len  Poly Dif  Difs Pen.
+GI  cerevisiaeYDR418W;cerevisiaeYEL054C   0.0045  0.03468   310    392   83    29   0   40  None
+GI  paradoxusYDR418W;paradoxusYEL054C     0.0172  0.09894   310    380   71    23   0   45  None
+GI  kudriavzeviiYDR418W;paradoxusYEL054C  0.0299  0.15597   314    380   67    22   0   45  None
+#
+# 3 inner fragments listed.
+#
+# ADDITIONAL PAIRWISE FRAGMENTS with BC Pairwise SimPval < 0.05
+#   OR LISTED GLOBAL FRAGMENTS with significantly better BC SimPval
+# Here BC SimPval is the Pairwise Sim Pvalue multiplied by 78.
+#
+#   Seq                                   BC Sim  BC KA    Aligned Offsets   Num  Num  Tot  MisM
+#   Names                                 Pvalue  Pvalue   Begin  End   Len  Poly Dif  Difs Pen.
+AI  paradoxusYDR418W;paradoxusYEL054C     0.0078  0.09894   310    380   71    23   0   45  None
+#
+# One inner fragment listed.
+#
+#
+# Global outer-sequence fragments (123 polymorphisms, 489 aligned bases):
+# (Outer-sequence fragments are runs of unique sites.)
+# (Sim and BC KA P-values are corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+#
+# No outer-sequence fragments listed.
+#
+#
+# Pairwise inner fragments (123 polymorphisms, 489 aligned bases):
+# (Inner fragments are runs of matching sites.)
+# (P-values are not corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# Multiply by 78 for Bonferroni-corrected KA Pvalues.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Dif   is the number of mismatches within the fragment.
+# Tot Difs  is the total number of mismatches between two sequences.
+# MisM Pen  is the penalty per mismatch for these two sequences.
+#
+#   Seq                                    Sim      KA     Aligned Offsets   Num  Num  Tot  MisM
+#   Names                                 Pvalue  Pvalue   Begin  End   Len  Poly Dif  Difs Pen.
+PI  bayanusYDR418W;paradoxusYEL054C       0.0490  0.07368   250    320   71    14   0   45  None
+PI  cerevisiaeYDR418W;cerevisiaeYEL054C   0.0000  0.00044   310    392   83    29   0   40  None
+PI  cerevisiaeYDR418W;paradoxusYEL054C    0.0066  0.01521   337    392   56    20   0   40  None
+PI  cerevisiaeYEL054C;paradoxusYDR418W    0.0476  0.07368   337    380   44    14   0   45  None
+PI  kudriavzeviiYDR418W;paradoxusYEL054C  0.0006  0.00200   314    380   67    22   0   45  None
+PI  kudriavzeviiYEL054C;mikataeYDR418W    0.0092  0.01642   337    381   45    15   0   51  None
+PI  mikataeYDR418W;paradoxusYDR418W       0.0458  0.09936   385    489  105    31   0   19  None
+PI  paradoxusYDR418W;paradoxusYEL054C     0.0001  0.00127   310    380   71    23   0   45  None
+#
+# 8 inner fragments listed.
+#
+#
+# Pairwise outer-sequence fragments (123 polymorphisms, 489 aligned bases):
+# (Outer-sequence fragments are runs of unique sites.)
+# (P-values are not corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# Multiply by 13 for Bonferroni-corrected KA Pvalues.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Mat   is the number of nonunique sites within the fragment.
+# Tot Mats  is the total number of nonunique sites for that sequence.
+# MisM Pen  is the penalty per nonunique site for this sequence.
+#
+#   Seq                Sim      KA     Aligned Offsets   Num  Num  Tot  MisM
+#   Name              Pvalue  Pvalue   Begin  End   Len  Poly Mat  Mats Pen.
+PO  castelliiYDR418W  0.0467  0.05892   314    323   10     3   0  113  None
+PO  castelliiYEL054C  0.0471  0.06890   448    457   10     2   0  120  None
+#
+# 2 outer-sequence fragments listed.
+#
