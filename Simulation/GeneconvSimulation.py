@@ -62,6 +62,7 @@ class SimGeneconv:
         # Rate Matrices
         self.Geneconv_mat     = None
         self.Basic_mat        = None
+        self.IGC_mat          = None
 
         self.initiate()
 
@@ -69,7 +70,7 @@ class SimGeneconv:
         self.get_tree()
         self.unpack_x()
         if self.Model == 'MG94':
-            self.Geneconv_mat, self.Basic_mat = self.get_MG94Geneconv_and_MG94()
+            self.Geneconv_mat, self.Basic_mat, self.IGC_mat = self.get_MG94Geneconv_and_MG94()
         elif self.Model == 'HKY':
             self.Geneconv_mat, self.Basic_mat = self.get_HKYGeneconv_and_HKY()
 
@@ -235,7 +236,8 @@ class SimGeneconv:
         row = []
         col = []
         rate_geneconv = []
-        rate_basic = []
+        rate_basic    = []
+        rate_IGC      = []
 
         for i, pair in enumerate(product(self.codon_nonstop, repeat = 2)):
             # use ca, cb, cc to denote codon_a, codon_b, codon_c, where cc != ca, cc != cb
@@ -254,6 +256,7 @@ class SimGeneconv:
                         col.append((sa, sc))
                         rate_geneconv.append(Qb)
                         rate_basic.append(0.0)
+                        rate_IGC.append(0.0)
 
                     # (ca, cb) to (cc, cb)
                     Qb = Qbasic[sa, sc]
@@ -262,6 +265,7 @@ class SimGeneconv:
                         col.append((sc, sb))
                         rate_geneconv.append(Qb)
                         rate_basic.append(0.0)
+                        rate_IGC.append(0.0)
 
                         
                 # (ca, cb) to (ca, ca)
@@ -276,6 +280,7 @@ class SimGeneconv:
                     Tgeneconv21 = self.tau[1]
                 rate_geneconv.append(Qb + Tgeneconv12 * self.get_GC_fitness(cb, ca))
                 rate_basic.append(0.0)
+                rate_IGC.append(Tgeneconv12 * self.get_GC_fitness(cb, ca))
                 
                 # (ca, cb) to (cb, cb)
                 row.append((sa, sb))
@@ -283,6 +288,7 @@ class SimGeneconv:
                 Qb = Qbasic[sa, sb]
                 rate_geneconv.append(Qb + Tgeneconv21 * self.get_GC_fitness(ca, cb))
                 rate_basic.append(0.0)
+                rate_IGC.append(Tgeneconv21 * self.get_GC_fitness(ca, cb))
 
             else:
                 for cc in self.codon_nonstop:
@@ -297,17 +303,21 @@ class SimGeneconv:
                         col.append((sa, sc))
                         rate_geneconv.append(Qb)
                         rate_basic.append(0.0)
+                        rate_IGC.append(0.0)
+                        
                     # (ca, ca) to (cc, ca)
                         row.append((sa, sb))
                         col.append((sc, sa))
                         rate_geneconv.append(Qb)
                         rate_basic.append(0.0)
+                        rate_IGC.append(0.0)
 
                     # (ca, ca) to (cc, cc)
                         row.append((sa, sb))
                         col.append((sc, sc))
                         rate_geneconv.append(0.0)
                         rate_basic.append(Qb)
+                        rate_IGC.append(0.0)
                 
         process_geneconv = dict(
             row = row,
@@ -319,12 +329,18 @@ class SimGeneconv:
             col = col,
             rate = rate_basic
             )
+        process_IGC = dict(
+            row = row,
+            col = col,
+            rate = rate_IGC
+            )
 
         mat_row = [self.pair_to_state[(self.state_to_codon[i[0]], self.state_to_codon[i[1]])] for i in row]
         mat_col = [self.pair_to_state[(self.state_to_codon[i[0]], self.state_to_codon[i[1]])] for i in col]
         Geneconv_mat = csr_matrix((process_geneconv['rate'], (mat_row, mat_col)), shape = (61**2, 61**2), dtype = float)
         basic_mat = csr_matrix((process_basic['rate'], (mat_row, mat_col)), shape = (61**2, 61**2), dtype = float)
-        return Geneconv_mat, basic_mat
+        IGC_mat = csr_matrix((process_IGC['rate'], (mat_row, mat_col)), shape = (61**2, 61**2), dtype = float)
+        return Geneconv_mat, basic_mat, IGC_mat
 
     def get_HKYBasic(self):
         Qbasic = np.array([
@@ -403,30 +419,32 @@ class SimGeneconv:
     def draw_from_distribution(self, prob, size,values = None, prob_IGC = None):
         if values == None:
             values = [self.state_to_pair[i] for i in range(len(self.state_to_pair))]
-        bins = np.add.accumulate(prob / sum(prob))
+        bins = np.add.accumulate(prob)
         out_state = None
         num_IGC = 0
         if size == 1:
             event = np.digitize(np.random.random_sample(size), bins)
             if prob_IGC is not None:
+                #print '', event, 'prob dist = ', prob_IGC[event], prob[event], self.tau[0]
                 if prob_IGC[event] > 0.0:
-                    #print 'prob dist = ', prob_IGC[event], prob[event]
+                    if (prob_IGC[event] / prob[event]) > 1.0:
+                        assert( 0 ==1)
                     if np.random.uniform() < (prob_IGC[event] / prob[event]):
-                        
                         num_IGC += 1
-            if prob_IGC is not None:
+                        
+            if prob_IGC != None:
                 return values[event], num_IGC
             else:
                 return values[event]
         else:
             event_list = np.digitize(np.random.random_sample(size), bins)
             for event in event_list:
-                if prob_IGC is not None:
+                if prob_IGC != None:
                     print prob_IGC
                     if prob_IGC[event] > 0.0:
-                        if np.random.uniform() > (prob_IGC[event] / prob[event]):
+                        if np.random.uniform() < (prob_IGC[event] / prob[event]):
                             num_IGC += 1
-            if prob_IGC is not None:
+            if prob_IGC != None:
                 return [values[i] for i in event_list], num_IGC
             else:
                 return [values[i] for i in event_list]
@@ -440,21 +458,86 @@ class SimGeneconv:
         prob = np.array(rate_matrix.getrow(starting_state).todense())[0,:]
         prob_IGC = np.array(IGC_matrix.getrow(starting_state).todense())[0,:]
         while(cummulate_time < blen):
-            #print cummulate_time, starting_pair, starting_state
+            #print 'cummulated time = ', cummulate_time, 'starting State = ', starting_state, 'blen = ', blen
             if sum(prob) == 0.0:
                 break
             cummulate_time += np.random.exponential(1.0 / sum(prob))
+            #print 'Next event time = ', cummulate_time
             if cummulate_time > blen:
                 break
             else:
-                starting_state, add_IGC_num = self.draw_from_distribution(deepcopy(prob), 1, range(len(prob)), deepcopy(prob_IGC))
+                starting_state, add_IGC_num = self.draw_from_distribution(prob = deepcopy(prob) / sum(prob), size = 1, values = range(len(prob)), prob_IGC = deepcopy(prob_IGC)/sum(prob))
                 num_IGC += add_IGC_num
                 num_All += 1
                 prob = np.array(rate_matrix.getrow(starting_state).todense())[0,:]
+                prob_IGC = np.array(IGC_matrix.getrow(starting_state).todense())[0,:]
+                #print prob
+                #print prob_IGC
                 #print sum(prob_IGC), sum(prob), num_All, num_IGC
                 #starting_state = self.pair_to_state[starting_pair]
 
         return starting_state, num_IGC, num_All #starting_pair#, starting_state, cummulate_time
+
+
+    def sim_root(self):
+        if self.Model == 'MG94':
+            seq = self.draw_from_distribution(self.prior_distribution, self.nsites, self.codon_nonstop)
+        elif self.Model == 'HKY':
+            seq = self.draw_from_distribution(self.prior_distribution, self.nsites, 'ACGT')
+        self.node_to_sequence['N0'] = np.array([self.pair_to_state[(i, i)] for i in seq])
+        self.node_to_sim['N0'] = [self.node_to_sequence['N0'], 0, 0]
+
+    #vec_sim_one_branch = np.vectorize(self.sim_one_branch, excluded = ['rate_matrix', 'blen'])
+
+    def sim(self):
+        self.sim_root()
+        for edge in self.edge_list:
+            print edge
+            if edge in self.outgroup:
+                rate_mat = self.Basic_mat
+            else:
+                rate_mat = self.Geneconv_mat
+
+            IGC_mat = self.IGC_mat
+
+            end_seq = []
+            num_IGC = 0
+            num_All = 0
+            for site in self.node_to_sequence[edge[0]]:
+                #print site
+                site_seq, add_num_IGC, add_num_All = self.sim_one_branch(site, rate_mat, IGC_mat, self.edge_to_blen[edge])
+                num_IGC += add_num_IGC
+                num_All += add_num_All
+                end_seq.append(site_seq)
+            self.node_to_sim[edge[1]] = [end_seq, num_IGC, num_All]
+            self.node_to_sequence[edge[1]] = end_seq
+
+        for node in self.node_to_sim.keys():
+            seq1 = ''.join([self.state_to_pair[i][0] for i in self.node_to_sim[node][0]])
+            seq2 = ''.join([self.state_to_pair[i][1] for i in self.node_to_sim[node][0]])
+            self.node_to_sequence[node] = (seq1, seq2)
+
+    def sim_tract(self):
+        self.sim_root()
+        self.node_to_sequence['N0'] = [''.join([self.state_to_pair[i][0] for i in self.node_to_sequence['N0']]),
+                                       ''.join([self.state_to_pair[i][1] for i in self.node_to_sequence['N0']])]
+        for edge in self.edge_list:
+            print edge
+            if edge in self.outgroup:
+                rate_mat = self.Basic_mat
+            else:
+                rate_mat = self.Geneconv_mat
+
+            end_seq = []
+            for site in self.node_to_sequence[edge[0]]:
+                #print site
+                end_seq.append(self.sim_one_branch(site, rate_mat, self.edge_to_blen[edge]))
+            self.node_to_sequence[edge[1]] = end_seq
+
+        for node in self.node_to_sequence.keys():
+            seq1 = ''.join([self.state_to_pair[i][0] for i in self.node_to_sequence[node]])
+            seq2 = ''.join([self.state_to_pair[i][1] for i in self.node_to_sequence[node]])
+            self.node_to_sequence[node] = (seq1, seq2)        
 
     def sim_one_branch_tract(self, starting_seq_pair, blen):
         assert(len(starting_seq_pair[0]) == len(starting_seq_pair[1]))
@@ -533,70 +616,6 @@ class SimGeneconv:
                         starting_seq_pair[1] = starting_seq_pair[1][:init_pos] + starting_seq_pair[1][init_pos:(stop_pos + 1)] + starting_seq_pair[1][(stop_pos + 1):]                        
                     
         return starting_seq_pair#starting_pair#, starting_state, cummulate_time
-
-    def sim_root(self):
-        if self.Model == 'MG94':
-            seq = self.draw_from_distribution(self.prior_distribution, self.nsites, self.codon_nonstop)
-        elif self.Model == 'HKY':
-            seq = self.draw_from_distribution(self.prior_distribution, self.nsites, 'ACGT')
-        self.node_to_sequence['N0'] = np.array([self.pair_to_state[(i, i)] for i in seq])
-        self.node_to_sim['N0'] = [self.node_to_sequence['N0'], 0, 0]
-
-    #vec_sim_one_branch = np.vectorize(self.sim_one_branch, excluded = ['rate_matrix', 'blen'])
-
-    def sim(self):
-        self.sim_root()
-        for edge in self.edge_list:
-            print edge
-            if edge in self.outgroup:
-                rate_mat = self.Basic_mat
-            else:
-                rate_mat = self.Geneconv_mat
-
-            tau_copy = deepcopy(self.tau)
-            self.tau = [0.0] * 2
-            IGC_mat = self.Geneconv_mat - self.get_MG94Geneconv_and_MG94()[0]
-            self.tau = tau_copy
-
-            end_seq = []
-            num_IGC = 0
-            num_All = 0
-            for site in self.node_to_sequence[edge[0]]:
-                #print site
-                site_seq, add_num_IGC, add_num_All = self.sim_one_branch(site, rate_mat, IGC_mat, self.edge_to_blen[edge])
-                num_IGC += add_num_IGC
-                num_All += add_num_All
-                end_seq.append(site_seq)
-            self.node_to_sim[edge[1]] = [end_seq, num_IGC, num_All]
-            self.node_to_sequence[edge[1]] = end_seq
-
-        for node in self.node_to_sim.keys():
-            seq1 = ''.join([self.state_to_pair[i][0] for i in self.node_to_sim[node][0]])
-            seq2 = ''.join([self.state_to_pair[i][1] for i in self.node_to_sim[node][0]])
-            self.node_to_sequence[node] = (seq1, seq2)
-
-    def sim_tract(self):
-        self.sim_root()
-        self.node_to_sequence['N0'] = [''.join([self.state_to_pair[i][0] for i in self.node_to_sequence['N0']]),
-                                       ''.join([self.state_to_pair[i][1] for i in self.node_to_sequence['N0']])]
-        for edge in self.edge_list:
-            print edge
-            if edge in self.outgroup:
-                rate_mat = self.Basic_mat
-            else:
-                rate_mat = self.Geneconv_mat
-
-            end_seq = []
-            for site in self.node_to_sequence[edge[0]]:
-                #print site
-                end_seq.append(self.sim_one_branch(site, rate_mat, self.edge_to_blen[edge]))
-            self.node_to_sequence[edge[1]] = end_seq
-
-        for node in self.node_to_sequence.keys():
-            seq1 = ''.join([self.state_to_pair[i][0] for i in self.node_to_sequence[node]])
-            seq2 = ''.join([self.state_to_pair[i][1] for i in self.node_to_sequence[node]])
-            self.node_to_sequence[node] = (seq1, seq2)        
-
                 
     def output_seq(self, path = './simulation/', sim_num = None, Force = False, clock = False):
         file_name = '_'.join(self.paralog) + '_' + self.Model
@@ -636,15 +655,15 @@ if __name__ == '__main__':
     paralog1 = 'YLR406C'
     paralog2 = 'YDL075W'
 
-    paralog1 = 'YML026C'
-    paralog2 = 'YDR450W'
+##    paralog1 = 'YML026C'
+##    paralog2 = 'YDR450W'
 
     paralog = [paralog1, paralog2]
     newicktree = './YeastTree.newick'
 
     x = np.exp(np.loadtxt(open('./save/MG94_' + '_'.join(paralog) + '_nonclock_save.txt', 'r')))
 
-    test = SimGeneconv(newicktree, paralog, x, Model = 'MG94', nnsites = 200, Dir = False, gBGC = False)
+    test = SimGeneconv(newicktree, paralog, x, Model = 'MG94', nnsites = 400, Dir = False, gBGC = False)
     self = test
 ##    self.sim_root()
 ##    self.tau = [0.0] * 2
@@ -654,8 +673,13 @@ if __name__ == '__main__':
 ##    rate_matrix = self.Geneconv_mat
 ##    a,b,c = test.sim_one_branch(site, rate_matrix, IGC_mat, 1.0)
     test.sim()
+    #test.sim_root()
+    test.sim_one_branch(test.node_to_sim['N0'][0][0], test.Geneconv_mat, test.IGC_mat, 1.0)
+    print test.pi
+    print (test.node_to_sequence['N0'][0].count('A') + 0.0) / (test.nsites * 3.0), (test.node_to_sequence['N0'][0].count('C') + 0.0) / (test.nsites * 3.0), (test.node_to_sequence['N0'][0].count('G') + 0.0) / (test.nsites * 3.0), (test.node_to_sequence['N0'][0].count('T') + 0.0) / (test.nsites * 3.0)
     print sum([test.node_to_sim[i][1] + 0.0 for i in test.node_to_sim if i != 'kluyveri']) / sum([test.node_to_sim[i][2] + 0.0 for i in test.node_to_sim if i != 'kluyveri'])
-    
+
+    test.output_seq(path = './Simulation/' + '_'.join(paralog) + '/', sim_num = sim_num)    
     #test = SimGeneconv( newicktree, paralog, x_gBGC_dir, Model = 'MG94', nnsites = 1000)
     #test = SimGeneconv( newicktree, paralog, x_HKY, Model = 'HKY', nnsites = 1000)
 
