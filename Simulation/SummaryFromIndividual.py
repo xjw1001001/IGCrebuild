@@ -41,9 +41,9 @@ if __name__ == '__main__':
         for line in f.readlines():
             pairs.append(line.replace('\n','').split('_'))
             
-    pairs = [pairs[0]]
+    #pairs = [pairs[0]]
     for paralog in pairs:
-        summary_path = '/Users/xji3/SimulationFromCluster10102015/SimulationSummary/' + '_'.join(paralog) + '/'
+        summary_path = '/Users/xji3/SimulationFromCluster10122015/SimulationSummary/' + '_'.join(paralog) + '/'
         model = 'MG94'
         clock = False
         force = False

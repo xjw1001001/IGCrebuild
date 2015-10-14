@@ -62,7 +62,7 @@ rownames(report.mat) <- c("length", "IGC 1->2", "IGC 2->1", "Point Mutation")
 
 table.1 <- matrix(0.0, length(finished.pairs), 6)
 rownames(table.1) <- finished.pairs
-colnames(table.1) <- c("logL of IGC-extension analyses",
+colnames(table.1) <- c("IGC lnL",
                        "difference in logL",
                        "tau value",
                        "s.d. of tau",
@@ -85,7 +85,7 @@ s.d.proportion <- c()
 for (paralog in finished.pairs){
   summary <- get(paste(paralog, "_nonclock_Bootstrap_summary", sep = ""))
   s.d.proportion <- c(s.d.proportion, 
-                      sd(colSums(summary[34:57, ])/(colSums(summary[c(58, 60:69), ] + colSums(summary[34:57, ])))))
+                      sd(colSums(summary[34:57, ])/(colSums(summary[c(58, 60:69), ]) + colSums(summary[34:57, ]))))
 }
 table.1[, 6] <- s.d.proportion
 

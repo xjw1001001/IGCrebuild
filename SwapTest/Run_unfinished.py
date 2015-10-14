@@ -48,8 +48,7 @@ def main(args):
     test.get_ExpectedNumGeneconv()
     test.get_ExpectedHetDwellTime()
     if model == 'MG94':
-        test.get_individual_summary(summary_path = summary_path + '_'.join(self.paralog) + '/')
-    test.save_to_file(path = path)
+        test.get_individual_summary(summary_path = summary_path)
 
 
     if args.switch:
@@ -67,79 +66,7 @@ def main(args):
         test2.get_ExpectedNumGeneconv()
         test2.get_ExpectedHetDwellTime()
         test2.get_individual_summary(summary_path = summary_path + 'switched_')
-        test2.save_to_file(path = path + 'switched_')
 
-def main2(args):
-    model = args.model
-    paralog = [args.paralog1, args.paralog2]
-    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-    if args.switch:
-        newicktree = './TestTau/YeastTestTree.newick'
-        path = './TestTau/'
-        summary_path = './TestTau/'
-    else:
-        newicktree = '../PairsAlignemt/YeastTree.newick'
-        path = './NewPackageNewRun/'
-        summary_path = './MixedFromCluster/NewPackageNewRun/'
-    omega_guess = 0.1    
-
-    print 'Now plot Pdiff for pair', paralog
-    if args.force:
-        if model == 'MG94':
-            Force = {5:0.0}
-        elif model == 'HKY':
-            Force = {4:0.0}
-    else:
-        Force = None
-    if args.gBGC:
-        if args.dir:
-            test = gBGCDirGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)
-        else:
-            test = gBGCCodonGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)       
-    else:
-        if args.dir:
-            test = DirGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)
-        else:
-            test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = model, Force = Force, clock = args.clock)
-
-        x = read_txt(summary_path, paralog, model, Force, args.clock, args.dir, args.gBGC)
-        test.update_by_x(x)
-        #test.get_mle(True, True, 0, method)
-
-        #### Get plots for specific range
-        max_point = 10.0
-        number_dots = 100
-        step = max_point / number_dots 
-        basic_t = np.arange(0.0, max_point, step)
-        basic_pdiff_short, geneconv_pdiff_short, mut_odds_short, geneconv_odds_short = plot_pdiff(test, basic_t)
-        if abs(basic_pdiff_short[0]) < 1e-10:
-            basic_pdiff_short[0] = 0.0
-        if abs(geneconv_pdiff_short[0]) < 1e-10:
-            geneconv_pdiff_short[0] = 0.0
-        np.savetxt(open(path + '_'.join(paralog) + ' ' + test.Model + ' max ' + str(max_point) + ' data.txt', 'w+'),np.concatenate((basic_pdiff_short, geneconv_pdiff_short), axis = 0))
-##        plt.plot(basic_t, basic_pdiff_short, 'r-', label = 'Basic Model')
-##        plt.plot(basic_t, geneconv_pdiff_short, 'b-', label = 'IGC Model')
-##        plt.legend(bbox_to_anchor = (1,1), loc = 2, borderaxespad = 0.)
-##        plt.ylabel('P_diff')
-##        plt.title('_'.join(paralog) + ' '+ test.Model + ' max ' + str(max_point))
-##        plt.savefig(path + '_'.join(paralog) + ' ' + test.Model + ' max ' + str(max_point) + '.jpg', bbox_inches='tight')
-##        plt.close()
-
-        if abs(mut_odds_short[0]) < 1e-10:
-            mut_odds_short[0] = 0.0
-        if abs(geneconv_odds_short[0]) < 1e-10:
-            geneconv_odds_short[0] = 0.0
-        np.savetxt(open(path + '_'.join(paralog) + ' ' + test.Model + ' Mut IGC max ' + str(max_point) + ' data.txt', 'w+'),np.concatenate((mut_odds_short, geneconv_odds_short), axis = 0))
-        
-##        plt.plot(basic_t, mut_odds_short, 'r-', label = 'Mutation Odds')
-##        plt.plot(basic_t, geneconv_odds_short, 'b-', label = 'IGC Odds')
-##        plt.legend(bbox_to_anchor = (1,1), loc = 2, borderaxespad = 0.)
-##        plt.ylabel('Odds')
-##        plt.title('_'.join(paralog) + ' '+ test.Model + ' Mut IGC max ' + str(max_point))
-##        plt.savefig(path + '_'.join(paralog) + ' ' + test.Model + ' Mut IGC max ' + str(max_point) + '.jpg', bbox_inches='tight')
-##        plt.close()
-
-    
 
     
 if __name__ == '__main__':
