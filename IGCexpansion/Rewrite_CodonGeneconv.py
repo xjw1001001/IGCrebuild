@@ -7,7 +7,7 @@
 
 from CodonGeneconFunc import *
 import argparse
-from jsonctmctree.extras import optimize_em
+#from jsonctmctree.extras import optimize_em
 import ast
 import matplotlib.pyplot as plt
 
