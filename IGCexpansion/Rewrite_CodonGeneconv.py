@@ -1223,7 +1223,27 @@ class ReCodonGeneconv:
                             col_states.append((sc, sc))
                             proportions.append(1.0)
                     
+        elif self.Model == 'HKY':
+            Qbasic = self.get_HKYBasic()
+            for i, pair_from in enumerate(product('ACGT', repeat = 2)):
+                na, nb = pair_from
+                sa = self.nt_to_state[na]
+                sb = self.nt_to_state[nb]
+                for j, pair_to in enumerate(product('ACGT', repeat = 2)):
+                    nc, nd = pair_to
+                    sc = self.nt_to_state[nc]
+                    sd = self.nt_to_state[nd]
+                    if i == j:
+                        continue
+                    GeneconvRate = get_HKYGeneconvRate(pair_from, pair_to, Qbasic, self.tau)
+                    row_states.append((sa, sb))
+                    col_states.append((sc, sd))
+                    if GeneconvRate != 0.0:
+                        proportions.append(1.0 - self.tau/GeneconvRate)
+                    else:
+                        proportions.append(1.0)
         return [{'row_states' : row_states, 'column_states' : col_states, 'weights' : proportions}]
+             
 
     def _ExpectedpointMutationNum(self, package = 'new', display = False):
         pointMutationRed = self.get_pointMutationRed()

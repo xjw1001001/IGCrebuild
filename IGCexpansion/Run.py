@@ -8,9 +8,9 @@ def main(args):
     alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = './YeastTree.newick'
     if args.force:
-        if model == 'MG94':
+        if args.model == 'MG94':
             Force = {5:0.0}
-        elif model == 'HKY':
+        elif args.model == 'HKY':
             Force = {4:0.0}
     else:
         Force = None
