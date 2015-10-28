@@ -60,8 +60,8 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 
 
 <pre class="r"><code>rm(list=ls())  # clean up workspace
-setwd(&quot;/Users/xji3/Genconv/Bootstrap/&quot;)
-summary.path &lt;- &quot;/Users/xji3/BootstrapFromCluster10022015/BootStrapSummary/&quot;
+setwd(&quot;/Users/xji3/GitFolders/Genconv/Bootstrap/&quot;)
+summary.path &lt;- &quot;/Users/xji3/FromClusterFolders/BootstrapFromCluster10022015/BootStrapSummary/&quot;
 
 pairs &lt;- c('YLR406C_YDL075W', 'YER131W_YGL189C', 'YML026C_YDR450W', 'YNL301C_YOL120C', 'YNL069C_YIL133C', 'YMR143W_YDL083C', 'YJL177W_YKL180W', 'YBR191W_YPL079W', 'YER074W_YIL069C', 'YDR418W_YEL054C', 'YBL087C_YER117W', 'YLR333C_YGR027C', 'YMR142C_YDL082W', 'YER102W_YBL072C')
 
@@ -78,7 +78,7 @@ for (paralog in finished.pairs){
   assign(paste(paralog, &quot;_nonclock_Bootstrap_summary&quot;, sep = &quot;&quot;), summary_mat)
   }
 
-path.MG94 &lt;- &quot;/Users/xji3/MixedFromCluster/NewPackageNewRun/&quot;
+path.MG94 &lt;- &quot;/Users/xji3/FromClusterFolders/MixedFromCluster/NewPackageNewRun/&quot;
 summary.list.MG94 &lt;- c( 
   &quot;MG94_clock_summary&quot;,
   &quot;MG94_nonclock_summary&quot;, 
@@ -178,7 +178,7 @@ table.1</code></pre>
 ## YER102W_YBL072C                0.3571                       0.02421</code></pre>
 <pre class="r"><code>print(latex.table.1, floating = FALSE)</code></pre>
 <pre><code>## % latex table generated in R 3.1.1 by xtable 1.7-4 package
-## % Mon Oct 12 08:48:33 2015
+## % Tue Oct 27 15:04:08 2015
 ## \begin{tabular}{rrrrrrr}
 ##   \hline
 ##  &amp; IGC lnL &amp; difference in logL &amp; tau value &amp; s.d. of tau &amp; proportion of changes &amp; s.d. of proportion of changes \\ 

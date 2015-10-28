@@ -7,8 +7,8 @@ output: html_document
 
 ```{r}
 rm(list=ls())  # clean up workspace
-setwd("/Users/xji3/Genconv/Bootstrap/")
-summary.path <- "/Users/xji3/BootstrapFromCluster10022015/BootStrapSummary/"
+setwd("/Users/xji3/GitFolders/Genconv/Bootstrap/")
+summary.path <- "/Users/xji3/FromClusterFolders/BootstrapFromCluster10022015/BootStrapSummary/"
 
 pairs <- c('YLR406C_YDL075W', 'YER131W_YGL189C', 'YML026C_YDR450W', 'YNL301C_YOL120C', 'YNL069C_YIL133C', 'YMR143W_YDL083C', 'YJL177W_YKL180W', 'YBR191W_YPL079W', 'YER074W_YIL069C', 'YDR418W_YEL054C', 'YBL087C_YER117W', 'YLR333C_YGR027C', 'YMR142C_YDL082W', 'YER102W_YBL072C')
 
@@ -25,7 +25,7 @@ for (paralog in finished.pairs){
   assign(paste(paralog, "_nonclock_Bootstrap_summary", sep = ""), summary_mat)
   }
 
-path.MG94 <- "/Users/xji3/MixedFromCluster/NewPackageNewRun/"
+path.MG94 <- "/Users/xji3/FromClusterFolders/MixedFromCluster/NewPackageNewRun/"
 summary.list.MG94 <- c( 
   "MG94_clock_summary",
   "MG94_nonclock_summary", 
