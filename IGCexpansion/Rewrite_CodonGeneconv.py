@@ -9,6 +9,7 @@ from CodonGeneconFunc import *
 import argparse
 #from jsonctmctree.extras import optimize_em
 import ast
+from scipy.sparse import csr_matrix
 import matplotlib.pyplot as plt
 
 class ReCodonGeneconv:
@@ -45,6 +46,7 @@ class ReCodonGeneconv:
         self.codon_table    = dict(zip(codons, amino_acids))
         self.codon_nonstop  = [a for a in self.codon_table.keys() if not self.codon_table[a]=='*']
         self.codon_to_state = {a.upper() : i for (i, a) in enumerate(self.codon_nonstop)}
+        self.state_to_codon = {i:a.upper() for (i, a) in enumerate(self.codon_nonstop)}
         self.pair_to_state  = {pair:i for i, pair in enumerate(product(self.codon_nonstop, repeat = 2))}
 
         # Tip data related variable
@@ -468,6 +470,18 @@ class ReCodonGeneconv:
             rate = rate_basic
             )
         return [process_basic, process_geneconv]
+
+    def get_empirical_geneconv_stationary_distn(self):
+        process_geneconv = self.get_MG94Geneconv_and_MG94()[1]
+        mat_row = [self.pair_to_state[(self.state_to_codon[i[0]], self.state_to_codon[i[1]])] for i in process_geneconv['row']]
+        mat_col = [self.pair_to_state[(self.state_to_codon[i[0]], self.state_to_codon[i[1]])] for i in process_geneconv['col']]
+        
+        Geneconv_mat = csr_matrix((process_geneconv['rate'], (mat_row, mat_col)), shape = (61**2, 61**2), dtype = float)
+        new_diag = - Geneconv_mat.sum(axis = 1)  # row sum
+        for i in range(Geneconv_mat.shape[0]):
+            Geneconv_mat[i, i] = new_diag[i, 0]
+
+        U, s, V = scipy.sparse.linalg.svds(Geneconv_mat, which = 'SM')
 
     def get_MG94Basic(self):
         Qbasic = np.zeros((61, 61), dtype = float)
@@ -1501,9 +1515,9 @@ if __name__ == '__main__':
 ######
     paralog = [paralog1, paralog2]
     #alignment_file = './simulation/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '.fasta'
-    alignment_file = './MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-    alignment_file = './BootStrapSamples/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1.fasta'
-    save_name = './BootStrapSave/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1_save.txt'
+    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    #alignment_file = './BootStrapSamples/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1.fasta'
+    #save_name = './BootStrapSave/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1_save.txt'
 ##    alignment_file = './TestTau/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_switched.fasta'
 ##    #alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
 ##    alignment_file = './NewPairsAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
@@ -1525,12 +1539,12 @@ if __name__ == '__main__':
 ##    out_group_blen = np.arange(0.0001, 0.01, 0.005)
 ##    ll_list = []
 
-    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = False, save_name = save_name)
+    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = False)#, save_name = save_name)
     #test.get_mle(False, True, 0, 'BFGS')
     print test.tau
     print test.gen_save_file_name()
-    test._loglikelihood2()
-    test.get_individual_summary(summary_path = './BootStrapSummary/' + '_'.join(paralog) + '/', file_name = './BootStrapSummary/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1_summary.txt')
+    #test._loglikelihood2()
+    #test.get_individual_summary(summary_path = './BootStrapSummary/' + '_'.join(paralog) + '/', file_name = './BootStrapSummary/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1_summary.txt')
 
 
 
