@@ -1,4 +1,4 @@
-from Rewrite_CodonGeneconv import ReCodonGeneconv
+from IGCexpansion.CodonGeneconv import ReCodonGeneconv
 import argparse
 import numpy as np
 

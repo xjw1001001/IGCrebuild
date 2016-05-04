@@ -1,6 +1,6 @@
 from GeneconvSimulation import *
 import os
-from Rewrite_CodonGeneconv import ReCodonGeneconv
+from IGCexpansion.CodonGeneconv import ReCodonGeneconv
 import numpy as np
 import random
 import argparse

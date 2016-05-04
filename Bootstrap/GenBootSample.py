@@ -1,4 +1,4 @@
-from CodonGeneconFunc import *
+from IGCexpansion.CodonGeneconFunc import *
 import subprocess
 
 def BootSample(paralog, num_sample, in_path, out_path, model = 'MG94', save_file = None, save_out_path = None):

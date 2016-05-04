@@ -1,4 +1,4 @@
-from Rewrite_CodonGeneconv import ReCodonGeneconv
+from IGCexpansion.CodonGeneconv import ReCodonGeneconv
 from DirGeneconv import DirGeneconv
 from gBGCDirGeneconv import gBGCDirGeneconv
 from gBGCCodonGeneconv import gBGCCodonGeneconv

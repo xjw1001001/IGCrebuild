@@ -1,4 +1,4 @@
-from CodonGeneconFunc import *
+from IGCexpansion.CodonGeneconFunc import *
 from scipy.sparse import csr_matrix
 
 

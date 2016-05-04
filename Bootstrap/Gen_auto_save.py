@@ -1,5 +1,5 @@
 from Pdiff import read_txt
-from Rewrite_CodonGeneconv import ReCodonGeneconv
+from IGCexpansion.CodonGeneconv import ReCodonGeneconv
 
 
 if __name__ == '__main__':
