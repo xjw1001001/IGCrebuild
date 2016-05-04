@@ -11,7 +11,7 @@ were switched in each dataset.
 
 ```{r}
 rm(list=ls())  # clean up workspace
-path.switch <- "/Users/xji3/SwapTestFromCluster10122015/TestTau/"
+path.switch <- "/Users/xji3/FromClusterFolders/SwapTestFromCluster10122015/TestTau/"
 summary.list <- c( 
   #MG94
   "MG94_nonclock_summary",
@@ -85,3 +85,8 @@ latex.report.mat <- xtable(report.mat)
 print(latex.report.mat, floating = FALSE)
 ```
 
+###01172016 Show lnL 
+
+```{r}
+
+```

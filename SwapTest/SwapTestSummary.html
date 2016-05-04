@@ -61,7 +61,7 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 
 <p>Switch tests are designed using subset of each yeast dataset. The subtree for these tests is ((cerevisiae,castellii),kluyveri). Paralog sequences of species castellii were switched in each dataset.</p>
 <pre class="r"><code>rm(list=ls())  # clean up workspace
-path.switch &lt;- &quot;/Users/xji3/SwapTestFromCluster10122015/TestTau/&quot;
+path.switch &lt;- &quot;/Users/xji3/FromClusterFolders/SwapTestFromCluster10122015/TestTau/&quot;
 summary.list &lt;- c( 
   #MG94
   &quot;MG94_nonclock_summary&quot;,
@@ -101,6 +101,7 @@ MG94_nonclock_summary[2, MG94.nonclock.pair.names] - switched_MG94_nonclock_summ
 <h4>Now show lnL increase of IGC from force case</h4>
 <pre class="r"><code>#MG94
 MG94.nonclock.pair.names &lt;- intersect(intersect(MG94.nonclock.pair.names, colnames(Force_MG94_nonclock_summary)), colnames(switched_Force_MG94_nonclock_summary))
+
 lnL.increase.mat &lt;- cbind(MG94_nonclock_summary[2, MG94.nonclock.pair.names] - Force_MG94_nonclock_summary[2, MG94.nonclock.pair.names], 
                           switched_MG94_nonclock_summary[2, MG94.nonclock.pair.names] - switched_Force_MG94_nonclock_summary[2, MG94.nonclock.pair.names], 
                           ((MG94_nonclock_summary[2, MG94.nonclock.pair.names] - Force_MG94_nonclock_summary[2, MG94.nonclock.pair.names])
@@ -238,7 +239,7 @@ report.mat</code></pre>
 <pre class="r"><code>latex.report.mat &lt;- xtable(report.mat)
 print(latex.report.mat, floating = FALSE)</code></pre>
 <pre><code>## % latex table generated in R 3.1.1 by xtable 1.7-4 package
-## % Mon Oct 12 15:36:48 2015
+## % Sun Jan 17 16:54:17 2016
 ## \begin{tabular}{rrrr}
 ##   \hline
 ##  &amp; Tau in scenario A &amp; Tau in scenario B &amp; lnL difference (A - B) \\ 
