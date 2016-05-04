@@ -20,10 +20,21 @@ Instruction of how to run this code:
 pip install --user git+https://github.com/argriffing/jsonctmctree.git
 `
 
-2, Similarly install any other python packages
+2, Install IGCexpansion package:
+
+`cd IGCexpansion`
+
+`pip install .`  _(preferred)_
+
+or
+
+`python setup.py install`  
 
 
-3, Use Run.py or RunBootstrap.py to perform analyses with following example commands:
+3, Similarly install any other python packages
+
+
+4, use Run.py or RunBootstrap.py to perform analyses with following example commands:
 
 `
 python Run.py --model MG94 --paralog1 YBL087C --paralog2 YER117W --no-force --no-clock
