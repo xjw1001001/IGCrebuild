@@ -22,13 +22,19 @@ pip install --user git+https://github.com/argriffing/jsonctmctree.git
 
 2, Install IGCexpansion package:
 
-`cd IGCexpansion`
+`
+cd IGCexpansion
+`
 
-`pip install .`  _(preferred)_
+`
+pip install .
+`  _(preferred)_
 
 or
 
-`python setup.py install`  
+`
+python setup.py install
+`  
 
 
 3, Similarly install any other python packages
