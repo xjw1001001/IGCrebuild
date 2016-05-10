@@ -134,7 +134,64 @@ def get_x_clock_guess(edge_to_blen):
     Lr_reverse.append(edge_to_blen[out_group_branch] / (2 - r0))
     return Lr_reverse
 
+def read_newick(newick_file, post_dup = 'N1'):
+    assert(os.path.isfile(newick_file))  # check if file exists
+    tree = Phylo.read(newick_file, 'newick')
+
+    # locate 1st post-duplication node
+    post_dup_clade = tree.find_clades(post_dup).next()
+    
+    ## from http://biopython.org/wiki/Phylo_cookbook
+    allclades = list(tree.find_clades(order = 'level'))
+    node_to_num = {n.name:i for i, n in enumerate(allclades)}
+    num_to_node = {node_to_num[n]:n for n in node_to_num.keys()}
+
+    edge_list = []
+    for parent in tree.find_clades(terminal = False, order = 'level'):
+        for child in parent.clades:
+            edge_list.append((parent, child))
+
+    tree_row = [node_to_num[na.name] for na, nb in edge_list]
+    tree_col = [node_to_num[nb.name] for na, nb in edge_list]
+    tree_process = [1 if post_dup_clade.is_parent_of(edge[1]) else 0 for edge in edge_list]
+
+    tree = dict(
+            row = tree_row,
+            col = tree_col,
+            process = tree_process,
+            rate = np.ones(len(tree_row))
+            )
+
+    return tree
+      
+
 if __name__ == '__main__':
-    print 
-                                        
+    newick_file = '/Users/Xiang/GitFolders/Genconv/IGCexpansion/YeastTree_test.newick'
+
+    post_dup = 'N1'
+    tree = Phylo.read(newick_file, 'newick')
+
+    # locate 1st post-duplication node
+    post_dup_clade = tree.find_clades(post_dup).next()
+    
+    ## from http://biopython.org/wiki/Phylo_cookbook
+    allclades = list(tree.find_clades(order = 'level'))
+    node_to_num = {n.name:i for i, n in enumerate(allclades)}
+    num_to_node = {node_to_num[n]:n for n in node_to_num.keys()}
+
+    edge_list = []
+    for parent in tree.find_clades(terminal = False, order = 'level'):
+        for child in parent.clades:
+            edge_list.append((parent, child))
+
+    tree_row = [node_to_num[na.name] for na, nb in edge_list]
+    tree_col = [node_to_num[nb.name] for na, nb in edge_list]
+    tree_process = [1 if post_dup_clade.is_parent_of(edge[1]) else 0 for edge in edge_list]
+
+    tree = dict(
+            row = tree_row,
+            col = tree_col,
+            process = tree_process,
+            rate = np.ones(len(tree_row))
+            )                                       
     
