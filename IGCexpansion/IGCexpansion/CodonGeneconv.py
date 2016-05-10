@@ -1228,7 +1228,44 @@ class ReCodonGeneconv:
                             row_states.append((sa, sb))
                             col_states.append((sc, sc))
                             proportions.append(1.0)
-                    
+        elif self.Model == 'HKY':
+            Qbasic = self.get_HKYBasic()
+            for i, pair in enumerate(product('ACGT', repeat = 2)):
+                na, nb = pair
+                sa = self.nt_to_state[na]
+                sb = self.nt_to_state[nb]
+                if na!= nb:
+                    for nc in 'ACGT':
+                        if nc == na or nc == nb:
+                            continue
+                        sc = self.nt_to_state[nc]
+
+                        # (na, nb) to (na, nc)
+                        Qb = Qbasic[sb, sc]
+                        if Qb != 0:
+                            row_states.append((sa, sb))
+                            col_states.append((sa, sc))
+                            proportions.append(1.0)
+
+                        # (na, nb) to (nc, nb)
+                        Qb = Qbasic[sa, sc]
+                        if Qb != 0:
+                            row_states.append((sa, sb))
+                            col_states.append((sc, sb))
+                            proportions.append(1.0)
+
+                    # (na, nb) to (na, na)
+                    row_states.append((sa, sb))
+                    col_states.append((sa, sa))
+                    Qb = Qbasic[sb, sa]
+                    proportions.append(Qb / (Qb + self.tau))
+
+                    # (na, nb) to (nb, nb)
+                    row_states.append((sa, sb))
+                    col_states.append((sb, sb))
+                    Qb = Qbasic[sa, sb]
+                    proportions.append(Qb / (Qb + self.tau))
+                     
         return [{'row_states' : row_states, 'column_states' : col_states, 'weights' : proportions}]
 
     def _ExpectedpointMutationNum(self, package = 'new', display = False):
@@ -1532,7 +1569,7 @@ if __name__ == '__main__':
 ##    #alignment_file = '../data/cleanedfasta.fasta'
 ##    #newicktree = './YeastTree_remove_Cas.newick'
     #newicktree = '../PairsAlignemt/YeastTree.newick'
-    newicktree = '../YeastTree_test.newick'
+    newicktree = '../YeastTree.newick'
 ##    #newicktree = '../data/input_tree.newick'
 
 ##    x = np.array([-0.72980621, -0.56994663, -0.96216856,  1.73940961, -1.71054117,  0.54387332,
@@ -1546,8 +1583,8 @@ if __name__ == '__main__':
 ##    out_group_blen = np.arange(0.0001, 0.01, 0.005)
 ##    ll_list = []
 
-    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = False, save_name = save_name)
-    #test.get_mle(False, True, 0, 'BFGS')
+    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = False, save_name = save_name)
+    test.get_mle(False, True, 0, 'BFGS')
     print (test.tau)
     print (test.gen_save_file_name())
     print (test._loglikelihood2())
