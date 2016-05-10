@@ -8,7 +8,6 @@ from operator import mul
 from itertools import product
 from functools import partial
 from copy import deepcopy
-import pickle
 import os, sys
 
 import numpy as np
@@ -21,7 +20,7 @@ import scipy.sparse.linalg
 from Bio import Phylo
 from Bio import SeqIO
 
-import cProfile
+#import cProfile
 import jsonctmctree.ll, jsonctmctree.interface
 
 ##def get_HKYBasicRate(na, nb, pi, kappa):
@@ -144,8 +143,7 @@ def read_newick(newick_file, post_dup = 'N1'):
     ## from http://biopython.org/wiki/Phylo_cookbook
     allclades = list(tree.find_clades(order = 'level'))
     node_to_num = {n.name:i for i, n in enumerate(allclades)}
-    num_to_node = {node_to_num[n]:n for n in node_to_num.keys()}
-
+    
     edge_list = []
     for parent in tree.find_clades(terminal = False, order = 'level'):
         for child in parent.clades:
@@ -155,18 +153,19 @@ def read_newick(newick_file, post_dup = 'N1'):
     tree_col = [node_to_num[nb.name] for na, nb in edge_list]
     tree_process = [1 if post_dup_clade.is_parent_of(edge[1]) else 0 for edge in edge_list]
 
-    tree = dict(
+    out_tree = dict(
             row = tree_row,
             col = tree_col,
             process = tree_process,
             rate = np.ones(len(tree_row))
             )
 
-    return tree
+    edge_list = [(clade_a.name, clade_b.name) for clade_a, clade_b in edge_list]
+    return out_tree, edge_list, node_to_num
       
 
 if __name__ == '__main__':
-    newick_file = '/Users/Xiang/GitFolders/Genconv/IGCexpansion/YeastTree_test.newick'
+    newick_file = '/Users/xji3/GitFolders/Genconv/IGCexpansion/YeastTree_test.newick'
 
     post_dup = 'N1'
     tree = Phylo.read(newick_file, 'newick')
@@ -188,7 +187,7 @@ if __name__ == '__main__':
     tree_col = [node_to_num[nb.name] for na, nb in edge_list]
     tree_process = [1 if post_dup_clade.is_parent_of(edge[1]) else 0 for edge in edge_list]
 
-    tree = dict(
+    out_tree = dict(
             row = tree_row,
             col = tree_col,
             process = tree_process,

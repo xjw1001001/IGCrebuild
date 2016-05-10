@@ -17,6 +17,7 @@ def main(args):
     test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = args.model, Force = Force, clock = args.clock)
     test.get_mle(True, True, 0, 'BFGS')
     test.get_individual_summary(summary_path = './Summary/')
+    test.get_SitewisePosteriorSummary(summary_path = './Summary/')
 
 
 if __name__ == '__main__':

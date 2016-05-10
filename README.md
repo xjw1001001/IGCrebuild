@@ -53,5 +53,11 @@ or
 python RunBootstrap.py  --paralog1 YBL087C --paralog2 YER117W --bootnum 1
 `
 
+To uninstall:
+
+`
+pip uninstall IGCexpansion
+`
+
 Contact me at:
 xji3 _at_ ncsu.edu

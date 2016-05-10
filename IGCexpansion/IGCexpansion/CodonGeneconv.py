@@ -4,11 +4,12 @@
 # cb1ba60ee2b57d6703cd9a3987000c2fd4dd68a5
 # commit number: Dec 17th, 2014 for new package
 # 33e393a973161e3a29149e82bfda23882b5826f3
-
+from __future__ import print_function
 from CodonGeneconFunc import *
 import argparse
 from jsonctmctree.extras import optimize_em
 import ast
+
 #import matplotlib.pyplot as plt
 
 class ReCodonGeneconv:
@@ -94,9 +95,14 @@ class ReCodonGeneconv:
         if os.path.isfile(save_file):  # if the save txt file exists and not empty, then read in parameter values
             if os.stat(save_file).st_size > 0:
                 self.initialize_by_save(save_file)
-                print 'Successfully loaded parameter value from ' + save_file
-
+                print ('Successfully loaded parameter value from ' + save_file)
+                
     def get_tree(self):
+        self.tree, self.edge_list, self.node_to_num = read_newick(self.newicktree)
+        self.num_to_node = {self.node_to_num[i]:i for i in self.node_to_num}
+        self.edge_to_blen = {edge:1.0 for edge in self.edge_list}
+
+    def get_tree_old(self):
         tree = Phylo.read( self.newicktree, "newick")
         #set node number for nonterminal nodes and specify root node
         numInternalNode = 0
@@ -178,7 +184,7 @@ class ReCodonGeneconv:
         else:
             for name in self.name_to_seq:
                 self.name_to_seq[name] = self.name_to_seq[name][: self.nsites]
-        print 'number of sites to be analyzed: ', self.nsites
+        print ('number of sites to be analyzed: ', self.nsites)
 
         # assign observable parameters
         suffix_len = len(self.paralog[0])
@@ -493,7 +499,7 @@ class ReCodonGeneconv:
         
     
     def get_HKYGeneconv(self):
-        #print 'tau = ', self.tau
+        #print ('tau = ', self.tau)
         Qbasic = self.get_HKYBasic()
         row = []
         col = []
@@ -598,9 +604,9 @@ class ReCodonGeneconv:
         feasibility = j_ll['feasibility']
 
         if status != 'success' or not feasibility:
-            print 'results:'
-            print j_ll
-            print
+            print ('results:')
+            print (j_ll)
+            print ()
             raise Exception('Encountered some problem in the calculation of log likelihood and its derivatives')
 
         ll, edge_derivs = j_ll['log_likelihood'], j_ll['edge_derivatives']
@@ -703,10 +709,10 @@ class ReCodonGeneconv:
             self.update_by_x(x)
         other_derivs = np.array(other_derivs)
         if display:
-            print 'log likelihood = ', ll
-            print 'Edge derivatives = ', edge_derivs
-            print 'other derivatives:', other_derivs
-            print 'Current x array = ', self.x
+            print ('log likelihood = ', ll)
+            print ('Edge derivatives = ', edge_derivs)
+            print ('other derivatives:', other_derivs)
+            print ('Current x array = ', self.x)
 
         self.ll = ll
         f = -ll
@@ -751,10 +757,10 @@ class ReCodonGeneconv:
             self.update_by_x(x)
         other_derivs = np.array(other_derivs)
         if display:
-            print 'log likelihood = ', ll
-            print 'Edge derivatives = ', edge_derivs
-            print 'other derivatives:', other_derivs
-            print 'Current x array = ', self.x
+            print ('log likelihood = ', ll)
+            print ('Edge derivatives = ', edge_derivs)
+            print ('other derivatives:', other_derivs)
+            print ('Current x array = ', self.x)
 
         self.ll = ll
         f = -ll
@@ -816,10 +822,10 @@ class ReCodonGeneconv:
         g_clock = np.concatenate( (np.array(other_derives), np.array(Lr_derives)))
 
         if display:
-            print 'log likelihood = ', f
-            print 'Lr derivatives = ', Lr_derives
-            print 'other derivatives = ', other_derives
-            print 'Current x_clock array = ', self.x_clock
+            print ('log likelihood = ', f)
+            print ('Lr derivatives = ', Lr_derives)
+            print ('other derivatives = ', other_derives)
+            print ('Current x_clock array = ', self.x_clock)
 
         return f, g_clock
 
@@ -832,11 +838,11 @@ class ReCodonGeneconv:
             ll = self._loglikelihood2()[0]
 
         if display:
-            print 'log likelihood = ', ll
+            print ('log likelihood = ', ll)
             if self.clock:
-                print 'Current x_clock array = ', self.x_clock
+                print ('Current x_clock array = ', self.x_clock)
             else:
-                print 'Current x array = ', self.x
+                print ('Current x array = ', self.x)
 
         return -ll
 
@@ -849,11 +855,11 @@ class ReCodonGeneconv:
             ll = self._loglikelihood2()[0]
 
         if display:
-            print 'log likelihood = ', ll
+            print ('log likelihood = ', ll)
             if self.clock:
-                print 'Current x_clock array = ', self.x_clock
+                print ('Current x_clock array = ', self.x_clock)
             else:
-                print 'Current x array = ', self.x
+                print ('Current x array = ', self.x)
 
         return -ll
         
@@ -871,9 +877,9 @@ class ReCodonGeneconv:
                 self.update_by_x()
                 
             if display:
-                print 'log-likelihood = ', ll
-                print 'updating blen length using EM'
-                print 'current log-likelihood = ', self._loglikelihood2()
+                print ('log-likelihood = ', ll)
+                print ('updating blen length using EM')
+                print ('current log-likelihood = ', self._loglikelihood2())
         else:
             if self.clock:
                 self.update_by_x_clock()
@@ -1022,7 +1028,7 @@ class ReCodonGeneconv:
             ExpectedGeneconv = {self.edge_list[i] : j_out['responses'][0][i] for i in range(len(self.edge_list))}
             return ExpectedGeneconv
         else:
-            print 'Need to implement this for old package'
+            print ('Need to implement this for old package')
 
     def _ExpectedHetDwellTime(self, package = 'new', display = False):
 
@@ -1050,7 +1056,7 @@ class ReCodonGeneconv:
             ExpectedDwellTime = {self.edge_list[i] : j_out['responses'][0][i] for i in range(len(self.edge_list))}
             return ExpectedDwellTime
         else:
-            print 'Need to implement this for old package'
+            print ('Need to implement this for old package')
 
     def _ExpectedHomDwellTime(self, package = 'new', display = False):
 
@@ -1078,7 +1084,7 @@ class ReCodonGeneconv:
             ExpectedDwellTime = {self.edge_list[i] : j_out['responses'][0][i] for i in range(len(self.edge_list))}
             return ExpectedDwellTime
         else:
-            print 'Need to implement this for old package'
+            print ('Need to implement this for old package')
 
     def _ExpectedDirectionalNumGeneconv(self, package = 'new', display = False):
         DirectionalNumGeneconvRed = self.get_directionalNumGeneconvRed()
@@ -1095,7 +1101,7 @@ class ReCodonGeneconv:
             ExpectedDirectionalNumGeneconv = {self.edge_list[i] : [j_out['responses'][j][i] for j in range(2)] for i in range(len(self.edge_list))}
             return ExpectedDirectionalNumGeneconv
         else:
-            print 'Need to implement this for old package'
+            print ('Need to implement this for old package')
 
             
     def get_directionalNumGeneconvRed(self):
@@ -1237,44 +1243,78 @@ class ReCodonGeneconv:
                 }            
             j_out = jsonctmctree.interface.process_json_in(j_in)
             status = j_out['status']
-            ExpectedDirectionalNumGeneconv = {self.edge_list[i] : j_out['responses'][0][i] for i in range(len(self.edge_list))}
-            return ExpectedDirectionalNumGeneconv
+            ExpectedpointMutation = {self.edge_list[i] : j_out['responses'][0][i] for i in range(len(self.edge_list))}
+            return ExpectedpointMutation
         else:
-            print 'Need to implement this for old package'
+            print ('Need to implement this for old package')
 
+    def _SitewiseExpectedpointMutationNum(self, package = 'new', display = False):
+        pointMutationRed = self.get_pointMutationRed()
+        if package == 'new':
+            self.scene_ll = self.get_scene()
+            requests = [{'property' : 'DDNTRAN', 'transition_reduction' : i} for i in pointMutationRed]
+            assert(len(requests) == 1)  # should be exactly 1 request
+            j_in = {
+                'scene' : self.scene_ll,
+                'requests' : requests
+                }            
+            j_out = jsonctmctree.interface.process_json_in(j_in)
+            status = j_out['status']
+            SitewiseExpectedpointMutation = np.matrix(j_out['responses'][0]).T
+            return SitewiseExpectedpointMutation
+        else:
+            print ('Need to implement this for old package')
+
+    def _SitewiseExpectedDirectionalNumGeneconv(self, package = 'new', display = False):
+        DirectionalNumGeneconvRed = self.get_directionalNumGeneconvRed()
+        if package == 'new':
+            self.scene_ll = self.get_scene()
+            requests = [{'property' : 'DDNTRAN', 'transition_reduction' : i} for i in DirectionalNumGeneconvRed]
+            assert(len(requests) == 2)  # should be exactly 2 requests
+            j_in = {
+                'scene' : self.scene_ll,
+                'requests' : requests
+                }            
+            j_out = jsonctmctree.interface.process_json_in(j_in)
+            status = j_out['status']
+            SitewiseExpectedDirectionalNumGeneconv = [np.matrix(j_out['responses'][0]).T, np.matrix(j_out['responses'][1]).T]
+            return SitewiseExpectedDirectionalNumGeneconv
+        else:
+            print ('Need to implement this for old package')
+
+    def get_SitewisePosteriorSummary(self, summary_path, file_name = None):
+        SitewiseExpectedpointMutation = self._SitewiseExpectedpointMutationNum()
+        SiteExpectedDirectionalNumGeneconv = self._SitewiseExpectedDirectionalNumGeneconv()
+        if file_name == None:
+            if not self.Force:
+                prefix_summary = summary_path + self.Model + '_'
+            else:
+                prefix_summary = summary_path + 'Force_' + self.Model + '_'
+                
+
+            if self.clock:
+                suffix_summary = '_clock_sitewise_summary.txt'
+            else:
+                suffix_summary = '_nonclock_sitewise_summary.txt'    
+
+            summary_file = prefix_summary + '_'.join(self.paralog) + suffix_summary
+        else:
+            summary_file = file_name
+
+        header = ' '.join(str(i + 1) for i in range(SitewiseExpectedpointMutation.shape[1]))
+        label_pointMutation = ' '.join('(' + ','.join(edge) + ',mut)' for edge in self.edge_list)
+        label_DirIGC = ' '.join([' '.join('(' + ','.join(edge) + ',1->2)' for edge in self.edge_list),
+                        ' '.join('(' + ','.join(edge) + ',2->1)' for edge in self.edge_list)])
+
+        np.savetxt(open(summary_file, 'w+'), np.concatenate((SitewiseExpectedpointMutation, SiteExpectedDirectionalNumGeneconv[0], SiteExpectedDirectionalNumGeneconv[1]), axis = 0),
+                   delimiter = ' ', header = header, footer = ' '.join([label_pointMutation, label_DirIGC]))
+            
 
     def get_ExpectedNumGeneconv(self):
         self.ExpectedGeneconv = self._ExpectedNumGeneconv()
 
     def get_ExpectedHetDwellTime(self):
         self.ExpectedDwellTime = self._ExpectedHetDwellTime()
-    
-    def save_to_file(self, file_name = None, path = './'):
-        if file_name == None:
-            file_name = self.Model + '_' + '_'.join(self.paralog)
-            if self.clock:
-                file_name += '_clock.p'
-            else:
-                file_name += '_nonclock.p'
-        save_file = path + file_name
-        self.ll = self._loglikelihood()[0]
-        print 'x = ', self.x, 'x_clock = ', self.x_clock
-        save_info = dict(
-            Model = self.Model,
-            x     = self.x,
-            x_clock = self.x_clock,
-            edge_to_blen = self.edge_to_blen,
-            edge_list = self.edge_list,
-            ExpectedGeneconv = self.ExpectedGeneconv,
-            ExpectedDwellTime = self.ExpectedDwellTime,
-            ll    = self.ll,
-            newicktree = self.newicktree,
-            alignment_file = self.seqloc,
-            paralog = self.paralog,
-            clock = self.clock,
-            Force = self.Force
-            )
-        pickle.dump(save_info, open(save_file, 'wb+'))  # use pickle to save the class which can be easily reconstructed by pickle.load()
 
     def numerical_Clock_derivative(self):
         ll = self._loglikelihood2()[0]
@@ -1409,7 +1449,7 @@ def main(args):
     summary_path = './NewPackageNewRun/'
     omega_guess = 0.1
 
-    print 'Now calculate MLE for pair', paralog
+    print ('Now calculate MLE for pair', paralog)
     
     if hasattr(args, 'Force'):
         Force = args.Force
@@ -1481,9 +1521,10 @@ if __name__ == '__main__':
 ######
     paralog = [paralog1, paralog2]
     #alignment_file = './simulation/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '.fasta'
-    alignment_file = './MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-    alignment_file = './BootStrapSamples/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1.fasta'
-    save_name = './BootStrapSave/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1_save.txt'
+    alignment_file = '../../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
+    save_name = '../test_save.txt'
+    #alignment_file = './BootStrapSamples/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1.fasta'
+    #save_name = './BootStrapSave/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1_save.txt'
 ##    alignment_file = './TestTau/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_switched.fasta'
 ##    #alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
 ##    alignment_file = './NewPairsAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
@@ -1491,7 +1532,7 @@ if __name__ == '__main__':
 ##    #alignment_file = '../data/cleanedfasta.fasta'
 ##    #newicktree = './YeastTree_remove_Cas.newick'
     #newicktree = '../PairsAlignemt/YeastTree.newick'
-    newicktree = './YeastTree.newick'
+    newicktree = '../YeastTree_test.newick'
 ##    #newicktree = '../data/input_tree.newick'
 
 ##    x = np.array([-0.72980621, -0.56994663, -0.96216856,  1.73940961, -1.71054117,  0.54387332,
@@ -1507,10 +1548,11 @@ if __name__ == '__main__':
 
     test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = False, save_name = save_name)
     #test.get_mle(False, True, 0, 'BFGS')
-    print test.tau
-    print test.gen_save_file_name()
-    test._loglikelihood2()
-    test.get_individual_summary(summary_path = './BootStrapSummary/' + '_'.join(paralog) + '/', file_name = './BootStrapSummary/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1_summary.txt')
+    print (test.tau)
+    print (test.gen_save_file_name())
+    print (test._loglikelihood2())
+    test.get_SitewisePosteriorSummary(summary_path = '../Summary/')
+#    test.get_individual_summary(summary_path = './BootStrapSummary/' + '_'.join(paralog) + '/', file_name = './BootStrapSummary/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1_summary.txt')
 
 
 
