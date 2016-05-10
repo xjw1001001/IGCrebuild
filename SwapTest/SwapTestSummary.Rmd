@@ -1,0 +1,92 @@
+---
+title: "SwapTest_Nonclock"
+author: "Xiang Ji"
+date: "October 12, 2015"
+output: html_document
+---
+
+Switch tests are designed using subset of each yeast dataset. The subtree for these
+tests is ((cerevisiae,castellii),kluyveri). Paralog sequences of species castellii 
+were switched in each dataset.
+
+```{r}
+rm(list=ls())  # clean up workspace
+path.switch <- "/Users/xji3/FromClusterFolders/SwapTestFromCluster10122015/TestTau/"
+summary.list <- c( 
+  #MG94
+  "MG94_nonclock_summary",
+  "Force_MG94_nonclock_summary",
+  
+  #MG94
+  "switched_MG94_nonclock_summary",
+  "switched_Force_MG94_nonclock_summary"
+  )
+
+for (target.summary in summary.list){
+  summary_file <- paste(path.switch, target.summary, '.txt', sep = '')
+  all <- readLines(summary_file, n = -1)
+  col.names <- strsplit(all[1], ' ')[[1]][-1]
+  row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+  summary_mat <- as.matrix(read.table(summary_file, 
+                                      row.names = row.names, 
+                                      col.names = col.names))
+  assign(target.summary, summary_mat)
+  }
+
+MG94.nonclock.pair.names <- intersect(colnames(MG94_nonclock_summary), colnames(switched_MG94_nonclock_summary))
+```
+
+####Now show lnL difference between real and control sequences for each model
+
+```{r}
+#MG94
+MG94_nonclock_summary[2, MG94.nonclock.pair.names] - switched_MG94_nonclock_summary[2, MG94.nonclock.pair.names]
+```
+
+####Now show lnL increase of IGC from force case
+```{r}
+#MG94
+MG94.nonclock.pair.names <- intersect(intersect(MG94.nonclock.pair.names, colnames(Force_MG94_nonclock_summary)), colnames(switched_Force_MG94_nonclock_summary))
+
+lnL.increase.mat <- cbind(MG94_nonclock_summary[2, MG94.nonclock.pair.names] - Force_MG94_nonclock_summary[2, MG94.nonclock.pair.names], 
+                          switched_MG94_nonclock_summary[2, MG94.nonclock.pair.names] - switched_Force_MG94_nonclock_summary[2, MG94.nonclock.pair.names], 
+                          ((MG94_nonclock_summary[2, MG94.nonclock.pair.names] - Force_MG94_nonclock_summary[2, MG94.nonclock.pair.names])
+                           - (switched_MG94_nonclock_summary[2, MG94.nonclock.pair.names] - switched_Force_MG94_nonclock_summary[2, MG94.nonclock.pair.names])))
+colnames(lnL.increase.mat) <- c("original lnL increase", 
+                                "switched lnL increase", 
+                                "difference")
+lnL.increase.mat
+```
+
+####Now show Tau estimate difference
+
+```{r}
+Tau.diff.mat <- cbind(MG94_nonclock_summary["tau", MG94.nonclock.pair.names], 
+                      switched_MG94_nonclock_summary["tau", MG94.nonclock.pair.names], 
+                      MG94_nonclock_summary["tau", MG94.nonclock.pair.names] - switched_MG94_nonclock_summary["tau", MG94.nonclock.pair.names],
+                      (MG94_nonclock_summary["tau", MG94.nonclock.pair.names] - switched_MG94_nonclock_summary["tau", MG94.nonclock.pair.names]) / MG94_nonclock_summary["tau", MG94.nonclock.pair.names] * 100.0
+                      )
+colnames(Tau.diff.mat) <- c("Tau from MG94 clock", 
+                            "Tau from switched MG94 clock", 
+                            "difference",
+                            "difference/MG94 estimate %")
+Tau.diff.mat
+```
+
+```{r}
+filtered.pairs <- rownames(Tau.diff.mat)
+lnL.increase.mat[filtered.pairs, ]
+Tau.diff.mat[filtered.pairs, ]
+library(xtable)
+report.mat <- cbind(Tau.diff.mat[filtered.pairs, c(1, 2)], lnL.increase.mat[filtered.pairs, 3])
+colnames(report.mat) <- c("Tau in scenario A", "Tau in scenario B", "lnL difference (A - B)")
+report.mat
+latex.report.mat <- xtable(report.mat)
+print(latex.report.mat, floating = FALSE)
+```
+
+###01172016 Show lnL 
+
+```{r}
+
+```

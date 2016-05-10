@@ -1,0 +1,13 @@
+/Library/Frameworks/Python.framework/Versions/7.3/lib/python2.7/site-packages/IGCexpansion/__init__.py
+/Library/Frameworks/Python.framework/Versions/7.3/lib/python2.7/site-packages/IGCexpansion/CodonGeneconFunc.py
+/Library/Frameworks/Python.framework/Versions/7.3/lib/python2.7/site-packages/IGCexpansion/CodonGeneconv.py
+/Library/Frameworks/Python.framework/Versions/7.3/lib/python2.7/site-packages/IGCexpansion/SummaryFromIndividual.py
+/Library/Frameworks/Python.framework/Versions/7.3/lib/python2.7/site-packages/IGCexpansion/TriGeneconv.py
+/Library/Frameworks/Python.framework/Versions/7.3/lib/python2.7/site-packages/IGCexpansion/TriGeneconvFunc.py
+/Library/Frameworks/Python.framework/Versions/7.3/lib/python2.7/site-packages/IGCexpansion/__init__.pyc
+/Library/Frameworks/Python.framework/Versions/7.3/lib/python2.7/site-packages/IGCexpansion/CodonGeneconFunc.pyc
+/Library/Frameworks/Python.framework/Versions/7.3/lib/python2.7/site-packages/IGCexpansion/CodonGeneconv.pyc
+/Library/Frameworks/Python.framework/Versions/7.3/lib/python2.7/site-packages/IGCexpansion/SummaryFromIndividual.pyc
+/Library/Frameworks/Python.framework/Versions/7.3/lib/python2.7/site-packages/IGCexpansion/TriGeneconv.pyc
+/Library/Frameworks/Python.framework/Versions/7.3/lib/python2.7/site-packages/IGCexpansion/TriGeneconvFunc.pyc
+/Library/Frameworks/Python.framework/Versions/7.3/lib/python2.7/site-packages/IGCexpansion-0.1dev-py2.7.egg-info
