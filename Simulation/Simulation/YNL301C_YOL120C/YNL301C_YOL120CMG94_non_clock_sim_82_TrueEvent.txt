@@ -1,0 +1,14 @@
+edge	# IGC	# All	
+N0_N1	0	5
+N0_kluyveri	0	19
+N1_N2	3	25
+N1_castellii	25	85
+N2_N3	2	4
+N2_bayanus	6	26
+N3_N4	1	5
+N3_kudriavzevii	9	34
+N4_N5	0	2
+N4_mikatae	7	22
+N5_cerevisiae	6	23
+N5_paradoxus	6	19
+0.26

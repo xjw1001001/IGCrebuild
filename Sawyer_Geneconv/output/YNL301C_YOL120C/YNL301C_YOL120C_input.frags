@@ -1,0 +1,141 @@
+# Output of GENECONV for sequence file ./output/YNL301C_YOL120C/YNL301C_YOL120C_input.fasta
+# GENECONV version 1.81a
+# Command line:  GENECONV 
+#   ./output/YNL301C_YOL120C/YNL301C_YOL120C_input.fasta -nolog /lp /w822
+#   /p
+#
+# ./output/YNL301C_YOL120C/YNL301C_YOL120C_input.fasta: 13 sequences.
+#
+# Options and features: 13 protein sequences, 555 aligned bases,
+#   165 polymorphisms, FASTA format, mismatches in fragments not allowed,
+#   no groups defined, maxSimPairPval=0.05, maxSimGlobPval=0.05,
+#   no maxKAPairPval limits, no maxKAGlobPval limits,
+#   simPvals based on 10,000 permutations,
+#   global P-values based on BLAST-like global scores,
+#   fragment limits: minlength=1, minnpolys=2, minscore=2,
+#   pairwise max lists=2000, starting seed=822,
+#   contiguous sites with indels are one polymorphism, no indel blocks,
+#   no match (replacement) char in source file.
+# Sequence names:  bayanusYNL301C  bayanusYOL120C  cerevisiaeYNL301C
+#   cerevisiaeYOL120C  kudriavzeviiYNL301C  kudriavzeviiYOL120C
+#   mikataeYNL301C  mikataeYOL120C  paradoxusYNL301C  paradoxusYOL120C
+#   castelliiYNL301C  castelliiYOL120C  kluyveriYNL301C
+#
+# No mismatches in fragments (`gscale'=0)
+# Amino-acid codes in data:  A(2077)  C(1538)  D(0)  E(0)  F(0)  G(1653)
+#   H(0)  I(0)  K(0)  L(0)  M(0)  N(0)  P(0)  Q(0)  R(0)  S(0)  X(0)
+#   T(1947)  V(0)  W(0)  Y(0)
+# In terms of 3-letter codes:  Ala(2077)  Arg(0)  Asn(0)  Asp(0)
+#   Cys(1538)  Gln(0)  Glu(0)  Gly(1653)  His(0)  Ile(0)  Leu(0)  Lys(0)
+#   Met(0)  Phe(0)  Pro(0)  Ser1(0)  Ser2(0)  Thr(1947)  Trp(0)  Tyr(0)
+#   Val(0)
+# No non-amino-acid characters in data.
+# 165 polymorphic and 390 monomorphic sites with no indels.
+# No single polymorphic sites with indels.
+# No indel blocks with more than one site.
+# 165 amino-acid polymorphisms to be permuted.
+# 
+# Comparisons without any fragments (proteins):
+#   cerevisiaeYOL120C (outer sequence frags): No sites are unique.
+# 
+# The starting random number seed is  822.
+# Simulated P-values are based on 10,000 permutations.
+# Maximum BLAST-like scores:
+# Inner      Max         Sim     S.D.s above     S.D. of
+#  frags    Score      P-value    sim. mean        sims
+# SCORE     5.874      0.0494         1.88       1.1049
+# OuterSeq
+#  frags    3.367      0.0888         1.59       1.1518
+#
+# Global lists: 1 I and no O significant fragments
+# Pairwise lists: 12 I and 1 O significant fragments
+#  where I means inner pair, O is outer seq, A is outer pair, and
+#  G means outer group (fragments).
+# Global P-values are based on BLAST-like global scores.
+#
+# Fragment offsets and lengths are in codons.
+# Bases other than `ACDEFGHIKLMNPQRSXTVWY' are treated as indels
+#   for the purpose of generating polymorphisms.
+#
+#
+# Global inner fragments (165 polymorphisms, 555 aligned bases):
+# (Inner fragments are runs of matching sites.)
+# (Sim and BC KA P-values are corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# BC KA means Bonferroni-corrected KA (BLAST-like) Pvalues.
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# In the following table, BC Pvalues are KA Pvalues multiplied by 78.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Dif   is the number of mismatches within the fragment.
+# Tot Difs  is the total number of mismatches between two sequences.
+# MisM Pen  is the penalty per mismatch for these two sequences.
+#
+#   Seq                               Sim    BC KA    Aligned Offsets   Num  Num  Tot  MisM
+#   Names                            Pvalue  Pvalue   Begin  End   Len  Poly Dif  Difs Pen.
+GI  bayanusYNL301C;castelliiYOL120C  0.0494  0.21901   346    425   80    19   0   68  None
+#
+# One inner fragment listed.
+#
+#
+# Global outer-sequence fragments (165 polymorphisms, 555 aligned bases):
+# (Outer-sequence fragments are runs of unique sites.)
+# (Sim and BC KA P-values are corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+#
+# No outer-sequence fragments listed.
+#
+#
+# Pairwise inner fragments (165 polymorphisms, 555 aligned bases):
+# (Inner fragments are runs of matching sites.)
+# (P-values are not corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# Multiply by 78 for Bonferroni-corrected KA Pvalues.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Dif   is the number of mismatches within the fragment.
+# Tot Difs  is the total number of mismatches between two sequences.
+# MisM Pen  is the penalty per mismatch for these two sequences.
+#
+#   Seq                                    Sim      KA     Aligned Offsets   Num  Num  Tot  MisM
+#   Names                                 Pvalue  Pvalue   Begin  End   Len  Poly Dif  Difs Pen.
+PI  bayanusYNL301C;bayanusYOL120C         0.0017  0.00438   307    425  119    40   0   33  None
+PI  bayanusYNL301C;paradoxusYOL120C       0.0473  0.07422   307    344   38    20   0   45  None
+PI  bayanusYNL301C;castelliiYOL120C       0.0013  0.00281   346    425   80    19   0   68  None
+PI  bayanusYNL301C;kluyveriYNL301C        0.0102  0.01742   307    341   35    18   0   60  None
+PI  bayanusYOL120C;cerevisiaeYOL120C      0.0336  0.07606     1    143  143    41   0   21  None
+PI  bayanusYOL120C;paradoxusYOL120C       0.0260  0.06038     1    143  143    41   0   22  None
+PI  bayanusYOL120C;castelliiYOL120C       0.0035  0.00767   346    477  132    26   0   47  None
+PI  bayanusYOL120C;kluyveriYNL301C        0.0081  0.01494   286    341   56    24   0   47  None
+PI  cerevisiaeYNL301C;kluyveriYNL301C     0.0115  0.02141   301    342   42    21   0   51  None
+PI  kudriavzeviiYOL120C;castelliiYOL120C  0.0196  0.03592   349    449  101    20   0   50  None
+PI  paradoxusYOL120C;kluyveriYNL301C      0.0429  0.06451   301    341   41    20   0   46  None
+PI  castelliiYOL120C;kluyveriYNL301C      0.0408  0.05829    31     86   56    15   0   61  None
+#
+# 12 inner fragments listed.
+#
+#
+# Pairwise outer-sequence fragments (165 polymorphisms, 555 aligned bases):
+# (Outer-sequence fragments are runs of unique sites.)
+# (P-values are not corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# Multiply by 13 for Bonferroni-corrected KA Pvalues.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Mat   is the number of nonunique sites within the fragment.
+# Tot Mats  is the total number of nonunique sites for that sequence.
+# MisM Pen  is the penalty per nonunique site for this sequence.
+#
+#   Seq              Sim      KA     Aligned Offsets   Num  Num  Tot  MisM
+#   Name            Pvalue  Pvalue   Begin  End   Len  Poly Mat  Mats Pen.
+PO  mikataeYNL301C  0.0288  0.03392   457    477   21     3   0  155  None
+#
+# One outer-sequence fragment listed.
+#
