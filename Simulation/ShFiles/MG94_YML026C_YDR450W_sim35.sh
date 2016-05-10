@@ -1,2 +1,0 @@
-#!/bin/bash
-python AnalyzeSimulation.py  --paralog1 YML026C --paralog2 YDR450W --simnum 35 > YML026C_YDR450W_MG94_nonclock_Sim35_PrintScreen.txt
