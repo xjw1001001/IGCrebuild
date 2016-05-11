@@ -12,9 +12,10 @@ def main(args):
     newicktree = './YeastTree.newick'
     if args.force:
         if args.model == 'MG94':
-            Force = {5:0.0}
+            Force = {4:1.0}
         elif args.model == 'HKY':
-            Force = {4:0.0}
+            print ('HKY model does not have omega parameter!')            
+            Force = {3:1.0}
     else:
         Force = None
     test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = args.model, Force = Force, clock = args.clock)
