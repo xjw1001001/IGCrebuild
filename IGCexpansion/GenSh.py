@@ -15,8 +15,8 @@ if __name__ == '__main__':
     with open(IGC_bash_file, 'w+') as f:
         f.write('#!/bin/bash' + '\n')
         for paralog in pairs:
-            f.write(sh_line + model + '_' + '_'.join(paralog) + '_nonclock' + '.sh \n')
-            with open('./ShFiles/' + model + '_' + '_'.join(paralog) + '_nonclock' + '.sh', 'w+') as g:
+            f.write(sh_line + '_'.join(paralog) + '_' + model + '_nonclock' + '.sh \n')
+            with open('./ShFiles/' + '_'.join(paralog) + '_' + model + '_nonclock' + '.sh', 'w+') as g:
                 g.write('#!/bin/bash' + '\n')
                 g.write('python Run.py --model ' + model + ' --paralog1 ' + paralog[0]
                         + ' --paralog2 ' + paralog[1] + ' --no-force --no-clock' + '\n')

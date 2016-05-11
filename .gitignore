@@ -79,3 +79,4 @@ docs/_ext
 >>>>>>> 9d9c36c04128029a8ecf77ded5821985f9153f80
 
 *.DS_Store
+*.out
