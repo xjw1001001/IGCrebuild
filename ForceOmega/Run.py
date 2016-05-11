@@ -1,17 +1,19 @@
+## This script is to run model under omega being fixed as 1.0
+## This is to test how much omega value would affect the inferrence
+## 05/10/2016
+## Xiang Ji
+
 from IGCexpansion.CodonGeneconv import ReCodonGeneconv
 import argparse
 
 def main(args):
     paralog = [args.paralog1, args.paralog2]
-    Force = None
-    clock = False
     alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
     newicktree = './YeastTree.newick'
     if args.force:
         if args.model == 'MG94':
-            Force = {4:0.0}
+            Force = {5:0.0}
         elif args.model == 'HKY':
-            print ('HKY model does not have omega parameter!')
             Force = {4:0.0}
     else:
         Force = None
