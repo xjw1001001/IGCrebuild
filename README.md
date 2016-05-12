@@ -49,6 +49,10 @@ python setup.py install
 
 3, Similarly install any other python packages
 
+`
+pip install --user networkx
+`
+
 
 4, use Run.py or RunBootstrap.py to perform analyses with following example commands:
 
@@ -68,6 +72,16 @@ To uninstall:
 `
 pip uninstall IGCexpansion
 `
+
+Some known issues:
+
+1. If you encounter "ValueError: LAPACK function dlange could not be found" when running the code, you may solve it by either updating your LAPCK package to [atlas](http://math-atlas.sourceforge.net/) or installing an older version of jsonctmctree by the following code:
+
+`pip uninstall jsonctmctree`
+
+`pip install --user git+https://github.com/argriffing/jsonctmctree.git@cb1ba60ee2b57d6703cd9a3987000c2fd4dd68a5`
+
+
 
 Contact me at:
 xji3 _at_ ncsu.edu
