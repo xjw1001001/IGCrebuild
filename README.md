@@ -1,4 +1,5 @@
-Genconv
+IGCexpansion
+
 =======
 
 Gene Conversion Project
@@ -60,12 +61,6 @@ pip install --user networkx
 python Run.py --model MG94 --paralog1 YBL087C --paralog2 YER117W --no-force --no-clock
 `
 
-or
-
-
-`
-python RunBootstrap.py  --paralog1 YBL087C --paralog2 YER117W --bootnum 1
-`
 
 To uninstall:
 
@@ -75,11 +70,17 @@ pip uninstall IGCexpansion
 
 Some known issues:
 
-1. If you encounter "ValueError: LAPACK function dlange could not be found" when running the code, you may solve it by either updating your LAPCK package to [atlas](http://math-atlas.sourceforge.net/) or installing an older version of jsonctmctree by the following code:
+1. If you encounter "ValueError: LAPACK function dlange could not be found" when running the code. First, update your scipy packages, it's very likely to be out-dated. You can do this by
+`
+pip install --user --upgrade scipy numpy
+`
+If the problem persists, you may solve it by either updating your LAPCK package to [atlas](http://math-atlas.sourceforge.net/) or installing an older version of jsonctmctree by the following code:
 
-`pip uninstall jsonctmctree`
+	`pip uninstall jsonctmctree`
 
-`pip install --user git+https://github.com/argriffing/jsonctmctree.git@cb1ba60ee2b57d6703cd9a3987000c2fd4dd68a5`
+	`pip install --user git+https://github.com/argriffing/jsonctmctree.git@cb1ba60ee2b57d6703cd9a3987000c2fd4dd68a5`
+
+2. IF you encounter "NotImplementedError: Wrong number or type of arguments for overloaded function 'coo_matvec'". Please update your scipy and numpy packages to the newest versions.
 
 
 
