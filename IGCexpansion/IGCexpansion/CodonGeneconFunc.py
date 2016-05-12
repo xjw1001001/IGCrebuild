@@ -11,7 +11,7 @@ from copy import deepcopy
 import os, sys
 
 import numpy as np
-import networkx as nx
+#import networkx as nx
 import scipy
 import scipy.optimize
 import scipy.sparse

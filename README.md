@@ -7,12 +7,18 @@ This is the first approach with the smallest possible multi-gene family (only tw
 
 Data: Yeast
 
-Dependent: [jsonctmctree package](http://jsonctmctree.readthedocs.org/en/latest/) (powerful likelihood  calculation 
+Dependent: 
+
+[jsonctmctree package](http://jsonctmctree.readthedocs.org/en/latest/) (powerful likelihood  calculation 
 engine by Alex Griffing)
+
+[Biopython](http://biopython.org/wiki/Biopython) (you could install it by `pip install --user Biopython`)
 
 Coding Language: Python
 
 Instruction of how to run this code:
+
+0, To install python packages, you need to use [pip](https://pip.pypa.io/en/stable/installing/) (package management). 
 
 1, Install jsonctmctree package:
 
@@ -31,7 +37,7 @@ cd Genconv/IGCexpansion
 `
 
 `
-pip install .
+pip install --user .
 `  _(preferred)_
 
 or
