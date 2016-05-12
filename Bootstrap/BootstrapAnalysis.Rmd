@@ -1,0 +1,96 @@
+---
+title: "BootStrapAnalysis"
+author: "Xiang Ji"
+date: "September 30, 2015"
+output: html_document
+---
+
+```{r}
+rm(list=ls())  # clean up workspace
+setwd("/Users/xji3/GitFolders/Genconv/Bootstrap/")
+summary.path <- "/Users/xji3/FromClusterFolders/BootstrapFromCluster10022015/BootStrapSummary/"
+
+pairs <- c('YLR406C_YDL075W', 'YER131W_YGL189C', 'YML026C_YDR450W', 'YNL301C_YOL120C', 'YNL069C_YIL133C', 'YMR143W_YDL083C', 'YJL177W_YKL180W', 'YBR191W_YPL079W', 'YER074W_YIL069C', 'YDR418W_YEL054C', 'YBL087C_YER117W', 'YLR333C_YGR027C', 'YMR142C_YDL082W', 'YER102W_YBL072C')
+
+finished.pairs <- pairs
+
+for (paralog in finished.pairs){
+  summary_file <- paste(summary.path, paralog, "/MG94_",paralog, "_nonclock_Bootstrap_summary", '.txt', sep = '')
+  all <- readLines(summary_file, n = -1)
+  col.names <- strsplit(all[1], ' ')[[1]][-1]
+  row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+  summary_mat <- as.matrix(read.table(summary_file, 
+                                      row.names = row.names, 
+                                      col.names = col.names))
+  assign(paste(paralog, "_nonclock_Bootstrap_summary", sep = ""), summary_mat)
+  }
+
+path.MG94 <- "/Users/xji3/FromClusterFolders/MixedFromCluster/NewPackageNewRun/"
+summary.list.MG94 <- c( 
+  "MG94_clock_summary",
+  "MG94_nonclock_summary", 
+  "Force_MG94_clock_summary", 
+  "Force_MG94_nonclock_summary"
+  )
+for (target.summary in summary.list.MG94){
+  summary_file <- paste(path.MG94, target.summary, '.txt', sep = '')
+  all <- readLines(summary_file, n = -1)
+  col.names <- strsplit(all[1], ' ')[[1]][-1]
+  row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+  summary_mat <- as.matrix(read.table(summary_file, 
+                                      row.names = row.names, 
+                                      col.names = col.names))
+  assign(target.summary, summary_mat)
+  }
+
+target.summary = "MG94_nonclock_summary"
+path.MG94 = "/Users/xji3/Genconv_copy/NewClusterPackRun/NewPackageNewRun/"
+summary_file <- paste(path.MG94, target.summary, '.txt', sep = '')
+all <- readLines(summary_file, n = -1)
+col.names <- strsplit(all[1], ' ')[[1]][-1]
+row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+summary_mat <- as.matrix(read.table(summary_file,
+                                    row.names = row.names,
+                                    col.names = col.names))
+assign("new.MG94_nonclock_summary", summary_mat)
+report.mat = rbind(new.MG94_nonclock_summary[1,],
+                   colSums(new.MG94_nonclock_summary[34:45, ]),
+                   colSums(new.MG94_nonclock_summary[46:57, ]), 
+                   colSums(new.MG94_nonclock_summary[c(58,60:69), ]))
+rownames(report.mat) <- c("length", "IGC 1->2", "IGC 2->1", "Point Mutation")
+
+
+table.1 <- matrix(0.0, length(finished.pairs), 6)
+rownames(table.1) <- finished.pairs
+colnames(table.1) <- c("IGC lnL",
+                       "difference in logL",
+                       "tau value",
+                       "s.d. of tau",
+                       "proportion of changes",
+                       "s.d. of proportion of changes")  
+# even though I usually use variance, I put standard deviation here.
+table.1[, 1] <- t(MG94_nonclock_summary["ll",finished.pairs])
+table.1[, 2] <- t(MG94_nonclock_summary["ll",finished.pairs] - Force_MG94_nonclock_summary["ll",finished.pairs])
+table.1[, 3] <- t(MG94_nonclock_summary["tau",finished.pairs])
+s.d.tau <- c()
+for (paralog in finished.pairs){
+  s.d.tau <- c(s.d.tau, sd(get(paste(paralog, "_nonclock_Bootstrap_summary", sep = ""))["tau",]))
+}
+table.1[, 4] <- s.d.tau
+
+table.1[, 5] <- t((report.mat["IGC 1->2", finished.pairs] + report.mat["IGC 2->1", finished.pairs]) / 
+                  (report.mat["IGC 1->2", finished.pairs] + report.mat["IGC 2->1", finished.pairs] + report.mat["Point Mutation", finished.pairs]))
+
+s.d.proportion <- c()
+for (paralog in finished.pairs){
+  summary <- get(paste(paralog, "_nonclock_Bootstrap_summary", sep = ""))
+  s.d.proportion <- c(s.d.proportion, 
+                      sd(colSums(summary[34:57, ])/(colSums(summary[c(58, 60:69), ]) + colSums(summary[34:57, ]))))
+}
+table.1[, 6] <- s.d.proportion
+
+library(xtable)
+latex.table.1 <- xtable(table.1)
+table.1
+print(latex.table.1, floating = FALSE)
+```

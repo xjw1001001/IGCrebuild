@@ -1,0 +1,197 @@
+---
+title: "ForceOmegaSummary"
+author: "Xiang Ji"
+date: "May 11, 2016"
+output: html_document
+---
+
+```{r}
+rm(list=ls())  # clean up workspace
+library(ggplot2)
+pairs <- c('YLR406C_YDL075W', 'YER131W_YGL189C', 'YML026C_YDR450W', 'YNL301C_YOL120C', 'YNL069C_YIL133C', 'YMR143W_YDL083C', 'YJL177W_YKL180W', 'YBR191W_YPL079W', 'YER074W_YIL069C', 'YDR418W_YEL054C', 'YBL087C_YER117W', 'YLR333C_YGR027C', 'YMR142C_YDL082W', 'YER102W_YBL072C')
+
+## Now read individual results
+ForceOmega.summary.path <- "/Users/xji3/GitFolders/Genconv/ForceOmega/Summary/"
+summary_mat <- NULL
+for (pair in pairs){
+  individual.file <- paste(ForceOmega.summary.path, paste("Force_MG94", pair, "nonclock_summary.txt", sep = "_"), sep = "")
+  if (file.exists(individual.file)){
+    all <- readLines(individual.file, n = -1)
+    col.names <- pair
+    row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+    summary_mat <- cbind(summary_mat, as.matrix(read.table(individual.file,
+                                                           row.names = row.names,
+                                                           col.names = col.names)))
+  }
+}
+assign("ForceOmega_MG94_nonclock_summary", summary_mat)
+
+## Now read sitewise results
+for (pair in pairs){
+  sitewise.file <- paste(ForceOmega.summary.path, paste("Force_MG94", pair, "nonclock_sitewise_summary.txt", sep = "_"), sep = "")
+  summary_mat <- NULL  
+  if (file.exists(sitewise.file)){
+    all <- readLines(sitewise.file, n = -1)
+    col.names <- strsplit(all[1], ' ')[[1]][-1]
+    row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+    summary_mat <- cbind(summary_mat, as.matrix(read.table(sitewise.file,
+                                                           row.names = row.names,
+                                                           col.names = col.names)))
+    assign(paste(pair, "_ForceOmega_sitewise", sep = ""), summary_mat)
+  }
+}
+
+
+## Now read individual results
+IGCexpansion.summary.path <- "/Users/xji3/GitFolders/Genconv/IGCexpansion/Summary/"
+summary_mat <- NULL
+for (pair in pairs){
+  individual.file <- paste(IGCexpansion.summary.path, paste("MG94", pair, "nonclock_summary.txt", sep = "_"), sep = "")
+  if (file.exists(individual.file)){
+    all <- readLines(individual.file, n = -1)
+    col.names <- pair
+    row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+    summary_mat <- cbind(summary_mat, as.matrix(read.table(individual.file,
+                                                           row.names = row.names,
+                                                           col.names = col.names)))
+  }
+}
+assign("MG94_nonclock_summary", summary_mat)
+
+## Now read sitewise results
+for (pair in pairs){
+  sitewise.file <- paste(IGCexpansion.summary.path, paste("MG94", pair, "nonclock_sitewise_summary.txt", sep = "_"), sep = "")
+  summary_mat <- NULL  
+  if (file.exists(sitewise.file)){
+    all <- readLines(sitewise.file, n = -1)
+    col.names <- strsplit(all[1], ' ')[[1]][-1]
+    row.names <- strsplit(all[length(all)], ' ')[[1]][-1]
+    summary_mat <- cbind(summary_mat, as.matrix(read.table(sitewise.file,
+                                                           row.names = row.names,
+                                                           col.names = col.names)))
+    assign(paste(pair, "_sitewise", sep = ""), summary_mat)
+  }
+}
+
+```
+
+Now prepare a function for generating plots
+
+```{r}
+# define edge.list first
+edge.list <- c("N0,N1", "N0,kluyveri", "N1,N2", "N1,castellii", "N2,N3", "N2,bayanus",
+               "N3,N4", "N3,kudriavzevii", "N4,N5", "N4,mikatae", "N5,cerevisiae", "N5,paradoxus")
+# posterior.mat <- YBL087C_YER117W_ForceOmega_sitewise
+# save.dir <- "/Users/xji3/GitFolders/Genconv/ForceOmega/Plots/"
+# paralog <- "YBL087C_YER117W"
+plot.sitewise.posterior <- function(posterior.mat, edge.list, save.dir, paralog, directional = FALSE){
+  
+  for (edge in edge.list){
+    sitewise.mut <- posterior.mat[paste("(",edge, ",mut)", sep = ""), ]
+    sitewise.IGC.1to2 <- posterior.mat[paste("(",edge, ",1->2)", sep = ""), ]
+    sitewise.IGC.2to1 <- posterior.mat[paste("(",edge, ",2->1)", sep = ""), ]
+    
+    if (directional){
+      branch.plot <- ggplot(mapping = aes(x = 1:length(sitewise.mut))) +
+        xlab("Codon Position") + 
+        ylab("Posterior Expected number of Transitions") + 
+        ggtitle(paste(paralog, edge, "branch directional posterior plot", sep = " ")) +
+        geom_line(aes(y = sitewise.mut, colour = "Mutation")) + 
+        geom_line(aes(y = sitewise.IGC.1to2, colour = "IGC 1->2"))+
+        geom_line(aes(y = sitewise.IGC.2to1, colour = "IGC 2->1"))+
+        ggsave(paste(save.dir, gsub(",", "_",edge), " ", paralog, " branch posterior directional plot.jpg", sep = ""))      
+    }else{
+      branch.plot <- ggplot(mapping = aes(x = 1:length(sitewise.mut))) +
+        xlab("Codon Position") + 
+        ylab("Posterior Expected number of Transitions") + 
+        ggtitle(paste(paralog, edge, "branch posterior plot", sep = " ")) +
+        geom_line(aes(y = sitewise.mut, colour = "Mutation")) + 
+        geom_line(aes(y = sitewise.IGC.2to1 + sitewise.IGC.1to2, colour = "IGC"))+
+        ggsave(paste(save.dir, gsub(",", "_",edge), " ", paralog, " branch posterior plot.jpg", sep = ""))      
+    }
+    
+    print(branch.plot)
+  }
+  if(directional){
+    all.branch.plot <- ggplot(mapping = aes(x = 1:length(sitewise.mut))) +
+      xlab("Codon Position") + 
+      ylab("Posterior directional Expected number of Transitions") + 
+      ggtitle(paste(paralog, "all branch posterior plot", sep = " ")) +
+      geom_line(aes(y = colSums(posterior.mat[1:12, ]), colour = "Mutation")) + 
+      geom_line(aes(y = colSums(posterior.mat[13:24, ]), colour = "IGC 1->2"))+
+      geom_line(aes(y = colSums(posterior.mat[25:36, ]), colour = "IGC 2->1"))+
+      ggsave(paste(save.dir, paralog, " all branch posterior directional plot.jpg", sep = ""))    
+  }
+  else{
+    all.branch.plot <- ggplot(mapping = aes(x = 1:length(sitewise.mut))) +
+      xlab("Codon Position") + 
+      ylab("Posterior Expected number of Transitions") + 
+      ggtitle(paste(paralog, "all branch posterior plot", sep = " ")) +
+      geom_line(aes(y = colSums(posterior.mat[1:12, ]), colour = "Mutation")) + 
+      geom_line(aes(y = colSums(posterior.mat[13:36, ]), colour = "IGC"))+
+      ggsave(paste(save.dir, paralog, " all branch posterior plot.jpg", sep = ""))    
+  }
+  
+  print(all.branch.plot)
+}
+```
+
+#### Influence of forcing omega = 1 on the postrior percent of changes due to IGC
+Now show the difference in % IGC from two inference, it tends to over-estimated percent of changes due to IGC when forcing omega = 1
+```{r}
+difference.table <- cbind(colSums(MG94_nonclock_summary[c(34, 36:46, 48:57), ]) / colSums(MG94_nonclock_summary[c(34, 36:46, 48:58, 60:69), ]) ,
+                          colSums(ForceOmega_MG94_nonclock_summary[c(34, 36:46, 48:57), ]) / colSums(ForceOmega_MG94_nonclock_summary[c(34, 36:46, 48:58, 60:69), ]),
+                          colSums(MG94_nonclock_summary[c(34, 36:46, 48:57), ]) / colSums(MG94_nonclock_summary[c(34, 36:46, 48:58, 60:69), ]) -
+                            colSums(ForceOmega_MG94_nonclock_summary[c(34, 36:46, 48:57), ]) / colSums(ForceOmega_MG94_nonclock_summary[c(34, 36:46, 48:58, 60:69), ]),
+                          MG94_nonclock_summary["ll", ], 
+                          ForceOmega_MG94_nonclock_summary["ll", ],
+                          MG94_nonclock_summary["ll", ] - ForceOmega_MG94_nonclock_summary["ll", ], 
+                          MG94_nonclock_summary["tau",], 
+                          ForceOmega_MG94_nonclock_summary["tau",], 
+                          MG94_nonclock_summary["tau",] - ForceOmega_MG94_nonclock_summary["tau",]
+)
+colnames(difference.table) <- c("Free Omega", "Omega = 1", "IGC% difference", 
+                                "lnL free omega", "lnL omega = 1", "lnL difference",
+                                "tau free omega", "tau omega = 1", "tau difference")
+rownames(difference.table) <- colnames(MG94_nonclock_summary)
+difference.table
+```
+
+#### Plot sitewise posterior expected number of transitions from point mutation and IGC on each branch
+Now plot IGC posterior expected number of transitions (directional first)
+```{r}
+for (pair in pairs){
+  save.dir <- paste("/Users/xji3/GitFolders/Genconv/IGCexpansion/Plots/", pair, "/", sep = "")
+  dir.create(save.dir, showWarnings = FALSE)
+  posterior.mat <- get(paste(pair, "_sitewise", sep = ""))
+  plot.sitewise.posterior(posterior.mat, edge.list, save.dir, pair, directional = TRUE)
+}
+```
+
+#### Plot sitewise posterior expected number of transitions from point mutation and IGC on each branch
+Now plot IGC posterior expected number of transitions
+```{r}
+for (pair in pairs){
+  save.dir <- paste("/Users/xji3/GitFolders/Genconv/IGCexpansion/Plots/", pair, "/", sep = "")
+  dir.create(save.dir, showWarnings = FALSE)
+  posterior.mat <- get(paste(pair, "_sitewise", sep = ""))
+  plot.sitewise.posterior(posterior.mat, edge.list, save.dir, pair)
+}
+```
+
+```{r}
+# Now plot Force Omega = 1 posterior expected number of transitions
+
+# for (pair in pairs){
+#   save.dir <- paste("/Users/xji3/GitFolders/Genconv/ForceOmega/Plots/", pair, "/", sep = "")
+#   dir.create(save.dir, showWarnings = FALSE)
+#   posterior.mat <- get(paste(pair, "_ForceOmega_sitewise", sep = ""))
+#   plot.sitewise.posterior(posterior.mat, edge.list, save.dir, pair)
+# }
+```
+
+
+Save all data to Rdata
+```{r}
+save.image("/Users/xji3/GitFolders/Genconv/ForceOmega/All.Rdata")
+```

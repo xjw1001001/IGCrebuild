@@ -1,0 +1,137 @@
+# Output of GENECONV for sequence file ./output/YER074W_YIL069C/YER074W_YIL069C_input.fasta
+# GENECONV version 1.81a
+# Command line:  GENECONV 
+#   ./output/YER074W_YIL069C/YER074W_YIL069C_input.fasta -nolog /lp /w822
+#   /p
+#
+# ./output/YER074W_YIL069C/YER074W_YIL069C_input.fasta: 13 sequences.
+#
+# Options and features: 13 protein sequences, 399 aligned bases,
+#   96 polymorphisms, FASTA format, mismatches in fragments not allowed,
+#   no groups defined, maxSimPairPval=0.05, maxSimGlobPval=0.05,
+#   no maxKAPairPval limits, no maxKAGlobPval limits,
+#   simPvals based on 10,000 permutations,
+#   global P-values based on BLAST-like global scores,
+#   fragment limits: minlength=1, minnpolys=2, minscore=2,
+#   pairwise max lists=2000, starting seed=822,
+#   contiguous sites with indels are one polymorphism, no indel blocks,
+#   no match (replacement) char in source file.
+# Sequence names:  bayanusYER074W  bayanusYIL069C  cerevisiaeYER074W
+#   cerevisiaeYIL069C  kudriavzeviiYER074W  kudriavzeviiYIL069C
+#   mikataeYER074W  mikataeYIL069C  paradoxusYER074W  paradoxusYIL069C
+#   castelliiYER074W  castelliiYIL069C  kluyveriYER074W
+#
+# No mismatches in fragments (`gscale'=0)
+# Amino-acid codes in data:  A(1581)  C(1054)  D(0)  E(0)  F(0)  G(1251)
+#   H(0)  I(0)  K(0)  L(0)  M(0)  N(0)  P(0)  Q(0)  R(0)  S(0)  X(0)
+#   T(1301)  V(0)  W(0)  Y(0)
+# In terms of 3-letter codes:  Ala(1581)  Arg(0)  Asn(0)  Asp(0)
+#   Cys(1054)  Gln(0)  Glu(0)  Gly(1251)  His(0)  Ile(0)  Leu(0)  Lys(0)
+#   Met(0)  Phe(0)  Pro(0)  Ser1(0)  Ser2(0)  Thr(1301)  Trp(0)  Tyr(0)
+#   Val(0)
+# No non-amino-acid characters in data.
+# 96 polymorphic and 303 monomorphic sites with no indels.
+# No single polymorphic sites with indels.
+# No indel blocks with more than one site.
+# 96 amino-acid polymorphisms to be permuted.
+# 
+# Comparisons without any fragments (proteins):
+#   bayanusYER074W (outer sequence frags): No sites are unique.
+#   bayanusYIL069C (outer sequence frags): No sites are unique.
+#   cerevisiaeYIL069C (outer sequence frags): No sites are unique.
+#   mikataeYER074W (outer sequence frags): No sites are unique.
+#   paradoxusYER074W (outer sequence frags): No sites are unique.
+#   paradoxusYIL069C (outer sequence frags): No sites are unique.
+# 
+# The starting random number seed is  822.
+# Simulated P-values are based on 10,000 permutations.
+# Maximum BLAST-like scores:
+# Inner      Max         Sim     S.D.s above     S.D. of
+#  frags    Score      P-value    sim. mean        sims
+# SCORE     3.808      0.2570         0.49       1.0093
+# OuterSeq
+#  frags    2.785      0.0824         1.77       1.0445
+#
+# Global lists: no I and no O significant fragments
+# Pairwise lists: 4 I and 1 O significant fragments
+#  where I means inner pair, O is outer seq, A is outer pair, and
+#  G means outer group (fragments).
+# Global P-values are based on BLAST-like global scores.
+#
+# Fragment offsets and lengths are in codons.
+# Bases other than `ACDEFGHIKLMNPQRSXTVWY' are treated as indels
+#   for the purpose of generating polymorphisms.
+#
+#
+# Global inner fragments (96 polymorphisms, 399 aligned bases):
+# (Inner fragments are runs of matching sites.)
+# (Sim and BC KA P-values are corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+#
+# No inner fragments listed.
+#
+# ADDITIONAL PAIRWISE FRAGMENTS with BC Pairwise SimPval < 0.05
+#   OR LISTED GLOBAL FRAGMENTS with significantly better BC SimPval
+# Here BC SimPval is the Pairwise Sim Pvalue multiplied by 78.
+#
+#   SeBC Sim  BC KA    Aligned Offsets   Num  Num  Tot  MisM
+#   NaPvalue  Pvalue   Begin  End   Len  Poly Dif  Difs Pen.
+AI  bayanusYER074W;bayanusYIL069C 0.0078  > 1.0      34    359  326    76   0    7  None
+#
+# One inner fragment listed.
+#
+#
+# Global outer-sequence fragments (96 polymorphisms, 399 aligned bases):
+# (Outer-sequence fragments are runs of unique sites.)
+# (Sim and BC KA P-values are corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+#
+# No outer-sequence fragments listed.
+#
+#
+# Pairwise inner fragments (96 polymorphisms, 399 aligned bases):
+# (Inner fragments are runs of matching sites.)
+# (P-values are not corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# Multiply by 78 for Bonferroni-corrected KA Pvalues.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Dif   is the number of mismatches within the fragment.
+# Tot Difs  is the total number of mismatches between two sequences.
+# MisM Pen  is the penalty per mismatch for these two sequences.
+#
+#   Seq                                   Sim      KA     Aligned Offsets   Num  Num  Tot  MisM
+#   Names                                Pvalue  Pvalue   Begin  End   Len  Poly Dif  Difs Pen.
+PI  bayanusYER074W;bayanusYIL069C        0.0000  0.02194    34    359  326    76   0    7  None
+PI  cerevisiaeYER074W;cerevisiaeYIL069C  0.0354  0.10601   202    353  152    35   0   12  None
+PI  mikataeYIL069C;castelliiYIL069C      0.0392  0.05420    67    104   38     9   0   51  None
+PI  paradoxusYER074W;paradoxusYIL069C    0.0392  0.13598   163    362  200    46   0    8  None
+#
+# 4 inner fragments listed.
+#
+#
+# Pairwise outer-sequence fragments (96 polymorphisms, 399 aligned bases):
+# (Outer-sequence fragments are runs of unique sites.)
+# (P-values are not corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# Multiply by 13 for Bonferroni-corrected KA Pvalues.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Mat   is the number of nonunique sites within the fragment.
+# Tot Mats  is the total number of nonunique sites for that sequence.
+# MisM Pen  is the penalty per nonunique site for this sequence.
+#
+#   Seq               Sim      KA     Aligned Offsets   Num  Num  Tot  MisM
+#   Name             Pvalue  Pvalue   Begin  End   Len  Poly Mat  Mats Pen.
+PO  kluyveriYER074W  0.0469  0.05986   310    348   39     4   0   80  None
+#
+# One outer-sequence fragment listed.
+#
