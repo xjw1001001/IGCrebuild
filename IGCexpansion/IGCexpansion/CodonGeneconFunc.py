@@ -54,8 +54,8 @@ def get_MG94BasicRate(ca, cb, pi, kappa, omega, codon_table):
     if ndiff > 1:
         return 0
     elif ndiff == 0:
-        print 'Please check your codon tables and make sure no redundancy'
-        print ca, cb
+        print ('Please check your codon tables and make sure no redundancy')
+        print (ca, cb)
         return 0
     else:
         na = ca[dif[0]]

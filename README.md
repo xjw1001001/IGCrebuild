@@ -14,7 +14,7 @@ engine by Alex Griffing)
 
 [Biopython](http://biopython.org/wiki/Biopython) (you could install it by `pip install --user Biopython`)
 
-Coding Language: Python
+Coding Language: Python 2.7
 
 Instruction of how to run this code:
 
@@ -79,7 +79,7 @@ If the problem persists, you may solve it by either updating your LAPCK package 
 
 	`pip install --user git+https://github.com/argriffing/jsonctmctree.git@cb1ba60ee2b57d6703cd9a3987000c2fd4dd68a5`
 
-2. IF you encounter "NotImplementedError: Wrong number or type of arguments for overloaded function 'coo_matvec'". Please update your scipy and numpy packages to the newest versions.
+2. If you encounter "NotImplementedError: Wrong number or type of arguments for overloaded function 'coo_matvec'". Please update your scipy and numpy packages to the newest versions.
 
 3. If you are using windows operating system, and encountered "numpy.distutils.system_info.NotFoundError: no lapack/blas resources found" when building/upgrading scipy package. Please try Enthought Canopy or Anaconda as suggested [Here](http://docs.scipy.org/doc/numpy-1.10.1/user/install.html#id4). They come with built in packages like numpy and scipy. 
 
