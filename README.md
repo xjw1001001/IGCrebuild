@@ -81,6 +81,10 @@ If the problem persists, you may solve it by either updating your LAPCK package 
 
 2. IF you encounter "NotImplementedError: Wrong number or type of arguments for overloaded function 'coo_matvec'". Please update your scipy and numpy packages to the newest versions.
 
+3. If you are using windows operating system, and encountered "numpy.distutils.system_info.NotFoundError: no lapack/blas resources found" when building/upgrading scipy package. Please try Enthought Canopy or Anaconda as suggested [Here](http://docs.scipy.org/doc/numpy-1.10.1/user/install.html#id4). They come with built in packages like numpy and scipy. 
+
+4. If you encountered "Fatal error in launcher: Unable to create process using ..." when using pip in cmd (windows os). Please try ` python -m pip install xxx` as suggested [here](http://stackoverflow.com/questions/24627525/fatal-error-in-launcher-unable-to-create-process-using-c-program-files-x86).
+
 
 
 Contact me at:
