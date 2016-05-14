@@ -58,7 +58,7 @@ pip install --user Biopython
 `
 
 
-4, use Run.py or RunBootstrap.py to perform analyses with following example commands:
+4, use Run.py to perform analyses with following example commands:
 
 `
 python Run.py --model MG94 --paralog1 YBL087C --paralog2 YER117W --no-force --no-clock
@@ -75,7 +75,7 @@ Some known issues:
 
 1. If you encounter "ValueError: LAPACK function dlange could not be found" when running the code. First, update your scipy packages, it's very likely to be out-dated. You can do this by
 `
-pip install --user --upgrade scipy numpy
+pip install --user --upgrade numpy scipy
 `
 If the problem persists, you may solve it by either updating your LAPCK package to [atlas](http://math-atlas.sourceforge.net/) or installing an older version of jsonctmctree by the following code:
 
