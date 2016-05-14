@@ -53,6 +53,10 @@ python setup.py install
 pip install --user networkx
 `
 
+`
+pip install --user Biopython
+`
+
 
 4, use Run.py or RunBootstrap.py to perform analyses with following example commands:
 
