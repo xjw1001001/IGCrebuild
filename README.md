@@ -3,7 +3,7 @@ IGCexpansion
 
 Gene Conversion Project
 
-This is the first approach with the smallest possible multi-gene family (only two paralogs). 
+This is the first approach with the smallest possible multi-gene family (only two paralogs). Code for IGC inference as described in Ji-Griffing-Thorne 2016 MBE paper is available here.
 
 Data: Yeast
 
