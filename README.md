@@ -3,9 +3,9 @@ IGCexpansion
 
 Gene Conversion Project
 
-This is the first approach with the smallest possible multi-gene family (only two paralogs). Code for IGC inference as described in Ji-Griffing-Thorne 2016 MBE paper is available here.
+Code for IGC inference as described in Ji-Griffing-Thorne 2016 MBE paper is available here. This is the first approach with the smallest possible multi-gene family (only two paralogs). 
 
-Data: Yeast
+Data: Yeast (stored in MafftAlignment folder)
 
 Dependent: 
 
@@ -44,7 +44,7 @@ or
 
 `
 python setup.py install
-`  
+` _(hard to uninstall)_  
 
 
 3, Similarly install any other python packages
