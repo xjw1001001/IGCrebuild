@@ -29,11 +29,11 @@ pip install --user git+https://github.com/argriffing/jsonctmctree.git
 2, Install IGCexpansion package:
 
 `
-git clone https://github.com/xji3/Genconv.git
+git clone https://github.com/xji3/JGT_MBE_2016.git
 `
 
 `
-cd Genconv/IGCexpansion
+cd JGT_MBE_2016/IGCexpansion
 `
 
 `
