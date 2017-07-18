@@ -1,9 +1,14 @@
+# -*- coding: utf-8 -*-   
+
 # Uses Alex Griffing's JsonCTMCTree package for likelihood and gradient calculation
 # Re-write of my previous CodonGeneconv class
 # commit number: Oct 22nd, 2014 for old package
 # cb1ba60ee2b57d6703cd9a3987000c2fd4dd68a5
 # commit number: Dec 17th, 2014 for new package
 # 33e393a973161e3a29149e82bfda23882b5826f3
+
+  
+
 from __future__ import print_function, absolute_import
 from IGCexpansion.CodonGeneconFunc import *
 import argparse
@@ -13,15 +18,17 @@ import ast
 #import matplotlib.pyplot as plt
 
 class ReCodonGeneconv:
-    def __init__(self, tree_newick, alignment, paralog, Model = 'MG94', nnsites = None, clock = False, Force = None, save_path = './save/', save_name = None):
+    def __init__(self, tree_newick, alignment, paralog, Model = 'MG94', nnsites = None, clock = False, Force = None, save_path = './save/', save_name = None, post_dup = 'N1'):
         self.newicktree  = tree_newick  # newick tree file loc
         self.seqloc      = alignment    # multiple sequence alignment, now need to remove gap before-hand
         self.paralog     = paralog      # parlaog list
         self.nsites      = nnsites      # number of sites in the alignment used for calculation
         self.Model       = Model
+        self.IGC         = ''           # indicates if or not IGC in ancestral compare result
         self.ll          = 0.0          # Store current log-likelihood
         self.Force       = Force        # parameter constraints only works on self.x not on x_clock which should be translated into self.x first
         self.clock       = clock        # molecular clock control
+        self.post_dup    = post_dup     # store first post-duplication node name
         self.save_path   = save_path    # location for auto-save files
         self.save_name   = save_name    # save file name
         self.auto_save   = 0            # auto save control
@@ -42,10 +49,12 @@ class ReCodonGeneconv:
         codons = [a+b+c for a in bases for b in bases for c in bases]
         amino_acids = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
         
-        self.nt_to_state    = {a:i for (i, a) in enumerate('ACGT')}
+        self.nt_to_state    = {a:i for (i, a) in enumerate('ACGT')}  
+        self.state_to_nt    = {i:a for (i, a) in enumerate('ACGT')}
         self.codon_table    = dict(zip(codons, amino_acids))
         self.codon_nonstop  = [a for a in self.codon_table.keys() if not self.codon_table[a]=='*']
         self.codon_to_state = {a.upper() : i for (i, a) in enumerate(self.codon_nonstop)}
+        self.state_to_codon = {i : a.upper() for (i, a) in enumerate(self.codon_nonstop)}
         self.pair_to_state  = {pair:i for i, pair in enumerate(product(self.codon_nonstop, repeat = 2))}
 
         # Tip data related variable
@@ -80,6 +89,9 @@ class ReCodonGeneconv:
         self.ExpectedGeneconv  = None    # dictionary storing expected number of geneconv events on each branch
         self.ExpectedDwellTime = None    # dictionary storing expected total dwell time of heterogeneous states of each branch same order as self.edge_list
 
+        # ancestral reconstruction series
+        self.reconstruction_series  = None  # nodes * paralogs * 'string'
+
         # Initialize all parameters
         self.initialize_parameters()
         
@@ -98,68 +110,10 @@ class ReCodonGeneconv:
                 print ('Successfully loaded parameter value from ' + save_file)
                 
     def get_tree(self):
-        self.tree, self.edge_list, self.node_to_num = read_newick(self.newicktree)
+        self.tree, self.edge_list, self.node_to_num = read_newick(self.newicktree, self.post_dup)
         self.num_to_node = {self.node_to_num[i]:i for i in self.node_to_num}
         self.edge_to_blen = {edge:1.0 for edge in self.edge_list}
 
-    def get_tree_old(self):
-        tree = Phylo.read( self.newicktree, "newick")
-        #set node number for nonterminal nodes and specify root node
-        numInternalNode = 0
-        for clade in tree.get_nonterminals():
-            clade.name = 'N' + str(numInternalNode)
-            numInternalNode += 1
-        tree_phy = tree.as_phyloxml(rooted = 'True')
-        tree_nx = Phylo.to_networkx(tree_phy)
-
-        triples = ((u.name, v.name, d['weight']) for (u, v, d) in tree_nx.edges(data = True)) # data = True to have the blen as 'weight'
-        T = nx.DiGraph()
-        edge_to_blen = {}
-        for va, vb, blen in triples:
-            edge = (va, vb)
-            T.add_edge(*edge)
-            edge_to_blen[edge] = blen
-
-        self.edge_to_blen = edge_to_blen
-
-        # Now assign node_to_num
-        leaves = set(v for v, degree in T.degree().items() if degree == 1)
-        internal_nodes = set(list(T)).difference(leaves)
-        node_names = list(internal_nodes) + list(leaves)
-        self.node_to_num = {n:i for i, n in enumerate(node_names)}
-        self.num_to_node = {self.node_to_num[i]:i for i in self.node_to_num}
-
-        # Prepare for generating self.tree so that it has same order as the self.x_process
-        nEdge = len(self.edge_to_blen)  # number of edges
-        l = nEdge / 2 + 1               # number of leaves
-        k = l - 1   # number of internal nodes. The notation here is inconsistent with Alex's for trying to match my notes.
-
-        leaf_branch = [edge for edge in self.edge_to_blen.keys() if edge[0][0] == 'N' and str.isdigit(edge[0][1:]) and not str.isdigit(edge[1][1:])]
-        out_group_branch = [edge for edge in leaf_branch if edge[0] == 'N0' and not str.isdigit(edge[1][1:])] [0]
-        internal_branch = [x for x in self.edge_to_blen.keys() if not x in leaf_branch]
-        assert(len(internal_branch) == k-1)  # check if number of internal branch is one less than number of internal nodes
-
-        leaf_branch.sort(key = lambda node: int(node[0][1:]))  # sort the list by the first node number in increasing order
-        internal_branch.sort(key = lambda node: int(node[0][1:]))  # sort the list by the first node number in increasing order
-        edge_list = []
-        for i in range(len(internal_branch)):
-            edge_list.append(internal_branch[i])
-            edge_list.append(leaf_branch[i])
-        for j in range(len(leaf_branch[i + 1:])):
-            edge_list.append(leaf_branch[i + 1 + j])
-            
-        # Now setup self.tree dictionary
-        tree_row = [self.node_to_num[na] for na, nb in edge_list]
-        tree_col = [self.node_to_num[nb] for na, nb in edge_list]
-        tree_process = [0 if e[0] == 'N0' and e[1] != 'N1' else 1 for e in edge_list]
-        self.edge_list = edge_list
-
-        self.tree = dict(
-            row = tree_row,
-            col = tree_col,
-            process = tree_process,
-            rate = np.ones(len(tree_row))
-            )
 
     def nts_to_codons(self):
         for name in self.name_to_seq.keys():
@@ -174,9 +128,11 @@ class ReCodonGeneconv:
         if self.Model == 'MG94':
             # Convert from nucleotide sequences to codon sequences.
             self.nts_to_codons()
-            obs_to_state = self.codon_to_state
+            obs_to_state = deepcopy(self.codon_to_state)
+            obs_to_state['---'] = -1
         else:
-            obs_to_state = self.nt_to_state        
+            obs_to_state = deepcopy(self.nt_to_state)
+            obs_to_state['-'] = -1
 
         # change the number of sites for calculation if requested
         if self.nsites is None:
@@ -647,6 +603,32 @@ class ReCodonGeneconv:
             edge_derivs = []
 
         return ll, edge_derivs
+
+    def _sitewise_loglikelihood(self):
+        scene = self.get_scene()
+        
+        log_likelihood_request = {'property':'dnnlogl'}
+        requests = [log_likelihood_request]
+        
+        j_in = {
+            'scene' : self.scene_ll,
+            'requests' : requests
+            }
+        j_out = jsonctmctree.interface.process_json_in(j_in)
+
+        status = j_out['status']
+    
+        ll = j_out['responses'][0]
+        self.ll = ll
+
+        return ll
+
+    def get_sitewise_loglikelihood_summary(self, summary_file):
+        ll = self._sitewise_loglikelihood()
+        with open(summary_file, 'w+') as f:
+            f.write('#Site\tlnL\t\n')
+            for i in range(self.nsites):
+                f.write('\t'.join([str(i), str(ll[i])]) + '\n')
     
     def get_scene(self):
         if self.Model == 'MG94':
@@ -863,7 +845,7 @@ class ReCodonGeneconv:
 
         return -ll
         
-    def get_mle(self, display = True, derivative = True, em_iterations = 3, method = 'basin-hopping', niter = 2000):
+    def get_mle(self, display = True, derivative = True, em_iterations = 0, method = 'basin-hopping', niter = 2000):
         if em_iterations > 0:
             ll = self._loglikelihood2()
             # http://jsonctmctree.readthedocs.org/en/latest/examples/hky_paralog/yeast_geneconv_zero_tau/index.html#em-for-edge-lengths-only
@@ -894,7 +876,8 @@ class ReCodonGeneconv:
             else:
                 f = partial(self.objective_wo_derivative, display)
             guess_x = self.x            
-            bnds.extend([(None, None)] * (len(self.x_process) - 3))
+            bnds.extend([(None, None)] * (len(self.x_process) - 4))
+            bnds.extend([(None, 7.0)] * (1))  # Now add upper limit for tau
             edge_bnds = [(None, None)] * len(self.x_rates)
             edge_bnds[1] = (self.minlogblen, None)
             bnds.extend(edge_bnds)
@@ -1031,10 +1014,10 @@ class ReCodonGeneconv:
             print ('Need to implement this for old package')
 
     def _ExpectedHetDwellTime(self, package = 'new', display = False):
-
+        
         if package == 'new':
             self.scene_ll = self.get_scene()
-            if self.Model == 'MG94':
+            if self.Model == 'MG94':                                
                 heterogeneous_states = [(a, b) for (a, b) in list(product(range(len(self.codon_to_state)), repeat = 2)) if a != b]
             elif self.Model == 'HKY':
                 heterogeneous_states = [(a, b) for (a, b) in list(product(range(len(self.nt_to_state)), repeat = 2)) if a != b]
@@ -1476,224 +1459,128 @@ class ReCodonGeneconv:
         else:
             self.x = np.loadtxt(open(save_file, 'r'))
             self.update_by_x()
-
-def main(args):
-    paralog = [args.paralog1, args.paralog2]
-    #alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-    alignment_file = './NewPairsAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-    newicktree = '../PairsAlignemt/YeastTree.newick'
-    path = './NewPackageNewRun/'
-    summary_path = './NewPackageNewRun/'
-    omega_guess = 0.1
-
-    print ('Now calculate MLE for pair', paralog)
+            
+    def site_reconstruction(self, package = 'new', display = False):#前面三个是不要的
+        if package == 'new':
+            self.scene_ll = self.get_scene()
+            requests = [{'property' : "DNDNODE"}]
+            j_in = {
+                'scene' : self.scene_ll,
+                'requests' : requests
+                }        
+            j_out = jsonctmctree.interface.process_json_in(j_in)
+            
+            status = j_out['status']
+            states_matrix = np.array(j_out['responses'][0])
+            #iid_obs * states * sites, we want to find the states to make the number biggest
+            maxprob_number = np.zeros((self.nsites,len(self.node_to_num)))
+            for sites in range(self.nsites):
+                for nodes_num in range(len(self.node_to_num)):
+                    if self.Model == 'HKY':
+                        maxprob_number[sites][nodes_num] = np.argmax(states_matrix[sites,0:16,nodes_num])
+                    elif self.Model == 'MG94':
+                        maxprob_number[sites][nodes_num] = np.argmax(states_matrix[sites,0:3721,nodes_num])
+            self.get_reconstruction_result(states_matrix, maxprob_number, DNA_or_protein = 'DNA')            
+        else:
+            print ('Need to implement this for old package')
+        
+    def get_reconstruction_result(self, states_matrix, maxmatrix, DNA_or_protein = 'DNA'):
+        site_differences = [len(set(maxmatrix[sites])) for sites in range(self.nsites)]#TODO: sitedifferences in different paralogs
+        if self.Model == 'HKY':
+            if self.tau == 0:
+                self.reconstruction_series = {'model':'HKY', 'data': [], 'treename': self.newicktree}
+            else:
+                self.reconstruction_series = {'model':'HKY+IGC', 'data': [], 'treename': self.newicktree}
+            for nodes_num in range(len(self.node_to_num)):
+                self.reconstruction_series['data'].append({"name":self.num_to_node[nodes_num], self.paralog[0]:"", self.paralog[1]:""})
+                for sites in range(3,self.nsites):
+                    state_1, state_2 = divmod(maxmatrix[sites][nodes_num], 4)
+                    state_1 = int(state_1)
+                    state_2 = int(state_2)
+                    self.reconstruction_series['data'][nodes_num][self.paralog[0]]+=self.state_to_nt[state_1]
+                    self.reconstruction_series['data'][nodes_num][self.paralog[1]]+=self.state_to_nt[state_2]
+        elif self.Model == 'MG94':
+            if self.tau == 0:
+                self.reconstruction_series = {'model':'MG94', 'data':[], 'treename': self.newicktree}
+            else:
+                self.reconstruction_series = {'model':'MG94+IGC', 'data':[], 'treename': self.newicktree}
+            for nodes_num in range(len(self.node_to_num)):
+                self.reconstruction_series['data'].append({"name":self.num_to_node[nodes_num], self.paralog[0]:"", self.paralog[1]:""})
+                for sites in range(1,self.nsites):
+                    state_1, state_2 = divmod(maxmatrix[sites][nodes_num], 61)
+                    state_1 = int(state_1)
+                    state_2 = int(state_2)
+                    self.reconstruction_series['data'][nodes_num][self.paralog[0]]+=self.state_to_codon[state_1]
+                    self.reconstruction_series['data'][nodes_num][self.paralog[1]]+=self.state_to_codon[state_2]
+        
+    def find_differences_between(self, reconstruction_series1, reconstruction_series2):#the series must from one tree
+        assert(len(reconstruction_series1['data'])==len(reconstruction_series2['data']))
+        filename = open('../test/Ancestral_reconstruction/' + 'ancestral_reconstruction_' + self.paralog[0] + '_' + self.paralog[1] + '_' + reconstruction_series1['model'] + '_' + reconstruction_series2['model'] +'.txt' ,'w')
+        filename.write(repr(reconstruction_series1))
+        filename.write(repr(reconstruction_series2))
+        filename.write('\n')
+        result = {}
+        flag = 0
+        for nodes_num in range(len(reconstruction_series1['data'])):
+            for paralog in self.paralog:
+                result[reconstruction_series1['data'][nodes_num]['name'] + '_' + paralog] = {'location':[], 'model_1': [], 'model_2': [], 'differences': 0}
+                for sites in range(len(reconstruction_series1['data'][nodes_num])):
+                    if reconstruction_series1['data'][nodes_num][paralog][sites] == reconstruction_series2['data'][nodes_num][paralog][sites]:
+                        continue
+                    else:
+                        result[reconstruction_series1['data'][nodes_num]['name'] + '_' + paralog]['location'].append(sites)
+                        result[reconstruction_series1['data'][nodes_num]['name'] + '_' + paralog]['model_1'].append(reconstruction_series1['data'][nodes_num][paralog][sites])
+                        result[reconstruction_series1['data'][nodes_num]['name'] + '_' + paralog]['model_2'].append(reconstruction_series2['data'][nodes_num][paralog][sites])
+                        result[reconstruction_series1['data'][nodes_num]['name'] + '_' + paralog]['differences'] += 1
+                        flag += 1
+                        print (flag)
+        filename.write('Total differences:' + str(flag)+ '\n')
+        filename.write(repr(result))
+        filename.close()
+        return result       
+            
     
-    if hasattr(args, 'Force'):
-        Force = args.Force
-        Force_hky = None
-        if Force != None:
-            path += 'Force_'
-            Force_hky = {4:0.0}
-    else:
-        Force = None
-        Force_hky = None
-
-    test_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = False)
-    result_hky = test_hky.get_mle(display = False, derivative = True, em_iterations = 1, method = 'BFGS')
-    test_hky.get_ExpectedNumGeneconv()
-    test_hky.get_ExpectedHetDwellTime()
-    test_hky.get_individual_summary(summary_path = summary_path)
-    test_hky.save_to_file(path = path)
-
-    test2_hky = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force_hky, clock = True)
-    result2_hky = test2_hky.get_mle(display = False, derivative = True, em_iterations = 1, method = 'BFGS')
-    test2_hky.get_ExpectedNumGeneconv()
-    test2_hky.get_ExpectedHetDwellTime()
-    test2_hky.get_individual_summary(summary_path = summary_path)
-    test2_hky.save_to_file(path = path)
-
-
-    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False)
-    x = np.concatenate((test_hky.x_process[:-1], np.log([omega_guess]), test_hky.x_process[-1:], test_hky.x_rates))
-    test.update_by_x(x)
-    
-    result = test.get_mle(display = True, derivative = True, em_iterations = 1, method = 'BFGS')
-    test.get_ExpectedNumGeneconv()
-    test.get_ExpectedHetDwellTime()
-    test.get_individual_summary(summary_path = summary_path)
-    test.save_to_file(path = path)
-
-    test2 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
-    #x_clock = np.concatenate((test2_hky.x_process[:-1], np.log([omega_guess]), test2_hky.x_process[-1:], test2_hky.x_Lr))
-    #test2.update_by_x_clock(x_clock)
-    result = test2.get_mle(display = True, derivative = True, em_iterations = 0, method = 'BFGS')
-    test2.get_ExpectedNumGeneconv()
-    test2.get_individual_summary(summary_path = summary_path)
-    test2.save_to_file(path = path)
-    
-
 if __name__ == '__main__':
-##    parser = argparse.ArgumentParser()
-##    parser.add_argument('--paralog1', required = True, help = 'Name of the 1st paralog')
-##    parser.add_argument('--paralog2', required = True, help = 'Name of the 2nd paralog')
-##    parser.add_argument('--Force', type = ast.literal_eval, help = 'Parameter constraints')
+    paralog = ['YLR406C', 'YDL075W']
+    Force = None
+    alignment_file = '../test/YLR406C_YDL075W_test_input.fasta'
+    newicktree = '../test/YeastTree.newick'
+    ##    test.get_individual_summary(summary_path = '../test/Summary/')
+    ##    test.get_SitewisePosteriorSummary(summary_path = '../test/Summary/')
+    # Force MG94:{5:0.0} HKY:{4:0.0}
+    
+    #MG94+tau
+    MG94_tau = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = None, save_path = '../test/save/')
+    MG94_tau.get_mle(True, True, 0, 'BFGS')
+    MG94_tau.site_reconstruction()
+    MG94_tau_series = MG94_tau.reconstruction_series
+    
+    #MG94
+    MG94 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = {5:0.0}, clock = None, save_path = '../test/save/')
+    MG94.get_mle(True, True, 0, 'BFGS')
+    MG94.site_reconstruction()
+    MG94_series = MG94.reconstruction_series
+    result = MG94_tau.find_differences_between(MG94_tau_series, MG94_series)
+    print(result)
+    
+    #HKY+tau
+    HKY_tau = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = Force, clock = None, save_path = '../test/save/')
+    MG94_tau.get_mle(True, True, 0, 'BFGS')
+    HKY_tau.site_reconstruction()
+    HKY_tau_series = HKY_tau.reconstruction_series
+    
+    #MG94
+    HKY = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = {4:0.0}, clock = None, save_path = '../test/save/')
+    MG94.get_mle(True, True, 0, 'BFGS')
+    HKY.site_reconstruction()
+    HKY_series = HKY.reconstruction_series
+    result = HKY_tau.find_differences_between(HKY_tau_series, HKY_series)
+    print(result)
+    
+#test.get_sitewise_loglikelihood_summary('../test/YLR406C_YDL075W_sitewise_lnL.txt')
+
+##    for i in range(len(scene['process_definitions'][1]['row_states'])):
+##        print (scene['process_definitions'][1]['row_states'][i],\
+##              scene['process_definitions'][1]['column_states'][i],\
+##              scene['process_definitions'][1]['transition_rates'][i])
 ##    
-##    main(parser.parse_args())
-
-##    paralog1 = 'YNL069C'
-##    paralog2 = 'YIL133C'
-##    paralog1 = 'YBL087C'
-##    paralog2 = 'YER117W'
-##    paralog1 = 'YDR502C'
-##    paralog2 = 'YLR180W'
-    paralog1 = 'YLR406C'
-    paralog2 = 'YDL075W'
-##    #paralog1 = 'YML026C'
-##    #paralog2 = 'YDR450W'
-####    path = './NewPackageNewRun/'
-######    paralog1 = 'ECP'
-######    paralog2 = 'EDN'
-######
-####    Force    = {5:0.0}
-######
-    paralog = [paralog1, paralog2]
-    #alignment_file = './simulation/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '.fasta'
-    alignment_file = '../../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-    save_name = '../test_save.txt'
-    #alignment_file = './BootStrapSamples/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1.fasta'
-    #save_name = './BootStrapSave/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1_save.txt'
-##    alignment_file = './TestTau/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_switched.fasta'
-##    #alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-##    alignment_file = './NewPairsAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-##    #alignment_file = '../data/cleaned_input_data.fasta'
-##    #alignment_file = '../data/cleanedfasta.fasta'
-##    #newicktree = './YeastTree_remove_Cas.newick'
-    #newicktree = '../PairsAlignemt/YeastTree.newick'
-    newicktree = '../YeastTree.newick'
-##    #newicktree = '../data/input_tree.newick'
-
-##    x = np.array([-0.72980621, -0.56994663, -0.96216856,  1.73940961, -1.71054117,  0.54387332,
-##                  -1.33866266, -3.47424374, -1.68831105, -1.80543811, -3.62520339, -2.69364618,
-##                  -4.41935536, -2.61416486, -3.63272477, -2.78779654, -3.17653234, -3.95894103])
-##
-##    x_clock = np.array([-0.69711204, -0.49848498, -1.33603066,  1.861808,   -2.21507185,  5.23430255,
-##                        -5.82838102, -0.07656569, -1.56484193, -0.18590612, -0.16381505, -0.41778555,
-##                        -0.18178853])
-####
-##    out_group_blen = np.arange(0.0001, 0.01, 0.005)
-##    ll_list = []
-
-    test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = False, save_name = save_name)
-    test.get_mle(False, True, 0, 'BFGS')
-    print (test.tau)
-    print (test.gen_save_file_name())
-    print (test._loglikelihood2())
-    test.get_SitewisePosteriorSummary(summary_path = '../Summary/')
-#    test.get_individual_summary(summary_path = './BootStrapSummary/' + '_'.join(paralog) + '/', file_name = './BootStrapSummary/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_Boot1_summary.txt')
-
-
-
-##    paralog1 = 'YER131W'
-##    paralog2 = 'YGL189C'
-##    paralog = [paralog1, paralog2]
-##    alignment_file = '../MafftAlignment/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-##
-##    newicktree = '../PairsAlignemt/YeastTree.newick'
-##    test3 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = True)
-##    test3.get_mle(True, True, 0, 'BFGS')
-##    print test3.tau
-##
-##    test4 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = None, clock = True)
-##    test4.get_mle(True, False, 0, 'BFGS')
-##    print test4.tau
-
-##    for blen in out_group_blen:
-##        test = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'HKY', Force = {6:blen}, clock = False)
-##        #test.Force = Force = {6:blen}
-##        #test.update_by_x()
-##        test.get_mle(False, True, 1, 'BFGS')
-##        ll_list.append(test.ll)
-    
-##    np.savetxt(open('./testlikelihood.txt', 'w+'), np.matrix([ll_list, out_group_blen]), delimiter = ' ')
-##    test.get_mle(False, False, 1, 'basin-hopping')
-    
-##    test3.update_by_x(x)
-##    #test3.update_by_x_clock(x_clock)
-##    #print test3._loglikelihood2()
-##    #test3.get_mle(display = True, em_iterations = 0)
-####    test3.save_to_file(path = path)
-##    
-##    test4 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = True)
-##    test4.update_by_x_clock(x_clock)
-##    test4.get_mle(display = True)
-##    test4.save_to_file(path = path)
-    
-##    #test.get_ExpectedNumGeneconv()
-##    #print test.ExpectedGeneconv
-####    x = np.array([-0.64353555, -0.48264002, -0.93307917,  1.76977596, -2.44028574, 1.19617746,
-####                   -3.90910406, -2.01786889,  # N0
-####                   -2.92359461, -2.83555499,  # N1
-####                   -4.30005794, -3.29056063,  # N2
-####                   -4.59465356, -3.49891453,  # N3
-####                   -6.28014701, -3.10701318,  # N4
-####                   -3.87159909, -3.97438916]) # N5
-####                 
-####    test.update_by_x(x = x)
-####    test.get_mle(display = True)
-####    test.save_to_file(path = path)
-####
-####    # MG94 Force nonclock
-####    test2 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = Force, clock = False, nnsites = 157)
-####    test2.update_by_x(x = test.x)
-####    test2.get_mle(display = True)
-####    test2.save_to_file(path = path)
-####
-####    # MG94 clock
-####    test3 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = True, nnsites = 157)
-####    test3.update_by_x_clock(x_clock = test.x_clock)
-####    test3.get_mle(display = True)
-####    test3.save_to_file(path = path)
-####
-####    # MG94 nonclock
-####    test4 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = False, nnsites = 157)
-####    test4.update_by_x(x = test3.x)
-####    test4.get_mle(display = True)
-####    test4.save_to_file(path = path)
-##
-##    print test._loglikelihood()  # should be -1513.0033676643861
-##    test.get_mle(False)
-##    test.get_ExpectedHetDwellTime()
-##    test.get_ExpectedNumGeneconv()
-##
-##    for i in test.edge_list:
-##        if test.ExpectedDwellTime[i] != 0:
-##            print i, test.ExpectedGeneconv[i]/(test.ExpectedDwellTime[i] * test.edge_to_blen[i])
-##
-##
-####    paralog1 = 'YDR502C'
-####    paralog2 = 'YLR180W'
-####
-####
-####    Force    = {5:0.0}
-####
-####    paralog = [paralog1, paralog2]
-####    alignment_file = '../PairsAlignemt/' + '_'.join(paralog) + '/' + '_'.join(paralog) + '_input.fasta'
-####
-####    newicktree = '../PairsAlignemt/YeastTree.newick'
-####    test2 = ReCodonGeneconv( newicktree, alignment_file, paralog, Model = 'MG94', Force = None, clock = False)#, nnsites = 5)
-####
-####
-####    x = np.array([-0.76374179, -0.56512517, -0.8661595 ,  1.33286957, -3.12679708, -0.55435137,
-####                  -1.59080985, -1.35214307,   # N0
-####                  -1.48481827, -0.5117971 ,   # N1
-####                  -2.4550277 , -2.02888192,   # N2
-####                  -2.47147681, -1.7627708 ,   # N3
-####                  -2.62667816, -1.64821228,   # N4
-####                  -2.38731535, -2.41097359])  # N5
-####                  
-####    test2.update_by_x(x = x)
-####
-####    print test2._loglikelihood()
-####        
-##        
-##        
